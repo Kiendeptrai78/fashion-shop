@@ -14,7 +14,7 @@ class TBillingPaymentSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = THelperFunctions.isDarkMode(context);
-    final controller = Get.put(CheckoutController()) ;
+    final controller = CheckoutController.instance ;
 
     return  Column(
       children: [

@@ -75,7 +75,7 @@ class SubCategoriesScreen extends StatelessWidget {
                                 onPressed: () => Get.to(
                                         () => AllProductScreen(
                                       title: subCategory.name,
-                                      futureMethod: controller.getCategoryProducts(categoryId: subCategory.id, limit: -1),))
+                                      categoryId: subCategory.id,))
                             ),
                             const SizedBox(height: TSizes.spaceBtwItems / 2,),
 

@@ -2,62 +2,83 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
-import 'package:fashion_business_app/common/widgets/icon/circular_icon.dart';
 import 'package:fashion_business_app/common/widgets/layouts/grid_layout.dart';
-import 'package:fashion_business_app/common/widgets/loaders/animation_loader.dart';
 import 'package:fashion_business_app/common/widgets/product/product_carts/product_cart_vertical.dart';
 import 'package:fashion_business_app/common/widgets/shimmer/vertical_product_shimmer.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/favourite_controller.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
-import 'package:fashion_business_app/features/shop/screens/all_product/all_product.dart';
-import 'package:fashion_business_app/features/shop/screens/home/home_screen.dart';
-import 'package:fashion_business_app/navigation_menu.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
-import 'package:fashion_business_app/utils/constants/image_strings.dart';
-import 'package:fashion_business_app/utils/constants/sizes.dart';
-import 'package:fashion_business_app/utils/helpers/cloud_helper_function.dart';
-import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
+import 'package:fashion_business_app/features/shop/screens/widgets/shopping_empty_state.dart';
 
-class WishList extends StatelessWidget {
+class WishList extends StatefulWidget {
   const WishList({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final controller = FavouritesController.instance;
-    final dark = THelperFunctions.isDarkMode(context);
-    return  Scaffold(
-      backgroundColor: dark ? TColors.black : TColors.white,
-      appBar: TAppbar(
-        showBackArrow: false,
-        title:  Text('Wishlist',style: TextStyle(fontSize: 20, color: dark ? TColors.white :  TColors.dark),),
-        actions: [
-          TCircularIcon(icon: Iconsax.add,onPressed: () => Get.to(const HomeScreen()))
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(TSizes.defaultSpace),
-          child: Obx(
-              () => FutureBuilder(future: controller.favouriteProducts(), builder: (context, snapshot){
+  State<WishList> createState() => _WishListState();
+}
 
-                final emptyWidget = TAnimationLoaderWidget(
-                  text: 'WishList is Empty...',
-                  showAction: true,
-                  actionText: 'Let\'s add some',
-                  animation: TImages.wishlist,
-                  onActionPressed: () => Get.off(() => const NavigationMenu()),
-                );
+class _WishListState extends State<WishList> {
+  final _controller = FavouritesController.instance;
+  late Future<List<ProductModel>> _products;
+  late Worker _changes;
 
-                const loader = TVerticalProductShimmer(itemCount: 6,);
-                final widget = TCloudHelperFunctions.checkMultiRecordState(snapshot: snapshot, loader: loader, nothingFound: emptyWidget);
-                if(widget != null) return widget;
-
-                final products = snapshot.data!;
-                return TGridLayout(itemCount: products.length, itemBuilder: (_,index) =>  TProductCartVertical(product: products[index]));
-              })
-          )
-        ),
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _products = _controller.favouriteProducts();
+    _changes = ever(_controller.favourites, (_) => _reload());
   }
+
+  Future<void> _reload() async {
+    final future = _controller.favouriteProducts();
+    setState(() => _products = future);
+    try { await future; } catch (_) { /* Displayed by FutureBuilder. */ }
+  }
+
+  @override
+  void dispose() {
+    _changes.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: TAppbar(title: const Text('Saved pairs', style: TextStyle(fontSize: 22,
+        fontWeight: FontWeight.w600, letterSpacing: -0.6)), actions: [
+      IconButton(tooltip: 'Explore sneakers', onPressed: exploreSneakers,
+          icon: const Icon(Iconsax.search_normal, size: 22)),
+    ]),
+    body: FutureBuilder<List<ProductModel>>(future: _products, builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const SingleChildScrollView(padding: EdgeInsets.all(24),
+            child: TVerticalProductShimmer(itemCount: 4));
+      }
+      if (snapshot.hasError) {
+        return Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(
+          mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Iconsax.wifi_square, size: 36), const SizedBox(height: 20),
+            const Text('Couldn’t load your saved pairs.', textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            OutlinedButton(onPressed: _reload, child: const Text('Try again')),
+          ])));
+      }
+      final products = snapshot.data ?? [];
+      if (products.isEmpty) return const ShoppingEmptyState(wishlist: true);
+      return RefreshIndicator(onRefresh: _reload, child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('YOUR PERSONAL EDIT', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 2)),
+          const SizedBox(height: 10),
+          const Text('Worth coming back for.', style: TextStyle(fontSize: 25,
+              fontWeight: FontWeight.w600, letterSpacing: -0.8)),
+          const SizedBox(height: 8),
+          Text('${products.length} saved ${products.length == 1 ? 'pair' : 'pairs'} · Tap a pair to choose your size',
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 28),
+          TGridLayout(itemCount: products.length,
+              itemBuilder: (_, index) => TProductCartVertical(product: products[index])),
+        ]),
+      ));
+    }),
+  );
 }

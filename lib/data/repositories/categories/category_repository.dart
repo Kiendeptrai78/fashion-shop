@@ -2,7 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:fashion_business_app/features/shop/firebase/firebase_storage_service.dart';
+import 'package:fashion_business_app/data/services/image_storage_service.dart';
 import 'package:fashion_business_app/features/shop/models/category_model.dart';
 import 'package:fashion_business_app/utils/exceptions/firebase_exception.dart';
 import 'package:fashion_business_app/utils/exceptions/format_exception.dart';
@@ -104,7 +104,7 @@ class CategoryRepository extends GetxController {
   Future<void> uploadDummyData(List<CategoryModel> categories) async{
     try{
       //upload all the Category along with their images
-      final storage = Get.put(TFirebaseStorageService());
+      final storage = Get.put(ImageStorageService());
 
       //loop through each category
       for(var category in categories) {

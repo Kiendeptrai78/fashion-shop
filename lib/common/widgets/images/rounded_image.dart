@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
+import 'image_placeholder.dart';
 
 class TRoundedImage extends StatelessWidget {
   const TRoundedImage({
@@ -46,11 +47,20 @@ class TRoundedImage extends StatelessWidget {
             borderRadius: applyImageRadius
                 ? BorderRadius.circular(borderRadius)
                 : BorderRadius.zero,
-            child: Image(
+            child: imageUrl.trim().isEmpty ? const TImagePlaceholder() : Image(
               image: isNetworkImage
                   ? NetworkImage(imageUrl)
                   : AssetImage(imageUrl) as ImageProvider,
               fit: fit,
+              width: width,
+              height: height,
+              errorBuilder: (_, __, ___) => const TImagePlaceholder(),
+              loadingBuilder: (context, child, progress) => progress == null
+                  ? child
+                  : const Center(child: SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )),
             )),
       ),
     );

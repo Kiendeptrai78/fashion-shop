@@ -30,11 +30,11 @@ class TSearchContainer extends StatelessWidget {
         padding: const EdgeInsets.all(TSizes.md),
         decoration: BoxDecoration(
             color: showBackground
-                ? (dark ? TColors.dark : TColors.white)
+                ? (dark ? TColors.dark : TColors.light)
                 : Colors.transparent,
             borderRadius:
             showBorder ? BorderRadius.circular(TSizes.cardRadiusLg) : null,
-            border: Border.all(color: Colors.grey)),
+            border: showBorder ? Border.all(color: dark ? TColors.darkerGrey : TColors.borderSecondary) : null),
         child: Row(
           children: [
             Icon(
@@ -44,10 +44,11 @@ class TSearchContainer extends StatelessWidget {
             const SizedBox(
               width: TSizes.spaceBtwItems,
             ),
-            Text(
+            Expanded(child: Text(
               text,
+              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall,
-            )
+            ))
           ],
         ),
       ),

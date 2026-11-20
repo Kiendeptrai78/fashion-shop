@@ -49,7 +49,7 @@ class TCategoryTab extends StatelessWidget {
                       title: 'Your might like',
                       onPressed: () => Get.to(AllProductScreen(
                         title: category.name,
-                        futureMethod: controller.getCategoryProducts(categoryId: category.id, limit: -1),)),
+                        categoryId: category.id,)),
                     ),
                     const SizedBox(height: TSizes.spaceBtwItems,),
                     TGridLayout(

@@ -1,6 +1,5 @@
-import 'dart:io';
 
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:fashion_business_app/data/services/image_storage_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -26,7 +25,6 @@ class BrandController extends GetxController{
   final productsCount = TextEditingController();
 
   final ImagePicker picker = ImagePicker();
-  final FirebaseStorage storage = FirebaseStorage.instance;
   final RxString selectedCategoryId = ''.obs;
 
   TextEditingController searchController = TextEditingController(); // Added
@@ -92,23 +90,7 @@ class BrandController extends GetxController{
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
-        // Tạo File từ đường dẫn đã chọn
-        final file = File(pickedFile.path);
-
-        // Lấy phần mở rộng của tệp
-        final fileExtension = pickedFile.path.split('.').last;
-
-        // Tạo tham chiếu đến Firebase Storage
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('Brands/Images/${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-        // Tải tệp lên Firebase Storage
-        final uploadTask = ref.putFile(file);
-        final snapshot = await uploadTask.whenComplete(() => {});
-
-        // Lấy URL tải xuống của tệp đã tải lên
-        final downloadUrl = await snapshot.ref.getDownloadURL();
+        final downloadUrl = await ImageStorageService().uploadImageFile('Brands/Images', pickedFile);
 
         // Cập nhật URL hình ảnh và TextEditingController
         imageUrl.value = downloadUrl;
@@ -119,7 +101,7 @@ class BrandController extends GetxController{
       }
     } catch (e) {
       print('Error uploading image: $e');
-      Get.snackbar('Error', 'Failed to upload image. Please try again.');
+      Get.snackbar('Upload failed', e.toString());
     }
   }
 

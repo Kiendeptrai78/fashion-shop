@@ -1,6 +1,5 @@
-import 'dart:io';
 
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:fashion_business_app/data/services/image_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -27,7 +26,6 @@ class BannerController extends GetxController{
   TextEditingController searchController = TextEditingController(); //
 
   final ImagePicker picker = ImagePicker();
-  final FirebaseStorage storage = FirebaseStorage.instance;
 
   final targetScreenOptions = ['/search', '/home', '/store', '/favourites','/settings','/order','/all-products','/cart'].obs;
 
@@ -107,15 +105,12 @@ class BannerController extends GetxController{
 
   ///load picker
   Future<void> pickAndUploadImage() async {
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      final file = File(pickedFile.path);
-      final ref = storage.ref().child('Banners/Images/${DateTime.now().millisecondsSinceEpoch}.jpg');
-      final uploadTask = ref.putFile(file);
-      final snapshot = await uploadTask.whenComplete(() => {});
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      image.text = downloadUrl;
+    try {
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile == null) return;
+      image.text = await ImageStorageService().uploadImageFile('Banners/Images', pickedFile);
+    } catch (e) {
+      Get.snackbar('Upload failed', e.toString());
     }
   }
 

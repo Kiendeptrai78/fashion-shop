@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
+import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 
 class ImageController extends GetxController{
   static ImageController get instance => Get.find();
@@ -11,7 +11,7 @@ class ImageController extends GetxController{
  RxString selectedProductImage = ''.obs;
 
  ///get all image from product and variations
- List<String> getAllProductImages(ProductModel product){
+ List<String> getAllProductImages(ProductModel product, {bool resetSelection = true}){
 
    //use set to add unique images only
    Set<String> images ={};
@@ -21,7 +21,7 @@ class ImageController extends GetxController{
    images.add(product.thumbnail);
 
    //assign thumbnail as selected image
-   selectedProductImage.value = product.thumbnail;
+   if (resetSelection) selectedProductImage.value = product.thumbnail;
 
    //get all images from the product model if not null
    if(product.images != null){
@@ -29,7 +29,7 @@ class ImageController extends GetxController{
    }
 
    //get all images from the product variables if not null
-   if(product.productVariations != null || product.productVariations!.isNotEmpty){
+   if(product.productVariations != null && product.productVariations!.isNotEmpty){
      images.addAll(product.productVariations!.map((variation) => variation.image));
    }
 
@@ -47,7 +47,10 @@ class ImageController extends GetxController{
            children: [
              Padding(
                  padding: const EdgeInsets.symmetric(vertical: TSizes.defaultSpace * 2,horizontal: TSizes.defaultSpace),
-                 child: CachedNetworkImage(imageUrl: image,),
+                 child: SizedBox(
+                   height: Get.height * 0.6,
+                   child: TRoundedImage(imageUrl: image, isNetworkImage: true),
+                 ),
              ),
              const SizedBox(height: TSizes.spaceBtwSections,),
              Align(

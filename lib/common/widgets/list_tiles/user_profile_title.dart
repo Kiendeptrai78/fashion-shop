@@ -18,28 +18,18 @@ class TUserProfileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = UserController.instance;
-    return ListTile(
-      leading: Obx(
-        () {
-          final networkImage = controller.user.value.profilePicture;
-          final image = networkImage.isNotEmpty ? networkImage : TImages.user;
-          return controller.imageUploading.value
-              ? const TShimmerEffect(
-                  width: 50,
-                  height: 50,
-                  radius: 50,
-                )
-              : TCircularImage(
-                  image: image,
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover,
-                  isNetworkImage: networkImage.isNotEmpty,
-                );
-        },
-      ),
+    return Obx(() => ListTile(
+      leading: controller.imageUploading.value
+          ? const TShimmerEffect(width: 50, height: 50, radius: 50)
+          : TCircularImage(
+              image: controller.user.value.profilePicture.isNotEmpty
+                  ? controller.user.value.profilePicture : TImages.user,
+              width: 50, height: 50, fit: BoxFit.cover,
+              isNetworkImage: controller.user.value.profilePicture.isNotEmpty,
+            ),
       title: Text(
-        controller.user.value.fullName,
+        controller.user.value.fullName.trim().isEmpty
+            ? 'Your account' : controller.user.value.fullName,
         style: const TextStyle(fontSize: 16, color: TColors.white),
       ),
       subtitle: Text(
@@ -53,6 +43,6 @@ class TUserProfileTile extends StatelessWidget {
           color: TColors.white,
         ),
       ),
-    );
+    ));
   }
 }

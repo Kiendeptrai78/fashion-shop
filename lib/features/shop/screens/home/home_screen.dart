@@ -1,91 +1,360 @@
+import 'package:fashion_business_app/features/shop/models/banner_model.dart';
+import 'package:fashion_business_app/data/repositories/banners/banner_repository.dart';
+import 'package:fashion_business_app/features/shop/screens/home/widgets/campaign_carousel.dart';
+import 'package:fashion_business_app/features/shop/screens/all_product/all_product.dart';
+import 'package:fashion_business_app/routes/app_route.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:fashion_business_app/common/widgets/custom_shapes/containers/primary_header_container.dart';
-import 'package:fashion_business_app/common/widgets/custom_shapes/containers/search_container.dart';
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/layouts/grid_layout.dart';
+import 'package:fashion_business_app/common/widgets/product/cart/cart_menu_icon.dart';
 import 'package:fashion_business_app/common/widgets/product/product_carts/product_cart_vertical.dart';
 import 'package:fashion_business_app/common/widgets/shimmer/vertical_product_shimmer.dart';
-import 'package:fashion_business_app/common/widgets/text/section_heading.dart';
-import 'package:fashion_business_app/common/widgets/text/section_heading2.dart';
-import 'package:fashion_business_app/features/shop/controllers/product/product_controller.dart';
-import 'package:fashion_business_app/features/shop/screens/all_product/all_product.dart';
-import 'package:fashion_business_app/features/shop/screens/home/widgets/home_appbar.dart';
-import 'package:fashion_business_app/features/shop/screens/home/widgets/home_category.dart';
-import 'package:fashion_business_app/features/shop/screens/home/widgets/home_slider.dart';
-import 'package:fashion_business_app/utils/constants/sizes.dart';
+import 'package:fashion_business_app/data/repositories/products/product_reposotory.dart';
+import 'package:fashion_business_app/features/shop/controllers/product/catalog_controller.dart';
+import 'package:fashion_business_app/features/shop/models/catalog_query.dart';
+import 'package:get/get.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key, this.catalog, this.showBackArrow = false,
+      this.title = 'Sneakers', this.initialFilter = const CatalogFilter(), this.campaigns});
+
+  final CatalogController? catalog;
+  final bool showBackArrow;
+  final String title;
+  final CatalogFilter initialFilter;
+  final Future<List<BannerModel>>? campaigns;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late final CatalogController _catalog;
+  final _scroll = ScrollController();
+  final _search = TextEditingController();
+  Timer? _debounce;
+  late Future<List<BannerModel>> _campaigns;
+
+  @override
+  void initState() {
+    super.initState();
+    _catalog = widget.catalog ?? CatalogController(
+      loadPage: ProductRepository.instance.fetchCatalogPage,
+      loadFacets: ProductRepository.instance.fetchCatalogFacets,
+    );
+    _catalog.filter = widget.initialFilter;
+    _search.text = widget.initialFilter.search;
+    _campaigns = widget.showBackArrow ? Future.value([])
+        : widget.campaigns ?? BannerRepository().fetchBanners();
+    _catalog.initialize();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _scroll.dispose();
+    _search.dispose();
+    if (widget.catalog == null) _catalog.onClose();
+    super.dispose();
+  }
+
+  Future<void> _refreshHome() async {
+    setState(() => _campaigns = widget.showBackArrow ? Future.value([])
+        : widget.campaigns ?? BannerRepository().fetchBanners());
+    await _catalog.initialize();
+  }
+
+  void _openCampaign(BannerModel banner) {
+    if (banner.categoryId != null || banner.brandId != null ||
+        !AppRoutes.pages.any((route) => route.name == banner.targetScreen)) {
+      Get.to(() => AllProductScreen(title: banner.title.isEmpty ? 'Explore sneakers' : banner.title,
+          categoryId: banner.categoryId, brandId: banner.brandId));
+    } else {
+      Get.toNamed(banner.targetScreen);
+    }
+  }
+
+  Future<void> _changePage(bool forward) async {
+    if (forward) {
+      await _catalog.nextPage();
+    } else {
+      await _catalog.previousPage();
+    }
+    if (mounted && _catalog.error.value == null && _scroll.hasClients) {
+      await _scroll.animateTo(0, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
+  }
+
+  Future<void> _showFilters() async {
+    var brand = _catalog.filter.brandId;
+    var category = _catalog.filter.categoryId;
+    final facets = _catalog.facets.value;
+    final result = await showModalBottomSheet<CatalogFilter>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(builder: (context, update) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(children: [
+                  Expanded(child: Text('Find your pair', style: Theme.of(context).textTheme.headlineSmall)),
+                  IconButton(tooltip: 'Close filters', onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close)),
+                ]),
+                const SizedBox(height: 24),
+                Text('Brand', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  ChoiceChip(label: const Text('All brands'), selected: brand == null,
+                      onSelected: (_) => update(() => brand = null)),
+                  for (final item in facets.brands)
+                    ChoiceChip(label: Text(item.name), selected: brand == item.id,
+                        onSelected: (selected) => update(() => brand = selected ? item.id : null)),
+                ]),
+                const SizedBox(height: 24),
+                Text('Activity', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 12),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  ChoiceChip(label: const Text('All sneakers'), selected: category == null,
+                      onSelected: (_) => update(() => category = null)),
+                  for (final item in facets.categories)
+                    ChoiceChip(label: Text(item.name), selected: category == item.id,
+                        onSelected: (selected) => update(() => category = selected ? item.id : null)),
+                ]),
+                const SizedBox(height: 28),
+                Row(children: [
+                  TextButton(onPressed: () => update(() { brand = null; category = null; }),
+                      child: const Text('Clear all')),
+                  const SizedBox(width: 16),
+                  Expanded(child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, CatalogFilter(
+                        search: _search.text, brandId: brand, categoryId: category)),
+                    child: const Text('Show results'),
+                  )),
+                ]),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+    if (result != null && mounted) {
+      _debounce?.cancel();
+      await _catalog.setFilter(result);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(ProductController());
+    final theme = Theme.of(context);
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            ///header
-             const Column(
-               children: [
-                 ///appbar
-                 THomeAppbar(),
-                 SizedBox(
-                   height: TSizes.spaceBtwSections,
-                 ),
-
-                 ///searchbar
-                 TSearchContainer(
-                   text: 'Search in store',
-                 ),
-                 SizedBox(
-                   height: TSizes.spaceBtwItems,
-                 ),
-
-               ],
-             ),
-
-            ///body
-            Padding(
-              padding: const EdgeInsets.all(TSizes.defaultSpace),
-              child: Column(
-                children: [
-
-                  ///heading product
-                  TSectionHeading(
-                    title: 'Popular Products',
-                    onPressed: () => Get.to(() => AllProductScreen(
-                          title: 'Popular Products',
-
-                          futureMethod: controller.fetchAllFeaturedProducts(),
-                        )),
+      appBar: TAppbar(
+        showBackArrow: widget.showBackArrow,
+        title: Text(widget.title, style: theme.textTheme.titleLarge?.copyWith(fontSize: 22,
+            fontWeight: FontWeight.w700, letterSpacing: -0.6)),
+        actions: const [TCartCounterIcon()],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _refreshHome,
+        child: SingleChildScrollView(
+          controller: _scroll,
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _search,
+                  onChanged: (value) {
+                    _debounce?.cancel();
+                    _debounce = Timer(const Duration(milliseconds: 350), () {
+                      _catalog.setFilter(CatalogFilter(search: value,
+                          brandId: _catalog.filter.brandId, categoryId: _catalog.filter.categoryId));
+                    });
+                  },
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                  decoration: InputDecoration(
+                    hintText: 'Search model or brand',
+                    prefixIcon: const Icon(Icons.search_rounded, size: 22),
+                    filled: true,
+                    fillColor: theme.scaffoldBackgroundColor,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  const SizedBox(
-                    height: TSizes.spaceBtwItems,
-                  ),
-
-                  ///product
-                  Obx(() {
-                    if (controller.isLoading.value) return const TVerticalProductShimmer();
-
-                    if (controller.featuredProducts.isEmpty) {
-                      return Center(
-                        child: Text(
-                          'No Data Found!',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
+                Obx(() {
+                  final facets = _catalog.facets.value;
+                  final filter = _catalog.filter;
+                  final loading = _catalog.isLoading.value;
+                  final page = _catalog.pageNumber.value;
+                  final count = _catalog.totalCount.value;
+                  final products = _catalog.products.toList();
+                  final error = _catalog.error.value;
+                  final active = [filter.brandId, filter.categoryId].whereType<String>().length;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!widget.showBackArrow && page == 1 && filter.search.trim().isEmpty &&
+                          filter.brandId == null && filter.categoryId == null) ...[
+                        FutureBuilder<List<BannerModel>>(
+                          future: _campaigns,
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData || snapshot.data!.isEmpty) return const SizedBox.shrink();
+                            return Padding(padding: const EdgeInsets.only(bottom: 24),
+                                child: CampaignCarousel(campaigns: snapshot.data!, onOpen: _openCampaign));
+                          },
                         ),
-                      );
-                    }
-                    return TGridLayout(
-                      itemCount: controller.featuredProducts.length,
-                      itemBuilder: (_, index) => TProductCartVertical(
-                        product: controller.featuredProducts[index],
-                      ),
-                    );
-                  })
-                ],
-              ),
-            )
-          ],
+                        if (facets.brands.isNotEmpty) ...[
+                          Row(children: [
+                            Expanded(child: Text('Shop by brand', style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600))),
+                            TextButton(onPressed: _showFilters, child: const Text('View all')),
+                          ]),
+                          const SizedBox(height: 8),
+                          SizedBox(height: 56, child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: facets.brands.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 10),
+                            itemBuilder: (_, index) {
+                              final brand = facets.brands[index];
+                              return OutlinedButton(
+                                onPressed: () => Get.to(() => AllProductScreen(title: brand.name, brandId: brand.id)),
+                                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 18),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                                child: Text(brand.name.toUpperCase(), style: const TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                              );
+                            },
+                          )),
+                          const SizedBox(height: 28),
+                        ],
+                        Text('Find your rotation', style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w600, letterSpacing: -0.5)),
+                        const SizedBox(height: 4),
+                        Text('Everyday icons. Running favorites. Court classics.', style: theme.textTheme.bodySmall),
+                        const SizedBox(height: 16),
+                      ],
+                      if (facets.categories.isNotEmpty)
+                        SizedBox(
+                          height: 42,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              for (final category in [null, ...facets.categories])
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 20),
+                                  child: InkWell(
+                                    onTap: () {
+                                      _debounce?.cancel();
+                                      _catalog.setFilter(CatalogFilter(search: _search.text,
+                                          brandId: filter.brandId, categoryId: category?.id));
+                                    },
+                                    child: Container(
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(border: Border(bottom: BorderSide(
+                                        width: 2,
+                                        color: filter.categoryId == category?.id
+                                            ? theme.colorScheme.onSurface : Colors.transparent,
+                                      ))),
+                                      child: Text(category?.name ?? 'All', style: theme.textTheme.bodyMedium?.copyWith(
+                                          fontWeight: filter.categoryId == category?.id
+                                              ? FontWeight.w700 : FontWeight.w400)),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                      Row(children: [
+                        Expanded(child: Text('$count products · Page $page', style: theme.textTheme.bodySmall)),
+                        OutlinedButton.icon(
+                          onPressed: facets.brands.isEmpty ? null : _showFilters,
+                          icon: const Icon(Icons.tune_rounded, size: 18),
+                          label: Text(active == 0 ? 'Filters' : 'Filters ($active)'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            minimumSize: const Size(0, 40),
+                          ),
+                        ),
+                      ]),
+                      if (filter.brandId != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: InputChip(
+                            label: Text(facets.brands.where((b) => b.id == filter.brandId)
+                                .map((b) => b.name).firstOrNull ?? 'Selected brand'),
+                            onDeleted: () => _catalog.setFilter(CatalogFilter(
+                                search: _search.text, categoryId: filter.categoryId)),
+                          ),
+                        ),
+                      const SizedBox(height: 20),
+                      if (loading)
+                        const TVerticalProductShimmer(itemCount: 10)
+                      else if (error != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32),
+                          child: Column(children: [
+                            const Icon(Icons.wifi_off_rounded, size: 32),
+                            const SizedBox(height: 12),
+                            Text(error, textAlign: TextAlign.center),
+                            const SizedBox(height: 12),
+                            OutlinedButton(onPressed: _catalog.retry, child: const Text('Try again')),
+                          ]),
+                        )
+                      else if (products.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 48),
+                          child: Center(child: Column(children: [
+                            const Icon(Icons.search_off_rounded, size: 36),
+                            const SizedBox(height: 12),
+                            Text('No matching sneakers', style: theme.textTheme.titleMedium),
+                            const SizedBox(height: 8),
+                            const Text('Try another model, brand or activity.'),
+                          ])),
+                        )
+                      else
+                        LayoutBuilder(builder: (context, constraints) {
+                          final width = (constraints.maxWidth - 16) / 2;
+                          return TGridLayout(itemCount: products.length,
+                            mainAxisExtent: width + 126 * MediaQuery.textScalerOf(context).scale(1),
+                            itemBuilder: (_, index) => TProductCartVertical(product: products[index]),
+                          );
+                        }),
+                      const SizedBox(height: 28),
+                      Row(children: [
+                        OutlinedButton.icon(
+                          onPressed: loading || page <= 1 ? null : () => _changePage(false),
+                          icon: const Icon(Icons.arrow_back_rounded, size: 17),
+                          label: const Text('Previous'),
+                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
+                        ),
+                        Expanded(child: Text('Page $page', textAlign: TextAlign.center,
+                            style: theme.textTheme.labelLarge)),
+                        OutlinedButton.icon(
+                          onPressed: loading || !_catalog.hasNext.value ? null : () => _changePage(true),
+                          icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+                          label: const Text('Next'),
+                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
+                        ),
+                      ]),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ),
         ),
       ),
     );

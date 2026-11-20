@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
@@ -20,7 +21,9 @@ class SettingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -120,6 +123,7 @@ class SettingScreen extends StatelessWidget {
             )
           ],
         ),
+      ),
       ),
     );
   }

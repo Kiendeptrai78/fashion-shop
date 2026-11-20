@@ -1,97 +1,72 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fashion_business_app/features/shop/controllers/product/variation_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:iconsax/iconsax.dart';
-import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
-import 'package:fashion_business_app/common/widgets/custom_shapes/curved_edges/curved_edges_widget.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
-import 'package:fashion_business_app/common/widgets/product/favourite_icon/favourite_icon.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/images_controller.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
-import 'package:fashion_business_app/utils/constants/image_strings.dart';
-import 'package:fashion_business_app/utils/constants/sizes.dart';
-import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
-
-import '../../../../../common/widgets/icon/circular_icon.dart';
 
 class TProductImageSlider extends StatelessWidget {
-  const TProductImageSlider({
-    super.key,
-    required this.product,
-  });
+  const TProductImageSlider({super.key, required this.product});
 
   final ProductModel product;
 
   @override
   Widget build(BuildContext context) {
-    final dark = THelperFunctions.isDarkMode(context);
-
     final controller = Get.put(ImageController());
-    final images = controller.getAllProductImages(product);
-
-    return TCurvedEdgeWidget(
-      child: Container(
-        color: dark ? TColors.darkerGrey : TColors.light,
-        child: Stack(
-          ///main large image
+    final images = controller.getAllProductImages(product, resetSelection: false);
+    final theme = Theme.of(context);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: theme.brightness == Brightness.light
+          ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
+      child: ColoredBox(
+        color: theme.scaffoldBackgroundColor,
+        child: Column(
           children: [
-            SizedBox(
-              height: 400,
-              child: Padding(
-                padding: const EdgeInsets.all(TSizes.productImageRadius),
-                child: Center(child: Obx(() {
-                  final image = controller.selectedProductImage.value;
-                  return GestureDetector(
-                    onTap: () => controller.showEnlargedImage(image),
-                    child: CachedNetworkImage(
-                        imageUrl: image,
-                        progressIndicatorBuilder: (_, __, downloadProgress) =>
-                            CircularProgressIndicator(
-                              value: downloadProgress.progress,
-                              color: TColors.primaryColor,
-                            )),
-                  );
-                })),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+              child: AspectRatio(
+                aspectRatio: 1.3,
+                child: Obx(() => TRoundedImage(
+                  imageUrl: controller.selectedProductImage.value,
+                  width: double.infinity,
+                  height: double.infinity,
+                  isNetworkImage: true,
+                  onPressed: () => controller.showEnlargedImage(
+                      controller.selectedProductImage.value),
+                )),
               ),
             ),
-
-            ///image slider
-            Positioned(
-              right: 0,
-              bottom: 30,
-              left: TSizes.defaultSpace,
-              child: SizedBox(
-                height: 80,
+            if (images.length > 1)
+              SizedBox(
+                height: 76,
                 child: ListView.separated(
-                  itemCount: images.length,
-                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   scrollDirection: Axis.horizontal,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  separatorBuilder: (_, __) => const SizedBox(
-                    width: TSizes.spaceBtwItems,
-                  ),
-                  itemBuilder: (_, index) => Obx(() {
-                    final imageSelected = controller.selectedProductImage.value == images[index];
-                    return TRoundedImage(
-                      onPressed: () => controller.selectedProductImage.value = images[index],
-                      width: 80,
-                      isNetworkImage: true,
-                      border: Border.all(color: imageSelected ? TColors.primaryColor : Colors.transparent),
-                      backgroundColor: dark ? TColors.dark : TColors.white,
-                      padding: const EdgeInsets.all(TSizes.sm),
-                      imageUrl: images[index],
-                    );
-                  }),
+                  itemCount: images.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, index) => Obx(() => TRoundedImage(
+                    imageUrl: images[index],
+                    width: 68,
+                    height: 68,
+                    isNetworkImage: true,
+                    padding: const EdgeInsets.all(4),
+                    backgroundColor: Colors.transparent,
+                    borderRadius: 12,
+                    border: Border.all(
+                      color: controller.selectedProductImage.value == images[index]
+                          ? theme.colorScheme.primary : Colors.transparent,
+                    ),
+                    onPressed: () {
+                      final variant = product.productVariations?.where((v) => v.image == images[index]).firstOrNull;
+                      final color = variant?.attributeValues['Color'];
+                      if (color != null) VariationController.instance.onAttributeSelected(product, 'Color', color);
+                      controller.selectedProductImage.value = images[index];
+                    },
+                  )),
                 ),
               ),
-            ),
-
-            ///appbar icon
-             TAppbar(
-              showBackArrow: true,
-              actions: [TFavouriteIcon(productId: product.id,)],
-            )
+            const SizedBox(height: 16),
           ],
         ),
       ),

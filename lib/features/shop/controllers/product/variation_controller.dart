@@ -7,83 +7,61 @@ import 'package:fashion_business_app/features/shop/models/product_variation_mode
 class VariationController extends GetxController {
   static VariationController get instance => Get.find();
 
-  ///variables
-  RxMap selectedAttributes = {}.obs;
-  RxString variationStockStatus = ''.obs;
-  Rx<ProductVariationModel> selectedVariation =
-      ProductVariationModel.empty().obs;
+  final selectedAttributes = <String, String>{}.obs;
+  final variationStockStatus = ''.obs;
+  final selectedVariation = ProductVariationModel.empty().obs;
 
-  ///select attribute , and variation
-  void onAttributeSelected(
-      ProductModel product, attributeName, attributeValue) {
-    final selectedAttributes =
-        Map<String, dynamic>.from(this.selectedAttributes);
+  void onAttributeSelected(ProductModel product, String attributeName, String attributeValue) {
     selectedAttributes[attributeName] = attributeValue;
-    this.selectedAttributes[attributeName] = attributeValue;
-
-    final selectedVariation = product.productVariations!.firstWhere(
-        (variation) => _isSameAttributeValues(
-            variation.attributeValues, selectedAttributes),
-        orElse: () => ProductVariationModel.empty());
-
-    //show the selected variation image as a main image
-    if (selectedVariation.image.isNotEmpty) {
-      ImageController.instance.selectedProductImage.value =
-          selectedVariation.image;
+    final variants = product.productVariations ?? [];
+    if (attributeName == 'Color') {
+      final colorVariants = variants.where((v) => v.attributeValues['Color'] == attributeValue);
+      if (selectedAttributes['Size'] != null && !colorVariants.any((v) =>
+          v.attributeValues['Size'] == selectedAttributes['Size'] && v.stock > 0)) {
+        selectedAttributes.remove('Size');
+      }
+      final preview = colorVariants.firstOrNull;
+      if (preview != null && preview.image.isNotEmpty && Get.isRegistered<ImageController>()) {
+        ImageController.instance.selectedProductImage.value = preview.image;
+      }
     }
-
-    //
-    if(selectedVariation.id.isNotEmpty){
-      final cartController = CartController.instance;
-      cartController.productQuantityInCart.value = cartController.getVariationQuantityInCart(product.id, selectedVariation.id);
+    final selected = variants.firstWhere((v) =>
+        v.attributeValues.length == selectedAttributes.length &&
+        v.attributeValues.entries.every((e) => selectedAttributes[e.key] == e.value),
+        orElse: ProductVariationModel.empty);
+    selectedVariation.value = selected;
+    variationStockStatus.value = selected.stock > 0 ? 'In stock' : 'Out of stock';
+    if (selected.image.isNotEmpty && Get.isRegistered<ImageController>()) {
+      ImageController.instance.selectedProductImage.value = selected.image;
     }
-
-    //assign selected variation
-    this.selectedVariation.value = selectedVariation;
-
-    //update selected product variation status
-    getProductVariationStockStatus();
+    if (Get.isRegistered<CartController>()) {
+      final cart = CartController.instance;
+      final existing = cart.getVariationQuantityInCart(product.id, selected.id);
+      cart.productQuantityInCart.value = selected.stock > 0
+          ? existing.clamp(1, selected.stock).toInt() : 1;
+    }
   }
 
-  ///check if selected attribute match any variation attribute
-  bool _isSameAttributeValues(Map<String, dynamic> variationAttributes,
-      Map<String, dynamic> selectedAttributes) {
-    if (variationAttributes.length != selectedAttributes.length) return false;
-
-    for (final key in variationAttributes.keys) {
-      if (variationAttributes[key] != selectedAttributes[key]) return false;
-    }
-
-    return true;
-  }
-
-  ///check attribute availability / stock in variation
   Set<String?> getAttributeAvailabilityInVariation(
       List<ProductVariationModel> variations, String attributeName) {
-    final availableVariationAttributeValue = variations
-        .where((variation) =>
-            variation.attributeValues[attributeName] != null &&
-            variation.attributeValues[attributeName]!.isNotEmpty &&
-            variation.stock > 0)
-        .map((variation) => variation.attributeValues[attributeName])
-        .toSet();
-    return availableVariationAttributeValue;
+    return variations.where((v) {
+      if (v.stock <= 0) return false;
+      if (attributeName == 'Color') return true;
+      return selectedAttributes.entries.where((e) => e.key != attributeName)
+          .every((e) => v.attributeValues[e.key] == e.value);
+    }).map((v) => v.attributeValues[attributeName]).whereType<String>().toSet();
   }
 
   String getVariationPrice() {
-    return (selectedVariation.value.salePrice > 0
-            ? selectedVariation.value.salePrice
-            : selectedVariation.value.price)
-        .toString();
+    final price = selectedVariation.value.salePrice > 0
+        ? selectedVariation.value.salePrice : selectedVariation.value.price;
+    return price.toStringAsFixed(price % 1 == 0 ? 0 : 2);
   }
 
-  ///check product variation stock status
   void getProductVariationStockStatus() {
-    variationStockStatus.value =
-        selectedVariation.value.stock > 0 ? 'In Stock' : 'Out of Stock';
+    variationStockStatus.value = selectedVariation.value.stock > 0 ? 'In stock' : 'Out of stock';
   }
 
-  ///reset selected attribute when switching products
   void resetSelectedAttribute() {
     selectedAttributes.clear();
     variationStockStatus.value = '';

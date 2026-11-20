@@ -1,29 +1,17 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
-import 'package:fashion_business_app/common/widgets/custom_shapes/containers/rounded_container.dart';
-import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
-import 'package:fashion_business_app/common/widgets/product/cart/cart_item.dart';
-import 'package:fashion_business_app/common/widgets/product/cart/coupon_widget.dart';
-import 'package:fashion_business_app/common/widgets/succes_screen/succes_screen.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/order_controller.dart';
-import 'package:fashion_business_app/features/shop/screens/cart/widgets/cart_item.dart';
 import 'package:fashion_business_app/features/shop/screens/checkout/widgets/billing_amount_section.dart';
-import 'package:fashion_business_app/navigation_menu.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
-import 'package:fashion_business_app/utils/constants/image_strings.dart';
-import 'package:fashion_business_app/utils/constants/sizes.dart';
-import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
 import 'package:fashion_business_app/utils/helpers/pricing_caculator.dart';
-
 import '../../../../data/repositories/payment/payment.dart';
-import '../../../../utils/payment/theme_data.dart';
 import '../../controllers/product/checkout_controller.dart';
 import 'widgets/billing_address_section.dart';
 import 'widgets/billing_payment_section.dart';
+import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
+import 'package:fashion_business_app/features/personalization/controllers/address_controller.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -41,7 +29,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String payResult = "";
   bool showResult = false;
 
-  final CheckoutController _checkoutController = Get.put(CheckoutController());
+  final CheckoutController _checkoutController = CheckoutController.instance;
 
 
   Future<void> _createOrderAndPay(String amount) async {
@@ -105,89 +93,79 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = THelperFunctions.isDarkMode(context);
-    final cartController = CartController.instance;
-    final subTotal = cartController.totalCartPrice.value;
-    final totalAmount = TPricingCalculator.calculateTotalPrice(subTotal, 'US');
-
+    final cart = CartController.instance;
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: TAppbar(
-        title: Text('Order Review',
-            style: TextStyle(
-                fontSize: 20, color: dark ? TColors.white : TColors.dark)),
-        showBackArrow: true,
-      ),
+      appBar: const TAppbar(showBackArrow: true, title: Text('Checkout',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, letterSpacing: -0.6))),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(TSizes.defaultSpace),
-          child: Column(
-            children: [
-              ///item in cart
-              const TCartItems(
-                showAddRemoveButtons: false,
-              ),
-              const SizedBox(
-                height: TSizes.spaceBtwSections,
-              ),
-
-              ///coupon TextField
-              const TCouponCode(),
-              const SizedBox(
-                height: TSizes.spaceBtwSections,
-              ),
-
-              ///billing section
-              TRoundedContainer(
-                showBorder: true,
-                padding: const EdgeInsets.all(TSizes.md),
-                backgroundColor: dark ? TColors.black : TColors.white,
-                child: const Column(
-                  children: [
-                    ///pricing
-                    TBillingAmountSection(),
-                    SizedBox(
-                      height: TSizes.spaceBtwItems,
-                    ),
-
-                    ///divider
-                    Divider(),
-                    SizedBox(
-                      height: TSizes.spaceBtwItems,
-                    ),
-
-                    ///payment methods
-                    TBillingPaymentSection(),
-                    SizedBox(
-                      height: TSizes.spaceBtwItems,
-                    ),
-
-                    ///address
-                    TBillingAddressSection()
-                  ],
-                ),
-              )
-            ],
-          ),
-        ),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('The final details.', style: TextStyle(fontSize: 28,
+              fontWeight: FontWeight.w600, letterSpacing: -1)),
+          const SizedBox(height: 8),
+          Text('Review your pairs and choose how to pay.', style: theme.textTheme.bodySmall),
+          const SizedBox(height: 28),
+          const TBillingAddressSection(),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(height: 1)),
+          const TBillingPaymentSection(),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(height: 1)),
+          Row(children: [
+            const Expanded(child: Text('Your pairs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+            TextButton(onPressed: () => Get.back(), child: const Text('Edit bag')),
+          ]),
+          const SizedBox(height: 12),
+          Obx(() => Column(children: [for (final item in cart.cartItems)
+            Padding(padding: const EdgeInsets.only(bottom: 20), child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start, children: [
+                TRoundedImage(imageUrl: item.image ?? '', width: 84, height: 84, isNetworkImage: true),
+                const SizedBox(width: 16),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(item.brandName ?? '', style: theme.textTheme.bodySmall),
+                  const SizedBox(height: 4),
+                  Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Text((item.selectedVariation?.entries ?? []).map((e) => '${e.key}: ${e.value}').join(' · '),
+                      style: theme.textTheme.bodySmall),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 12, children: [Text('Qty ${item.quantity}', style: theme.textTheme.bodySmall),
+                    Text('\$${(item.price * item.quantity).toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.w600))]),
+                ])),
+              ])),
+          ])),
+          const Divider(height: 32),
+          const Text('Order summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 20),
+          const TBillingAmountSection(),
+        ]),
       ),
-
-      ///checkout buttons
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(TSizes.defaultSpace),
-        child: ElevatedButton(
-          onPressed: subTotal > 0
-              ? () {
-            if (_checkoutController.selectedPaymentMethod.value.name == 'ZaloPay') {
-              _createOrderAndPay(totalAmount.toString());
-            } else {
-              _processOrder();
-            }
-          }
-              : () => TLoaders.warningSnackBar(
-              title: 'Empty Cart',
-              message: 'Add items in the cart in order to proceed'),
-          child: Text('Checkout \$$totalAmount'),
-        ),
-      ),
+      bottomNavigationBar: Obx(() {
+        final subtotal = cart.totalCartPrice.value;
+        final total = TPricingCalculator.calculateTotalPrice(subtotal, 'US');
+        final zalo = _checkoutController.selectedPaymentMethod.value.name == 'ZaloPay';
+        return SafeArea(top: false, child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 18),
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.15)))),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const Text('Total to pay'),
+              Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 14),
+            SizedBox(width: double.infinity, child: ElevatedButton(
+              onPressed: subtotal <= 0 ? null : () {
+                if (AddressController.instance.selectedAddress.value.id.isEmpty) {
+                  AddressController.instance.selectNewAddressPopup(context);
+                  return;
+                }
+                if (zalo) { _createOrderAndPay(total.toString()); } else { _processOrder(); }
+              },
+              child: Text(zalo ? 'Pay with ZaloPay' : 'Place order · Pay on delivery'),
+            )),
+          ]),
+        ));
+      }),
     );
-  }}
+  }
+}

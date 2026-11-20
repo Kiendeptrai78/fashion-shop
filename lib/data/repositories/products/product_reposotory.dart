@@ -1,9 +1,12 @@
+import 'package:fashion_business_app/features/shop/models/brand_model.dart';
+import 'package:fashion_business_app/features/shop/models/category_model.dart';
+import 'package:fashion_business_app/features/shop/models/catalog_query.dart';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:fashion_business_app/features/shop/firebase/firebase_storage_service.dart';
+import 'package:fashion_business_app/data/services/image_storage_service.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/exceptions/firebase_exception.dart';
@@ -15,6 +18,43 @@ class ProductRepository extends GetxController {
 
   ///firebase instance of database interactions
   final _db = FirebaseFirestore.instance;
+
+  Future<List<ProductModel>> fetchSimilarProducts(ProductModel product) async {
+    if (product.categoryId.isEmpty) return [];
+    final query = product.catalogId == sneakerCatalogId
+        ? _db.collection('Products').where('BrowseKeys',
+            arrayContains: CatalogFilter(categoryId: product.categoryId).key)
+        : _db.collection('Products').where('CategoryId', isEqualTo: product.categoryId);
+    final snapshot = await query.limit(7).get();
+    return snapshot.docs.map(ProductModel.fromSnapshot)
+        .where((item) => item.id != product.id).take(6).toList();
+  }
+
+  Future<CatalogPage> fetchCatalogPage({required CatalogFilter filter, String? cursor}) async {
+    final base = _db.collection('Products').where('BrowseKeys', arrayContains: filter.key);
+    Query<Map<String, dynamic>> query = base.orderBy(FieldPath.documentId);
+    if (cursor != null) query = query.startAfter([cursor]);
+    final snapshot = await query.limit(catalogPageSize + 1).get();
+    final docs = snapshot.docs.take(catalogPageSize).toList();
+    final count = cursor == null ? (await base.count().get()).count : null;
+    return CatalogPage(
+      products: docs.map(ProductModel.fromSnapshot).toList(),
+      hasNext: snapshot.docs.length > catalogPageSize,
+      nextCursor: docs.isEmpty ? null : docs.last.id,
+      totalCount: count,
+    );
+  }
+
+  Future<CatalogFacets> fetchCatalogFacets() async {
+    final brands = await _db.collection('Brands').where('CatalogId', isEqualTo: sneakerCatalogId).get();
+    final categories = await _db.collection('Categories').where('CatalogId', isEqualTo: sneakerCatalogId).get();
+    return CatalogFacets(
+      brands: brands.docs.map((doc) => BrandModel.fromSnapshot(doc)).toList()
+        ..sort((a, b) => a.name.compareTo(b.name)),
+      categories: categories.docs.map((doc) => CategoryModel.fromSnapShot(doc)).toList()
+        ..sort((a, b) => a.name.compareTo(b.name)),
+    );
+  }
 
   Stream<List<ProductModel>> getProductStream() {
     return _db.collection('Products').snapshots().map((snapshot) {
@@ -28,8 +68,7 @@ class ProductRepository extends GetxController {
     try {
       final snapshot = await _db
           .collection('Products')
-          .where('IsFeatured', isEqualTo: true)
-          .limit(4)
+          .where('CatalogId', isEqualTo: 'sneakers-v1')
           .get();
       return snapshot.docs.map((e) => ProductModel.fromSnapshot(e)).toList();
     } on FirebaseException catch (e) {
@@ -85,7 +124,7 @@ class ProductRepository extends GetxController {
     try {
       final snapshot = await _db
           .collection('Products')
-          .where('IsFeatured', isEqualTo: true)
+          .where('CatalogId', isEqualTo: 'sneakers-v1')
           .get();
       return snapshot.docs.map((e) => ProductModel.fromSnapshot(e)).toList();
     } on FirebaseException catch (e) {
@@ -140,8 +179,17 @@ class ProductRepository extends GetxController {
   ///
   Future<List<ProductModel>> getFavouriteProducts(List<String> productIds) async {
     try {
-     final snapshot = await _db.collection('Products').where(FieldPath.documentId, whereIn: productIds).get();
-     return snapshot.docs.map((e) => ProductModel.fromSnapshot(e)).toList();
+      if (productIds.isEmpty) return [];
+      final products = <ProductModel>[];
+      // Firestore permits at most 30 IDs in a whereIn query.
+      for (var start = 0; start < productIds.length; start += 30) {
+        final ids = productIds.skip(start).take(30).toList();
+        final snapshot = await _db.collection('Products')
+            .where(FieldPath.documentId, whereIn: ids).get();
+        products.addAll(snapshot.docs.map(ProductModel.fromSnapshot));
+      }
+      final byId = {for (final product in products) product.id: product};
+      return [for (final id in productIds) if (byId.containsKey(id)) byId[id]!];
     } on FirebaseException catch (e) {
       throw TFirebaseException(e.code).message;
     } on FormatException catch (_) {
@@ -207,7 +255,7 @@ class ProductRepository extends GetxController {
   Future<void> uploadDummyData(List<ProductModel> products) async {
     try {
       // upload all the products along with their images
-      final storage = Get.put(TFirebaseStorageService());
+      final storage = Get.put(ImageStorageService());
 
       // loop through each product
       for (var product in products) {

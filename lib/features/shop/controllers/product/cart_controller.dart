@@ -50,6 +50,14 @@ class CartController extends GetxController {
       }
     }
 
+    final available = product.productType == ProductType.variable.toString()
+        ? variationController.selectedVariation.value.stock : product.stock;
+    if (productQuantityInCart.value > available) {
+      TLoaders.warningSnackBar(title: 'Quantity unavailable',
+          message: 'Only $available pairs are available for this selection.');
+      return;
+    }
+
     //convert the Product model to a cartItemModel with the given quantity
     final selectedCartItem =
         convertToCartItem(product, productQuantityInCart.value);
@@ -150,6 +158,7 @@ class CartController extends GetxController {
     return CartItemModel(
         productId: product.id,
         title: product.title,
+        brandName: product.brand?.name,
         price: price,
         quantity: quantity,
         variationId: variation.id,
