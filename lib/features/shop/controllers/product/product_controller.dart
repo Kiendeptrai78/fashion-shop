@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 
 import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
 import 'package:fashion_business_app/data/repositories/products/product_reposotory.dart';
-import 'package:fashion_business_app/features/shop/controllers/all_product_controller.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 
@@ -14,16 +13,9 @@ class ProductController  extends GetxController{
   final productRepository = Get.put(ProductRepository());
   RxList<ProductModel> featuredProducts = <ProductModel>[].obs;
   final RxList<ProductModel> allProducts = <ProductModel>[].obs;
-  final product = Get.put(AllProductController());
 
 
-  @override
-  void onInit() {
-    fetchFeaturedProducts();
-    super.onInit();
-  }
-
-  void fetchFeaturedProducts() async{
+  Future<void> fetchFeaturedProducts() async{
     try{
       isLoading.value = true;
 
@@ -77,8 +69,9 @@ class ProductController  extends GetxController{
     double largestPrice = 0.0;
 
     //if no variations exist, return the simple price or sale price
-    if(productModel.productType == ProductType.single.toString()){
-      return (productModel.salePrice > 0 ? productModel.salePrice : productModel.price).toString();
+    if(productModel.productType == ProductType.single.toString() ||
+        (productModel.productVariations?.isEmpty ?? true)){
+      return _formatPrice(productModel.salePrice > 0 ? productModel.salePrice : productModel.price);
     }else{
       // calculate the smallest and largest prices among variations
       for(var variation in productModel.productVariations!){
@@ -96,13 +89,15 @@ class ProductController  extends GetxController{
       }
       // if smallest and largest prices  are the same, return a single price
       if(smallestPrice.isEqual(largestPrice)){
-        return largestPrice.toString();
+        return _formatPrice(largestPrice);
       }else{
         // otherwise, return a price range
-        return "$smallestPrice - \$$largestPrice";
+        return "${_formatPrice(smallestPrice)} - \$${_formatPrice(largestPrice)}";
       }
     }
   }
+
+  String _formatPrice(double price) => price.toStringAsFixed(price % 1 == 0 ? 0 : 2);
 
   // calculate discount percentage
   String? calculateSalePercentage(double originalPrice, double? salePrice){

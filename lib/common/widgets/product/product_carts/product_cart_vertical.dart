@@ -1,24 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:iconsax/iconsax.dart';
-import 'package:fashion_business_app/common/styles/shadows.dart';
-import 'package:fashion_business_app/common/widgets/custom_shapes/containers/rounded_container.dart';
-import 'package:fashion_business_app/common/widgets/icon/circular_icon.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 import 'package:fashion_business_app/common/widgets/product/favourite_icon/favourite_icon.dart';
-import 'package:fashion_business_app/common/widgets/product/product_carts/product_cart_add_button.dart';
-import 'package:fashion_business_app/common/widgets/text/brand_title_text_with_verified_icon.dart';
-import 'package:fashion_business_app/common/widgets/text/product_title.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/product_controller.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/features/shop/screens/product_details/product_details.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
-import 'package:fashion_business_app/utils/constants/enums.dart';
-import 'package:fashion_business_app/utils/constants/image_strings.dart';
-import 'package:fashion_business_app/utils/constants/sizes.dart';
-import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
-
-import 'product_price_text.dart';
 
 class TProductCartVertical extends StatelessWidget {
   const TProductCartVertical({super.key, required this.product});
@@ -27,108 +13,53 @@ class TProductCartVertical extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final controller = ProductController.instance;
-    final salePercentage = controller.calculateSalePercentage(product.price, product.salePrice);
-    final dark = THelperFunctions.isDarkMode(context);
-    return GestureDetector(
-      onTap: () => Get.to(() =>  ProductDetail(product: product,)),
-      child: Container(
-        padding: const EdgeInsets.all(1),
-        decoration: BoxDecoration(
-            boxShadow: [TShadowStyle.verticalProductShadow],
-            borderRadius: BorderRadius.circular(TSizes.productImageRadius),
-            color: dark ? TColors.darkerGrey : TColors.light),
+    final colors = product.productAttributes?.where((a) => a.name == 'Color').firstOrNull?.values;
+    final sale = product.salePrice > 0 && product.salePrice < product.price;
+    return Semantics(
+      button: true,
+      label: '${product.brand?.name ?? ''} ${product.title}',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Get.to(() => ProductDetail(product: product)),
         child: Column(
-
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ///thumbnail
-            TRoundedContainer(
-              backgroundColor: dark ? TColors.dark : TColors.light,
-              // width: 170,
-              // height: 170,
-              child: Stack(
-                children: [
-                  ///image
-                   Center(
-                     child: TRoundedImage(
-                       imageUrl: product.thumbnail,
-                       backgroundColor: TColors.light,
-                       applyImageRadius: true,
-                       isNetworkImage: true,
-                     ),
-                   ),
-
-                  if(salePercentage != null)
-                  ///sale tag
-                  Positioned(
-                      top: 12,
-                      child: TRoundedContainer(
-                        radius: TSizes.sm,
-                        backgroundColor: TColors.secondary.withOpacity(0.8),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: TSizes.sm, vertical: TSizes.xs),
-                        child: Text(
-                          '$salePercentage%',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelLarge!
-                              .apply(color: TColors.black),
-                        ),
-                      )),
-
-                  ///favourite icon button
-                   Positioned(
-                      top: 0,
-                      right: 0,
-                      child: TFavouriteIcon(productId: product.id,)
-                  )
-                ],
-              ),
+            Expanded(
+              child: Stack(fit: StackFit.expand, children: [
+                TRoundedImage(imageUrl: product.thumbnail, isNetworkImage: true,
+                    width: double.infinity, height: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(6, 20, 6, 10), borderRadius: 0),
+                Positioned(top: 0, right: 0, child: TFavouriteIcon(productId: product.id)),
+                if (sale)
+                  Positioned(top: 8, left: 0, child: Text('SALE',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.primary, fontWeight: FontWeight.w700, letterSpacing: 0.7))),
+              ]),
             ),
-            const SizedBox(
-              height: TSizes.spaceBtwItems / 2,
-            ),
-
-            ///detail
-             Padding(
-              padding: const EdgeInsets.only(left: TSizes.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                   TProductTextTitle(title: product.title, smallSize: true,),
-                  const SizedBox(height: TSizes.spaceBtwItems / 2,),
-
-                ],
-              ),
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ///price
-                 Flexible(child: Column(
-                   children: [
-                     if(product.productType == ProductType.single.toString() && product.salePrice > 0)
-                     Padding(
-                       padding: const EdgeInsets.only(left: TSizes.sm),
-                       child: Text(product.price.toString(),style: Theme.of(context).textTheme.labelMedium!.apply(decoration: TextDecoration.lineThrough),)
-                     ) ,
-                     Padding(
-                       padding: const EdgeInsets.only(left: TSizes.sm),
-                       child: TProductPriceText(price: controller.getProductPrice(product),)
-                     )
-                   ],
-                 )),
-                ///add to cart
-                ProductCartAddToCartButton(product: product)
-              ],
-            )
+            const SizedBox(height: 12),
+            Text(product.brand?.name ?? product.categoryName,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(fontSize: 11)),
+            const SizedBox(height: 4),
+            Text(product.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, height: 1.3)),
+            const SizedBox(height: 4),
+            Text(colors == null ? product.categoryName : '${colors.length} colors · ${product.categoryName}',
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(fontSize: 11)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+              Text('\$${controller.getProductPrice(product)}',
+                  style: theme.textTheme.titleLarge?.copyWith(fontSize: 16, fontWeight: FontWeight.w700)),
+              if (sale)
+                Text('\$${product.price.toStringAsFixed(product.price % 1 == 0 ? 0 : 2)}',
+                    style: theme.textTheme.labelMedium?.copyWith(decoration: TextDecoration.lineThrough)),
+            ]),
           ],
         ),
       ),
     );
   }
 }
-
-
-

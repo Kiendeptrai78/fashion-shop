@@ -1,3 +1,5 @@
+import 'package:fashion_business_app/data/services/sneaker_catalog_importer.dart';
+import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +28,11 @@ Future<void> main() async {
   ///--Initialize firebase authentication repository
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
       .then((FirebaseApp value) => Get.put(AuthenticationRepository()));
+
+  if (const bool.fromEnvironment('IMPORT_SNEAKER_CATALOG')) {
+    await SneakerCatalogImporter().importIfNeeded();
+    await SneakerCatalogImporter().importCampaignsIfNeeded();
+  }
 
   Get.lazyPut(() => CartController(), fenix: true);  // Ensure CartController is always available
 

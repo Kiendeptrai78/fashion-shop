@@ -1,0 +1,55 @@
+{
+  "campaigns": [
+    {
+      "Id": "campaign-sneaker-motion",
+      "ImageUrl": "https://res.cloudinary.com/lbbgn51d/image/upload/v1795165673/campaigns-v1/sneaker-motion-poster.jpg",
+      "VideoUrl": "https://res.cloudinary.com/lbbgn51d/video/upload/v1795165675/campaigns-v1/sneaker-motion.mp4",
+      "TargetScreen": "/all-products",
+      "Active": true,
+      "Title": "Made to move.",
+      "Subtitle": "Your next pair starts here",
+      "SortOrder": 0
+    },
+    {
+      "Id": "campaign-running-motion",
+      "ImageUrl": "https://res.cloudinary.com/lbbgn51d/image/upload/v1795165676/campaigns-v1/running-motion-poster.jpg",
+      "VideoUrl": "https://res.cloudinary.com/lbbgn51d/video/upload/v1795165678/campaigns-v1/running-motion.mp4",
+      "TargetScreen": "/all-products",
+      "Active": true,
+      "Title": "Find your rhythm.",
+      "Subtitle": "Explore the running collection",
+      "SortOrder": 2,
+      "CategoryId": "sneaker-category-running"
+    },
+    {
+      "Id": "campaign-court-motion",
+      "ImageUrl": "https://res.cloudinary.com/lbbgn51d/image/upload/v1795165680/campaigns-v1/court-motion-poster.jpg",
+      "VideoUrl": "https://res.cloudinary.com/lbbgn51d/video/upload/v1795165682/campaigns-v1/court-motion.mp4",
+      "TargetScreen": "/all-products",
+      "Active": true,
+      "Title": "Own your next move.",
+      "Subtitle": "Explore the basketball collection",
+      "SortOrder": 4,
+      "CategoryId": "sneaker-category-basketball"
+    },
+    {
+      "Id": "campaign-nike-everyday",
+      "ImageUrl": "https://res.cloudinary.com/lbbgn51d/image/upload/v1795165685/campaigns-v1/nike-everyday.png",
+      "TargetScreen": "/all-products",
+      "Active": true,
+      "Title": "Nike everyday essentials",
+      "SortOrder": 1,
+      "CategoryId": "sneaker-category-running",
+      "BrandId": "sneaker-brand-nike"
+    },
+    {
+      "Id": "campaign-street-rotation",
+      "ImageUrl": "https://res.cloudinary.com/lbbgn51d/image/upload/v1795165687/campaigns-v1/street-rotation.jpg",
+      "TargetScreen": "/all-products",
+      "Active": true,
+      "Title": "The street rotation",
+      "SortOrder": 3,
+      "CategoryId": "sneaker-category-lifestyle"
+    }
+  ]
+}

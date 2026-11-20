@@ -1,94 +1,107 @@
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:iconsax/iconsax.dart';
-import 'package:readmore/readmore.dart';
+import 'package:fashion_business_app/features/shop/controllers/product/images_controller.dart';
+import 'package:fashion_business_app/common/widgets/product/favourite_icon/favourite_icon.dart';
+import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
+import 'package:fashion_business_app/features/shop/controllers/product/variation_controller.dart';
+import 'package:flutter/material.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
-import 'package:fashion_business_app/common/widgets/custom_shapes/curved_edges/curved_edges_widget.dart';
-import 'package:fashion_business_app/common/widgets/icon/circular_icon.dart';
-import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
-import 'package:fashion_business_app/common/widgets/text/section_heading.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/features/shop/screens/product_details/widgets/product_attributes.dart';
-import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
-import 'package:fashion_business_app/utils/constants/image_strings.dart';
-import 'package:fashion_business_app/utils/constants/sizes.dart';
-import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
-
 import 'widgets/bottom_add_to_cart_widget.dart';
 import 'widgets/product_detail_image_slider.dart';
 import 'widgets/product_meta_data.dart';
-import 'widgets/rating_share_widget.dart';
+import 'widgets/similar_products.dart';
 
-class ProductDetail extends StatelessWidget {
+class ProductDetail extends StatefulWidget {
   const ProductDetail({super.key, required this.product});
 
   final ProductModel product;
 
   @override
-  Widget build(BuildContext context) {
-    return  Scaffold(
-      bottomNavigationBar:  TBottomAddToCart(product: product),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            ///product slider image
-               TProductImageSlider(product: product,),
-
-            ///product details
-            Padding(
-              padding: const EdgeInsets.only(right: TSizes.defaultSpace,left: TSizes.defaultSpace,bottom: TSizes.defaultSpace),
-              child: Column(
-                children: [
-                  ///rating & share button
-                  const TRatingAndShare(),
-
-                  ///price, title, stock and brand
-                   TProductMetaData(product: product,),
-                  const SizedBox(height: TSizes.spaceBtwItems,),
-
-                  ///Attributes
-                  // if(product.productType == ProductType.variable.toString())
-                  TProductAttribute(product: product,),
-                  // if(product.productType == ProductType.variable.toString())
-                    const SizedBox(height: TSizes.spaceBtwSections,),
-
-                  ///check out button
-                  SizedBox(width: double.infinity,child: ElevatedButton(onPressed: (){}, child: const Text('Checkout')),),
-                  const SizedBox(height: TSizes.spaceBtwSections,),
-
-                  ///description
-                  const TSectionHeading(title: 'Description',showActionButton: false,),
-                  const SizedBox(height: TSizes.spaceBtwItems,),
-                   ReadMoreText(
-                   product.description ?? '',
-                    trimLines: 2,
-                    trimMode: TrimMode.Line,
-                    trimCollapsedText: 'Show more',
-                    trimExpandedText: 'Less',
-                    moreStyle: const TextStyle(fontSize: 14,fontWeight: FontWeight.w800),
-                    lessStyle: const TextStyle(fontSize: 14,fontWeight: FontWeight.w800),
-                  ),
-
-                  ///review
-                  const Divider(),
-                  const SizedBox(height: TSizes.spaceBtwItems,),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const TSectionHeading(title: 'Review(201)',showActionButton: false,),
-                      IconButton(onPressed: () => Get.to(() => const ProductReview()), icon: const Icon(Iconsax.arrow_right_3,size: 18,))
-                    ],
-                  )
-                ],
-              ),
-            )
-          ],
-        ),
-      ),
-    );
-  }
+  State<ProductDetail> createState() => _ProductDetailState();
 }
 
+class _ProductDetailState extends State<ProductDetail> {
+  late ProductModel product;
+  final _scroll = ScrollController();
+  final _optionsKey = GlobalKey();
 
+  @override
+  void initState() {
+    super.initState();
+    product = widget.product;
+    _selectProduct();
+  }
+
+  void _selectProduct() {
+    Get.put(ImageController()).selectedProductImage.value = product.thumbnail;
+    final variations = VariationController.instance;
+    variations.resetSelectedAttribute();
+    final cart = CartController.instance;
+    cart.updateAlreadyAddedProductCount(product);
+    if (cart.productQuantityInCart.value < 1) cart.productQuantityInCart.value = 1;
+    final colors = product.productAttributes?.where((a) => a.name == 'Color').firstOrNull?.values;
+    if (colors != null && colors.isNotEmpty) {
+      variations.onAttributeSelected(product, 'Color', colors.first);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _openSimilar(ProductModel selected) {
+    setState(() => product = selected);
+    _selectProduct();
+    _scroll.jumpTo(0);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: TAppbar(showBackArrow: true,
+        title: Text(product.brand?.name ?? 'Sneakers', style: const TextStyle(fontSize: 15)),
+        actions: [TFavouriteIcon(productId: product.id)]),
+    bottomNavigationBar: TBottomAddToCart(product: product, onSelectOptions: () {
+      final options = _optionsKey.currentContext;
+      if (options != null) Scrollable.ensureVisible(options,
+          duration: const Duration(milliseconds: 250), alignment: 0.1);
+    }),
+    body: SingleChildScrollView(controller: _scroll, child: Column(children: [
+      TProductImageSlider(product: product),
+      Padding(padding: const EdgeInsets.fromLTRB(24, 8, 24, 32), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+          TProductMetaData(product: product),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(height: 1)),
+          if (product.productType == ProductType.variable.toString())
+            KeyedSubtree(key: _optionsKey, child: TProductAttribute(product: product)),
+          const SizedBox(height: 28),
+          Theme(data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(tilePadding: EdgeInsets.zero, childrenPadding: const EdgeInsets.only(bottom: 20),
+              initiallyExpanded: true,
+              title: const Text('About this pair', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              children: [Align(alignment: Alignment.centerLeft, child: Text(product.description ?? '',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.7)))],
+            )),
+          const Divider(height: 32),
+          Wrap(spacing: 24, runSpacing: 16, children: [
+            if (product.brand != null) _detail('Brand', product.brand!.name),
+            if (product.categoryName.isNotEmpty) _detail('Collection', product.categoryName),
+            if ((product.productAttributes?.where((a) => a.name == 'Size').firstOrNull?.values ?? []).isNotEmpty)
+              _detail('Sizing', 'EU'),
+          ]),
+          const Divider(height: 48),
+          SimilarProducts(key: ValueKey(product.id), product: product, onOpen: _openSimilar),
+        ],
+      )),
+    ])),
+  );
+
+  Widget _detail(String label, String value) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(label, style: Theme.of(context).textTheme.bodySmall),
+    const SizedBox(height: 5),
+    Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+  ]);
+}

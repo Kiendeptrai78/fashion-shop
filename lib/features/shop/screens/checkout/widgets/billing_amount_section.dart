@@ -1,57 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
-import 'package:fashion_business_app/utils/constants/sizes.dart';
 import 'package:fashion_business_app/utils/helpers/pricing_caculator.dart';
 
 class TBillingAmountSection extends StatelessWidget {
   const TBillingAmountSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final cartController = CartController.instance;
-    final subTotal = cartController.totalCartPrice.value;
+  Widget build(BuildContext context) => Obx(() {
+    final subtotal = CartController.instance.totalCartPrice.value;
+    return Column(children: [
+      _amount(context, 'Subtotal', subtotal.toStringAsFixed(2)),
+      const SizedBox(height: 12),
+      _amount(context, 'Shipping', double.parse(TPricingCalculator.calculateShippingCost(subtotal, 'US')).toStringAsFixed(2)),
+      const SizedBox(height: 12),
+      _amount(context, 'Tax', double.parse(TPricingCalculator.calculateTax(subtotal, 'US')).toStringAsFixed(2)),
+      const Divider(height: 32),
+      _amount(context, 'Order total', TPricingCalculator.calculateTotalPrice(subtotal, 'US').toStringAsFixed(2), total: true),
+    ]);
+  });
 
-    return Column(
-      children: [
-        ///subTotal
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('SubTotal',style: Theme.of(context).textTheme.bodyMedium,),
-            Text('\$$subTotal',style: Theme.of(context).textTheme.bodyMedium,),
-          ],
-        ),
-        const SizedBox(height: TSizes.spaceBtwItems / 2,),
-
-        ///Shipping Fee
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Shipping Fee',style: Theme.of(context).textTheme.bodyMedium,),
-            Text('+ \$${TPricingCalculator.calculateShippingCost(subTotal, 'US')}',style: Theme.of(context).textTheme.labelLarge,),
-          ],
-        ),
-        const SizedBox(height: TSizes.spaceBtwItems / 2,),
-
-        ///Tax Fee
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Tax Fee',style: Theme.of(context).textTheme.bodyMedium,),
-            Text('+ \$${TPricingCalculator.calculateTax(subTotal, 'US')}',style: Theme.of(context).textTheme.labelLarge,),
-          ],
-        ),
-        const SizedBox(height: TSizes.spaceBtwItems / 2,),
-
-        ///Order Total
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Order Total',style: Theme.of(context).textTheme.bodyMedium,),
-            Text('\$${TPricingCalculator.calculateTotalPrice(subTotal, 'US')}',style: Theme.of(context).textTheme.titleMedium,),
-          ],
-        ),
-      ],
-    );
-  }
+  Widget _amount(BuildContext context, String label, String value, {bool total = false}) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Text(label, style: TextStyle(fontWeight: total ? FontWeight.w600 : FontWeight.w400)),
+      Text('\$$value', style: TextStyle(fontSize: total ? 20 : 14,
+          fontWeight: total ? FontWeight.w700 : FontWeight.w500)),
+    ],
+  );
 }

@@ -4,6 +4,7 @@ import 'package:fashion_business_app/common/widgets/shimmer/shimmer.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
+import 'image_placeholder.dart';
 
 class TCircularImage extends StatelessWidget {
   const TCircularImage({
@@ -44,7 +45,7 @@ class TCircularImage extends StatelessWidget {
                   color: overlayColor,
                   progressIndicatorBuilder: (context, url, downloadProgress) =>
                       const TShimmerEffect(width: 55, height: 55),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                  errorWidget: (context, url, error) => const TImagePlaceholder(),
                 )
               : Image(
                   image: AssetImage(image),

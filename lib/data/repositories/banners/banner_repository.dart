@@ -19,7 +19,8 @@ class BannerRepository extends GetxController {
       final result = await _db.collection('Banners').where(
           'Active', isEqualTo: true).get();
       return result.docs.map((documentSnapshot) =>
-          BannerModel.fromSnapShot(documentSnapshot)).toList();
+          BannerModel.fromSnapShot(documentSnapshot)).toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     } on FirebaseException catch (e) {
       throw TFirebaseException(e.code).message;
     } on FormatException catch (_) {

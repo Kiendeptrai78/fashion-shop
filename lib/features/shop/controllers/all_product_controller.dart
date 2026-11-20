@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:fashion_business_app/features/shop/models/catalog_query.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +16,7 @@ import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/features/shop/models/product_variation_model.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:fashion_business_app/data/services/image_storage_service.dart';
 
 
 class AllProductController extends GetxController {
@@ -60,7 +60,6 @@ class AllProductController extends GetxController {
   final size = TextEditingController();
 
   final ImagePicker picker = ImagePicker();
-  final FirebaseStorage storage = FirebaseStorage.instance;
   final RxList<CategoryModel> categories = <CategoryModel>[].obs;
   final CategoryController categoryController = CategoryController.instance;
   final BrandController brandController = BrandController.instance;
@@ -193,21 +192,7 @@ class AllProductController extends GetxController {
 
       if (pickedFiles != null && pickedFiles.isNotEmpty) {
         for (var pickedFile in pickedFiles) {
-          // Tạo File từ đường dẫn đã chọn
-          final file = File(pickedFile.path);
-
-          // Lấy phần mở rộng của tệp
-          final fileExtension = pickedFile.path.split('.').last;
-
-          // Tạo tham chiếu đến Firebase Storage
-          final ref = storage.ref().child('Products/Images/${DateTime.now().millisecondsSinceEpoch}.$fileExtension');
-
-          // Tải tệp lên Firebase Storage
-          final uploadTask = ref.putFile(file);
-          final snapshot = await uploadTask.whenComplete(() => {});
-
-          // Lấy URL tải xuống từ Firebase Storage
-          final downloadUrl = await snapshot.ref.getDownloadURL();
+          final downloadUrl = await ImageStorageService().uploadImageFile('Products/Images', pickedFile);
 
           // Tạo một TextEditingController mới với URL đã tải xuống
           final imageController = TextEditingController(text: downloadUrl);
@@ -222,7 +207,7 @@ class AllProductController extends GetxController {
     } catch (e) {
       // Xử lý các lỗi xảy ra trong quá trình tải lên
       print('Error uploading images: $e');
-      Get.snackbar('Error', 'Failed to upload images. Please try again.');
+      Get.snackbar('Upload failed', e.toString());
     }
   }
   Future<void> pickAndUploadImageForThumbnail() async {
@@ -231,23 +216,7 @@ class AllProductController extends GetxController {
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
-        // Tạo File từ đường dẫn đã chọn
-        final file = File(pickedFile.path);
-
-        // Lấy phần mở rộng của tệp
-        final fileExtension = pickedFile.path.split('.').last;
-
-        // Tạo tham chiếu đến Firebase Storage
-        final ref = FirebaseStorage.instance
-            .ref()
-            .child('Products/Thumbnail/Images/${DateTime.now().millisecondsSinceEpoch}.$fileExtension');
-
-        // Tải tệp lên Firebase Storage
-        final uploadTask = ref.putFile(file);
-        final snapshot = await uploadTask.whenComplete(() => {});
-
-        // Lấy URL tải xuống của tệp đã tải lên
-        final downloadUrl = await snapshot.ref.getDownloadURL();
+        final downloadUrl = await ImageStorageService().uploadImageFile('Products/Thumbnail/Images', pickedFile);
 
         // Cập nhật URL hình ảnh và TextEditingController
         imageUrl.value = downloadUrl;
@@ -258,7 +227,7 @@ class AllProductController extends GetxController {
       }
     } catch (e) {
       print('Error uploading image: $e');
-      Get.snackbar('Error', 'Failed to upload image. Please try again.');
+      Get.snackbar('Upload failed', e.toString());
     }
   }
   // Hàm chọn và tải lên ảnh cho biến thể
@@ -268,21 +237,7 @@ class AllProductController extends GetxController {
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
       if (pickedFile != null) {
-        // Tạo File từ đường dẫn đã chọn
-        final file = File(pickedFile.path);
-
-        // Lấy phần mở rộng của tệp
-        final fileExtension = pickedFile.path.split('.').last;
-
-        // Tạo tham chiếu đến Firebase Storage
-        final ref = storage.ref().child('Products/Variations/Images/${DateTime.now().millisecondsSinceEpoch}.$fileExtension');
-
-        // Tải lên tệp
-        final uploadTask = ref.putFile(file);
-        final snapshot = await uploadTask.whenComplete(() => {});
-
-        // Lấy đường dẫn URL của tệp đã tải lên
-        final downloadUrl = await snapshot.ref.getDownloadURL();
+        final downloadUrl = await ImageStorageService().uploadImageFile('Products/Variations/Images', pickedFile);
 
         // Cập nhật URL hình ảnh cho biến thể
         if (index < variations.length) {
@@ -296,11 +251,16 @@ class AllProductController extends GetxController {
       }
     } catch (e) {
       print('Error uploading image: $e');
-      Get.snackbar('Error', 'Failed to upload image. Please try again.');
+      Get.snackbar('Upload failed', e.toString());
     }
   }
   void setProductData(ProductModel product) {
     titleController.text = product.title;
+    categoryIdController.text = product.categoryId;
+    categoryNameController.text = product.categoryName;
+    brandIdController.text = product.brand?.id ?? '';
+    brandNameController.text = product.brand?.name ?? '';
+    brandImageController.text = product.brand?.image ?? '';
     priceController.text = product.price.toString();
     stockController.text = product.stock.toString();
     salePriceController.text = product.salePrice.toString();
@@ -381,6 +341,11 @@ class AllProductController extends GetxController {
       'Description': descriptionController.text,
       'Thumbnail': thumbnailController.text,
       'CategoryId': categoryIdController.text,
+      'CategoryName': categoryNameController.text,
+      'CatalogId': sneakerCatalogId,
+      'BrowseKeys': catalogBrowseKeys(title: titleController.text,
+          brandName: brandNameController.text, categoryName: categoryNameController.text,
+          brandId: brandIdController.text, categoryId: categoryIdController.text),
       'ProductType': selectedProductType.value.toString(),
       'IsFeatured': isFeatured.value,
       'Images': images.map((controller) => controller.text).toList(),
@@ -525,6 +490,10 @@ class AllProductController extends GetxController {
       images: images.map((controller) => controller.text).toList(),
       productAttributes: attributes,
       productVariations: variations,
+      brand: brand,
+      categoryId: categoryIdController.text,
+      categoryName: categoryNameController.text,
+      catalogId: sneakerCatalogId,
     );
 
     try {
@@ -573,7 +542,7 @@ class AllProductController extends GetxController {
         products.sort((a, b) => a.price.compareTo(b.price));
         break;
       case 'Newest':
-        products.sort((a, b) => a.date!.compareTo(b.date!));
+        products.sort((a, b) => (b.date ?? DateTime(1970)).compareTo(a.date ?? DateTime(1970)));
         break;
       case 'Sale':
         products.sort((a, b) {
