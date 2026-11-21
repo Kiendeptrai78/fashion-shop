@@ -36,15 +36,15 @@ class AdminDashboardView extends StatelessWidget {
                       'Theo dõi doanh thu, trạng thái đơn hàng, tồn kho và tương tác khách hàng theo thời gian thực.',
                   actions: [
                     OutlinedButton.icon(
-                      onPressed: () => controller.selectSection(AdminSection.notifications),
+                      onPressed: () => controller.selectSection(AdminSection.finance),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AdminColors.forest,
                         side: const BorderSide(color: AdminColors.borderStrong),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
                       ),
-                      icon: const Icon(Iconsax.notification_bing, size: 17),
-                      label: const Text('Gửi thông báo'),
+                      icon: const Icon(Iconsax.money_recive, size: 17),
+                      label: const Text('Báo cáo Lãi / Lỗ & Thuế'),
                     ),
                     AdminPrimaryButton(
                       label: 'Quản lý sản phẩm',
@@ -72,14 +72,36 @@ class AdminDashboardView extends StatelessWidget {
                         SizedBox(
                           width: cardWidth,
                           child: AdminStatCard(
-                            title: 'Doanh thu hoàn tất',
-                            value: controller.formatMoney(controller.totalRevenueUsd),
+                            title: 'Doanh thu thuần',
+                            value: controller.formatMoney(controller.financeNetRevenueUsd),
                             subtitle:
-                                'Đang xử lý: ${controller.formatMoney(controller.activePipelineUsd)}',
+                                'Đã nhận: ${controller.formatMoney(controller.totalRevenueUsd)} • Đang xử lý: ${controller.formatMoney(controller.activePipelineUsd)}',
                             icon: Iconsax.wallet_money,
-                            accentColor: AdminColors.emerald,
-                            accentBg: AdminColors.emeraldBg,
-                            onTap: () => controller.selectSection(AdminSection.orders),
+                            accentColor: AdminColors.forest,
+                            accentBg: AdminColors.sageSoft,
+                            onTap: () => controller.selectSection(AdminSection.finance),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: AdminStatCard(
+                            title: controller.financeNetProfitUsd < 0
+                                ? 'Lỗ ròng & Thuế'
+                                : 'Lãi ròng & Thuế',
+                            value:
+                                '${controller.financeNetProfitUsd < 0 ? '-' : '+'}${controller.formatMoney(controller.financeNetProfitUsd.abs())}',
+                            subtitle:
+                                'Thuế: ${controller.formatMoney(controller.financeTotalTaxUsd)} • Biên LN: ${controller.financeProfitMarginPercent.toStringAsFixed(1)}%',
+                            icon: controller.financeNetProfitUsd < 0
+                                ? Iconsax.trend_down
+                                : Iconsax.trend_up,
+                            accentColor: controller.financeNetProfitUsd < 0
+                                ? AdminColors.rose
+                                : AdminColors.emerald,
+                            accentBg: controller.financeNetProfitUsd < 0
+                                ? AdminColors.roseBg
+                                : AdminColors.emeraldBg,
+                            onTap: () => controller.selectSection(AdminSection.finance),
                           ),
                         ),
                         SizedBox(
@@ -88,7 +110,7 @@ class AdminDashboardView extends StatelessWidget {
                             title: 'Tổng đơn hàng',
                             value: '${controller.orders.length}',
                             subtitle:
-                                '${controller.pendingOrdersCount} đơn chờ xác nhận / chuẩn bị',
+                                '${controller.pendingOrdersCount} chờ xử lý • ${controller.countOrdersByStatus(OrderStatus.shipped)} đang giao',
                             icon: Iconsax.shopping_bag,
                             accentColor: AdminColors.sky,
                             accentBg: AdminColors.skyBg,
@@ -98,28 +120,14 @@ class AdminDashboardView extends StatelessWidget {
                         SizedBox(
                           width: cardWidth,
                           child: AdminStatCard(
-                            title: 'Sản phẩm & Kho',
-                            value: '${controller.products.length}',
+                            title: 'Sản phẩm & Khách hàng',
+                            value: '${controller.products.length} SP',
                             subtitle:
-                                '${controller.brands.length} thương hiệu • ${controller.lowStockProducts.length} sắp hết hàng',
-                            icon: Iconsax.box,
-                            accentColor: AdminColors.forest,
-                            accentBg: AdminColors.sageSoft,
-                            onTap: () => controller.selectSection(AdminSection.products),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: AdminStatCard(
-                            title: 'Khách hàng & Đánh giá',
-                            value: '${controller.clientUsers.length}',
-                            subtitle: controller.reviews.isEmpty
-                                ? 'Chưa có đánh giá sản phẩm'
-                                : 'TB ${controller.averageRating.toStringAsFixed(1)} ★ (${controller.reviews.length} đánh giá)',
+                                '${controller.clientUsers.length} khách • ${controller.reviews.length} đánh giá',
                             icon: Iconsax.people,
                             accentColor: AdminColors.amber,
                             accentBg: AdminColors.amberBg,
-                            onTap: () => controller.selectSection(AdminSection.users),
+                            onTap: () => controller.selectSection(AdminSection.products),
                           ),
                         ),
                       ],

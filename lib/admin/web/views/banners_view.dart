@@ -90,12 +90,11 @@ class _AdminBannersViewState extends State<AdminBannersView> {
                                 widget.controller.uploadImage(bytes, name, 'Banners/Images'),
                           ),
                           const SizedBox(height: 14),
-                          TextFormField(
+                          AdminVideoUploadField(
+                            label: 'Video Lookbook (tùy chọn — tải tệp MP4 từ máy)',
                             controller: videoCtrl,
-                            decoration: adminInputDecoration(
-                              label: 'Video URL (tùy chọn — MP4 Lookbook)',
-                              hint: 'https://res.cloudinary.com/.../video.mp4',
-                            ),
+                            onUploadBytes: (bytes, name) =>
+                                widget.controller.uploadVideo(bytes, name, 'Banners/Videos'),
                           ),
                           const SizedBox(height: 14),
                           Row(

@@ -107,6 +107,54 @@ class _ProductReviewState extends State<ProductReview> {
                 ]),
                 const SizedBox(height: 14), _stars(review.rating.toDouble()),
                 const SizedBox(height: 12), Text(review.text, style: theme.textTheme.bodyMedium?.copyWith(height: 1.7)),
+                if (review.hasAdminReply) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.16),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.verified_rounded,
+                                size: 15, color: theme.colorScheme.primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Phản hồi từ VELORA',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            if (review.adminReplyAt != null) ...[
+                              const Spacer(),
+                              Text(
+                                DateFormat.yMMMd(
+                                        Localizations.localeOf(context).languageCode)
+                                    .format(review.adminReplyAt!),
+                                style: theme.textTheme.labelSmall,
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          review.adminReply!,
+                          style: theme.textTheme.bodySmall?.copyWith(height: 1.6),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24), const Divider(height: 1),
               ],
             )),

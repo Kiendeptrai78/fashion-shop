@@ -68,11 +68,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           batch.set(user.collection('Orders').doc(_orderId), {...order.toJson(),
             'discountAmount': quote.discount, 'couponCode': _coupon?.id ?? '',
             'paymentStatus': bank ? 'demo_paid' : 'pay_on_delivery', 'notificationPending': true});
+          final summaryVi = order.itemsSummary(english: false);
+          final summaryEn = order.itemsSummary(english: true);
           batch.set(user.collection('Notifications').doc('order-$_orderId-pending'), {
-            'kind': 'order', 'targetId': _orderId, 'read': false,
-            'titleVi': 'Đã nhận đơn hàng', 'titleEn': 'Order received',
-            'bodyVi': 'Bạn có thể theo dõi tiến trình trong Đơn hàng của tôi.',
-            'bodyEn': 'Track its progress in My Orders.', 'createdAt': FieldValue.serverTimestamp(),
+            'kind': 'order', 'targetId': _orderId, 'read': false, 'pushPending': true,
+            'titleVi': 'Đơn hàng $summaryVi của bạn đã được tiếp nhận',
+            'titleEn': 'Your order for $summaryEn has been received',
+            'bodyVi': 'Cửa hàng đang xác nhận đơn hàng. Bạn có thể theo dõi tiến trình trong Đơn hàng của tôi.',
+            'bodyEn': 'We are confirming your order. Track its progress in My Orders.',
+            'createdAt': FieldValue.serverTimestamp(),
           });
           await batch.commit();
         });

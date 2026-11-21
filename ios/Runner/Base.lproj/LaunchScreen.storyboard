@@ -6,12 +6,12 @@
       <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
       <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
       <subviews>
-        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="S" textAlignment="center" translatesAutoresizingMaskIntoConstraints="NO" id="launch-mark">
+        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="V" textAlignment="center" translatesAutoresizingMaskIntoConstraints="NO" id="launch-mark">
           <rect key="frame" x="146.5" y="320" width="100" height="100"/>
           <fontDescription key="fontDescription" type="system" weight="bold" pointSize="86"/>
           <color key="textColor" red="0.8667" green="0.9176" blue="0.7333" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </label>
-        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="SNEAKERS" textAlignment="center" translatesAutoresizingMaskIntoConstraints="NO" id="launch-name">
+        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="VELORA" textAlignment="center" translatesAutoresizingMaskIntoConstraints="NO" id="launch-name">
           <rect key="frame" x="66.5" y="446" width="260" height="40"/>
           <fontDescription key="fontDescription" type="system" weight="semibold" pointSize="30"/>
           <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>

@@ -37,8 +37,10 @@ class _ShopperOnboardingState extends State<ShopperOnboarding> {
   Future<void> _finish({bool skip = false}) async {
     setState(() { _saving = true; _error = null; });
     try {
+      final selectedCategories = skip ? <String>[] : _categories.toList();
       await ShopperPreferences(completed: true, ageGroup: skip ? 'unspecified' : _age,
-          categoryIds: skip ? [] : _categories.toList()).save();
+          categoryIds: selectedCategories).save();
+      await AccountActivity.current?.syncFavoriteCategories(selectedCategories);
       await AccountActivity.current?.syncPush();
       if (!mounted) return;
       if (widget.editing) { Get.back(); } else { Get.offAll(() => const NavigationMenu()); }

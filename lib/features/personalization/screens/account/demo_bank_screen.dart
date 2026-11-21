@@ -48,12 +48,71 @@ class DemoBankScreen extends StatelessWidget {
     return Scaffold(
       appBar: TAppbar(showBackArrow: true, title: const ShopText('Payment account',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)), actions: [
-        IconButton(tooltip: 'Account information'.tr, icon: const Icon(Icons.info_outline, size: 21),
-          onPressed: () => showDialog(context: context, builder: (dialog) => AlertDialog(
-            title: const ShopText('Account information'),
-            content: const ShopText('Test funds only. No money is taken from a bank account.'),
-            actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const ShopText('Close'))],
-          ))),
+        IconButton(
+          tooltip: 'Account information'.tr,
+          icon: const Icon(Icons.info_outline, size: 21),
+          onPressed: () => showDialog(
+            context: context,
+            builder: (dialog) {
+              final dark = Theme.of(dialog).brightness == Brightness.dark;
+              return Dialog(
+                backgroundColor: dark ? const Color(0xFF17241E) : Colors.white,
+                surfaceTintColor: Colors.transparent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: dark ? const Color(0xFF1E372D) : const Color(0xFFEAF2EE),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          Iconsax.info_circle,
+                          color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                          size: 25,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const ShopText(
+                        'Account information',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 10),
+                      ShopText(
+                        'Test funds only. No money is taken from a bank account.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(dialog).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(dialog).hintColor,
+                              height: 1.5,
+                            ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(dialog),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF173E32),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: const ShopText('Close', style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ]),
       body: Obx(() => ListView(padding: const EdgeInsets.all(24), children: [
         Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(

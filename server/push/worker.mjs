@@ -1,18 +1,14 @@
 import {initializeApp, applicationDefault} from 'firebase-admin/app';
 import {getFirestore, FieldValue, Timestamp} from 'firebase-admin/firestore';
 import {getMessaging} from 'firebase-admin/messaging';
-import {orderNotice, productNotice, messageFor} from './messages.mjs';
+import {orderNotice, productNotice, inboxNotice, messageFor} from './messages.mjs';
 
 initializeApp({credential: applicationDefault()});
 const db = getFirestore();
 const messaging = getMessaging();
 const active = new Set();
 
-async function deliver(uid, notice, devices) {
-  const ref = db.collection('Users').doc(uid).collection('Notifications').doc(notice.id);
-  const existing = await ref.get();
-  if (existing.data()?.pushComplete === true) return;
-  if (!existing.exists) await ref.set({...notice, read: false, createdAt: FieldValue.serverTimestamp()});
+async function sendToDevices(notice, devices) {
   for (const language of ['vi', 'en']) {
     const selected = devices.filter(doc => doc.data().enabled === true && doc.data().token &&
       (doc.data().language === 'en' ? 'en' : 'vi') === language);
@@ -29,10 +25,48 @@ async function deliver(uid, notice, devices) {
       }
     }
   }
-  await ref.update({pushComplete: true});
+}
+
+async function deliver(uid, notice, devices) {
+  const ref = db.collection('Users').doc(uid).collection('Notifications').doc(notice.id);
+  const existing = await ref.get();
+  if (existing.data()?.pushComplete === true) return;
+  if (!existing.exists) await ref.set({...notice, read: false, createdAt: FieldValue.serverTimestamp()});
+  await sendToDevices(notice, devices);
+  await ref.update({pushComplete: true, pushPending: false});
+}
+
+async function processInboxNotification(doc) {
+  if (active.has(doc.ref.path)) return;
+  active.add(doc.ref.path);
+  try {
+    const data = await db.runTransaction(async transaction => {
+      const snapshot = await transaction.get(doc.ref);
+      const current = snapshot.data();
+      if (!current?.pushPending || current.pushComplete === true ||
+          (current.notificationLeaseUntil?.toMillis() ?? 0) > Date.now()) return null;
+      transaction.update(doc.ref, {notificationLeaseUntil: Timestamp.fromMillis(Date.now() + 60000)});
+      return current;
+    });
+    if (!data) return;
+    const notice = inboxNotice(data, doc.id);
+    if (notice) {
+      const user = doc.ref.parent.parent;
+      const devices = await user.collection('Devices').get();
+      await sendToDevices(notice, devices.docs);
+    }
+    await doc.ref.update({
+      pushPending: false,
+      pushComplete: true,
+      notificationLeaseUntil: FieldValue.delete(),
+    });
+  } catch (error) {
+    console.error('Inbox push pending:', doc.ref.path, error.code ?? error.message);
+  } finally { active.delete(doc.ref.path); }
 }
 
 async function processDocument(doc, kind) {
+  if (kind === 'inbox') return processInboxNotification(doc);
   if (active.has(doc.ref.path)) return;
   active.add(doc.ref.path);
   try {
@@ -77,6 +111,7 @@ async function processDocument(doc, kind) {
 const queries = [
   [db.collectionGroup('Orders').where('notificationPending', '==', true), 'order'],
   [db.collection('Products').where('notificationPending', '==', true), 'product'],
+  [db.collectionGroup('Notifications').where('pushPending', '==', true), 'inbox'],
 ];
 const stops = queries.map(([query, kind]) => query.onSnapshot(snapshot => {
   for (const change of snapshot.docChanges()) if (change.type !== 'removed') processDocument(change.doc, kind);

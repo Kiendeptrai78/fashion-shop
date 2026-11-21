@@ -15,12 +15,14 @@ import 'package:fashion_business_app/features/shop/controllers/brand_controller.
 import 'package:fashion_business_app/features/shop/controllers/category_controller.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/product_controller.dart';
+import 'package:fashion_business_app/utils/web/url_strategy.dart';
 import 'app.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
   ///add widgets binding
   final WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  configureWebUrlStrategy();
 
   if (!kIsWeb) {
     FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);

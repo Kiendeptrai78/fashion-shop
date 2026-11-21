@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/features/personalization/models_shopper_preferences.dart';
 import 'package:fashion_business_app/utils/local_storage/local_utility.dart';
@@ -17,6 +18,8 @@ class AccountActivity extends GetxController {
   final pushEnabled = false.obs;
   final pushError = ''.obs;
   bool _handledInitialPush = false;
+  bool _inboxInitialized = false;
+  final _seenInboxIds = <String>{};
   final _subscriptions = <StreamSubscription>[];
   final _db = FirebaseFirestore.instance;
   int get orderCount => counts.values.fold(0, (sum, count) => sum + count);
@@ -40,8 +43,34 @@ class AccountActivity extends GetxController {
     }, onError: (_) {}));
     _subscriptions.add(user.collection('Notifications').orderBy('createdAt', descending: true).limit(100)
         .snapshots().listen((snapshot) {
-      inbox.assignAll(snapshot.docs.map((doc) => {...doc.data(), 'documentId': doc.id}));
+      final items = snapshot.docs.map((doc) => {...doc.data(), 'documentId': doc.id}).toList();
+      if (!_inboxInitialized) {
+        _inboxInitialized = true;
+        _seenInboxIds.addAll(items.map((e) => e['documentId'] as String));
+      } else {
+        for (final item in items) {
+          final docId = item['documentId'] as String;
+          if (_seenInboxIds.add(docId) && item['read'] != true) {
+            final isEn = Get.locale?.languageCode == 'en';
+            final title = (isEn ? item['titleEn'] : item['titleVi'])?.toString() ?? '';
+            final body = (isEn ? item['bodyEn'] : item['bodyVi'])?.toString() ?? '';
+            if (title.isNotEmpty) {
+              Get.snackbar(
+                title,
+                body,
+                snackPosition: SnackPosition.TOP,
+                backgroundColor: const Color(0xFF173E32),
+                colorText: Colors.white,
+                duration: const Duration(seconds: 4),
+                onTap: (_) => Get.to(() => const NotificationsScreen()),
+              );
+            }
+          }
+        }
+      }
+      inbox.assignAll(items);
     }, onError: (_) {}));
+    syncFavoriteCategories(ShopperPreferences.load().categoryIds);
     if (const bool.fromEnvironment('PUSH_BACKEND_READY')) {
       _subscriptions.add(FirebaseMessaging.onMessage.listen((message) {
         final notice = message.notification;
@@ -51,6 +80,16 @@ class AccountActivity extends GetxController {
       _subscriptions.add(FirebaseMessaging.onMessageOpenedApp.listen((_) => Get.to(() => const NotificationsScreen())));
       _subscriptions.add(FirebaseMessaging.instance.onTokenRefresh.listen((_) => syncPush()));
       if (TLocalStorage.instance().readData<bool>('push_enabled_v1') == true) syncPush();
+    }
+  }
+
+  Future<void> syncFavoriteCategories(List<String> categoryIds) async {
+    try {
+      await _db.collection('Users').doc(uid).set({
+        'FavoriteCategoryIds': categoryIds.toSet().toList(),
+      }, SetOptions(merge: true));
+    } catch (_) {
+      // Non-blocking preference sync.
     }
   }
 

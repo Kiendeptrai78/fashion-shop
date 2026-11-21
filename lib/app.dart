@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/admin/login/login_admin_screen.dart';
 import 'package:fashion_business_app/features/authentication/screens/splash/splash_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -27,6 +28,9 @@ class App extends StatelessWidget {
       darkTheme: TAppTheme.darkTheme,
       initialBinding: GeneralBinding(),
       getPages: AppRoutes.pages,
+      unknownRoute: kIsWeb
+          ? GetPage(name: '/admin/login', page: () => const LoginAdminScreen())
+          : null,
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );

@@ -36,13 +36,28 @@ class OrderModel {
       ? THelperFunctions.getFormattedDate(deliveryDate!)
       : '';
 
-  String get orderStatusText => status == OrderStatus.received
-      ? 'Received'
-      : status == OrderStatus.shipped
-          ? 'Shipping'
-          : status == OrderStatus.cancelled
-              ? 'Cancelled'
-              : 'Processing';
+  String get orderStatusText => switch (status) {
+        OrderStatus.pending => 'Pending',
+        OrderStatus.processing => 'Processing',
+        OrderStatus.shipped => 'Shipping',
+        OrderStatus.received => 'Received',
+        OrderStatus.cancelled => 'Cancelled',
+      };
+
+  /// Human-friendly product summary for notifications and order previews
+  /// (e.g. "Air Force 1" or "Air Force 1 và 2 sản phẩm khác").
+  String itemsSummary({bool english = false}) {
+    final titles = items
+        .map((e) => e.title.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+    if (titles.isEmpty) return english ? 'items' : 'sản phẩm';
+    if (titles.length == 1) return titles.first;
+    final rest = titles.length - 1;
+    return english
+        ? '${titles.first} and $rest more ${rest == 1 ? 'item' : 'items'}'
+        : '${titles.first} và $rest sản phẩm khác';
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -62,22 +77,36 @@ class OrderModel {
 
   factory OrderModel.fromSnapshot(DocumentSnapshot snapshot) {
     final data = snapshot.data() as Map<String, dynamic>;
+    final rawStatus = (data['status'] ?? '').toString();
+    final parsedStatus = OrderStatus.values.firstWhere(
+      (element) => element.toString() == rawStatus || element.name == rawStatus,
+      orElse: () => OrderStatus.pending,
+    );
+    final parsedOrderDate =
+        (data['orderDate'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final parsedDeliveryDate = (data['deliveryDate'] as Timestamp?)?.toDate() ??
+        parsedOrderDate.add(const Duration(days: 3));
 
     return OrderModel(
-        id: data['id'] as String,
-        userId: data['userId'] as String,
-        status: OrderStatus.values
-            .firstWhere((element) => element.toString() == data['status']),
-        totalAmount: (data['totalAmount'] as num).toDouble(),
+        id: (data['id'] as String?) ?? snapshot.id,
+        userId: (data['userId'] as String?) ??
+            snapshot.reference.parent.parent?.id ??
+            '',
+        status: parsedStatus,
+        totalAmount: (data['totalAmount'] as num? ?? 0).toDouble(),
         discountAmount: (data['discountAmount'] as num? ?? 0).toDouble(),
         couponCode: data['couponCode'] as String? ?? '',
-        orderDate: (data['orderDate'] as Timestamp).toDate(),
-        paymentMethod: data['paymentMethod'] as String,
-        address: data['address'] == null ? null : AddressModel.fromMap(Map<String, dynamic>.from(data['address'] as Map)),
-        deliveryDate: (data['deliveryDate'] as Timestamp).toDate(),
+        orderDate: parsedOrderDate,
+        paymentMethod: (data['paymentMethod'] as String?) ?? 'Cash on delivery',
+        address: data['address'] == null
+            ? null
+            : AddressModel.fromMap(
+                Map<String, dynamic>.from(data['address'] as Map)),
+        deliveryDate: parsedDeliveryDate,
         searchDate: (data['searchDate'] as Timestamp?)?.toDate(),
-        items: (data['items'] as List<dynamic>)
-            .map((e) => CartItemModel.fromJson(e as Map<String, dynamic>))
+        items: (data['items'] as List<dynamic>? ?? const [])
+            .map((e) => CartItemModel.fromJson(
+                Map<String, dynamic>.from(e as Map)))
             .toList());
   }
 

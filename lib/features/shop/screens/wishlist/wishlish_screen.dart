@@ -76,8 +76,14 @@ class _WishListState extends State<WishList> {
           ShopText('${products.length} saved ${products.length == 1 ? 'pair' : 'pairs'} · Tap a pair to choose your size',
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 28),
-          TGridLayout(itemCount: products.length,
-              itemBuilder: (_, index) => TProductCartVertical(product: products[index])),
+          LayoutBuilder(builder: (context, constraints) {
+            final width = (constraints.maxWidth - 16) / 2;
+            return TGridLayout(
+              itemCount: products.length,
+              mainAxisExtent: width + 138 * MediaQuery.textScalerOf(context).scale(1),
+              itemBuilder: (_, index) => TProductCartVertical(product: products[index]),
+            );
+          }),
         ]),
       ));
     }),

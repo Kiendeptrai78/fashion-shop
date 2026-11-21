@@ -54,8 +54,9 @@ class UpdateNameController extends GetxController{
 
       TFullScreenLoader.stopLoading();
 
-      TLoaders.successSnackBar(title: 'Congratulations', message: 'Your Name Has Been Updated');
       Get.back();
+      await Future.delayed(const Duration(milliseconds: 140));
+      TLoaders.successSnackBar(title: 'Congratulations', message: 'Your Name Has Been Updated');
     }catch(e){
       TFullScreenLoader.stopLoading();
       TLoaders.errorSnackBar(title: 'Oh snap!', message: e.toString());

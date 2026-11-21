@@ -38,14 +38,15 @@ class TLoaders {
         shopTranslate(message, language: Get.locale?.languageCode ?? 'vi'),
         isDismissible: true,
         shouldIconPulse: true,
-        backgroundColor: TColors.black,
+        backgroundColor: const Color(0xFF173E32),
         colorText: TColors.white,
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
+        borderRadius: 16,
         duration: Duration(seconds: duration),
-        margin: const EdgeInsets.all(10),
+        margin: const EdgeInsets.all(14),
         icon: const Icon(
-          Icons.check,
-          color: TColors.white,
+          Icons.check_circle_rounded,
+          color: Color(0xFFDDEABB),
         ));
   }
 

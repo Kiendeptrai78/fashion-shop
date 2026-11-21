@@ -1,4 +1,6 @@
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:vnlunar/vnlunar.dart';
 import 'package:fashion_business_app/utils/local_storage/local_utility.dart';
@@ -66,16 +68,103 @@ class CheckoutQuote {
 }
 
 class CustomerBenefits extends GetxController {
-  CustomerBenefits({required this.read, required this.write, DateTime Function()? now})
-      : now = now ?? DateTime.now;
+  CustomerBenefits({
+    required this.read,
+    required this.write,
+    DateTime Function()? now,
+    this.fetchRemoteCoupons,
+  }) : now = now ?? DateTime.now;
   factory CustomerBenefits.local() => CustomerBenefits(
     read: () => TLocalStorage.instance().readData<Map<String, dynamic>>(customerBenefitsKey),
     write: (data) => TLocalStorage.instance().saveData(customerBenefitsKey, data),
+    fetchRemoteCoupons: _fetchActiveFirestoreVouchers,
   );
   static CustomerBenefits get instance => Get.find();
   final Map<String, dynamic>? Function() read;
   final Future<void> Function(Map<String, dynamic>) write;
   final DateTime Function() now;
+  final Future<List<ShopCoupon>> Function()? fetchRemoteCoupons;
+
+  static Future<List<ShopCoupon>> _fetchActiveFirestoreVouchers() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      // Determine customer's segment from their own order history so targeted vouchers sync accurately
+      var receivedOrders = 0;
+      var cancelledOrders = 0;
+      var totalOrders = 0;
+      var totalSpent = 0.0;
+      if (uid.isNotEmpty) {
+        try {
+          final orderSnap = await FirebaseFirestore.instance
+              .collection('Users')
+              .doc(uid)
+              .collection('Orders')
+              .get();
+          totalOrders = orderSnap.docs.length;
+          for (final doc in orderSnap.docs) {
+            final d = doc.data();
+            final status = (d['status'] ?? '').toString().split('.').last;
+            if (status == 'received') {
+              receivedOrders++;
+              totalSpent += (d['totalAmount'] as num? ?? 0).toDouble();
+            } else if (status == 'cancelled') {
+              cancelledOrders++;
+            }
+          }
+        } catch (_) {}
+      }
+      final cancelRate = totalOrders == 0 ? 0.0 : cancelledOrders / totalOrders;
+      final isBomHang = cancelledOrders >= 2 || (totalOrders >= 2 && cancelRate >= 0.5);
+      final isVip = !isBomHang && (receivedOrders >= 3 || totalSpent >= 300);
+      final isLoyal = !isBomHang && receivedOrders >= 1;
+      final isNewMember = !isBomHang && receivedOrders == 0;
+
+      final snap = await FirebaseFirestore.instance
+          .collection('Vouchers')
+          .where('active', isEqualTo: true)
+          .get();
+      final result = <ShopCoupon>[];
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final audience = (data['targetAudience'] ?? 'all').toString();
+        final excludeBom = data['excludeBomHang'] != false;
+        final targetIds = (data['targetUserIds'] as List?)
+                ?.map((e) => e.toString())
+                .toSet() ??
+            const <String>{};
+
+        if (audience == 'specific') {
+          if (uid.isEmpty || !targetIds.contains(uid)) continue;
+        } else {
+          if (excludeBom && isBomHang) continue;
+          if (audience == 'vip' && !isVip) continue;
+          if (audience == 'loyal' && !isLoyal) continue;
+          if (audience == 'newMember' && !isNewMember) continue;
+        }
+
+        final rawExpires = data['expires'];
+        DateTime? expires;
+        if (rawExpires is Timestamp) {
+          expires = rawExpires.toDate();
+        } else if (rawExpires is String) {
+          expires = DateTime.tryParse(rawExpires);
+        }
+        if (expires == null) continue;
+        result.add(ShopCoupon(
+          id: ((data['code'] ?? doc.id) as String).trim().toUpperCase(),
+          title: (data['title'] ?? 'Ưu đãi từ VELORA') as String,
+          expires: expires,
+          percent: (data['percent'] as num? ?? 0).toInt(),
+          maxUsd: (data['maxUsd'] as num? ?? 0).toDouble(),
+          minUsd: (data['minUsd'] as num? ?? 0).toDouble(),
+          shipping: data['shipping'] == true,
+        ));
+      }
+      return result;
+    } catch (_) {
+      return [];
+    }
+  }
   final revision = 0.obs;
   final busy = false.obs;
   Map<String, dynamic> _state = {};
@@ -105,11 +194,35 @@ class CustomerBenefits extends GetxController {
     final incoming = [for (var offset = 0; offset < 7; offset++)
       ...couponsIssuedOn(date.subtract(Duration(days: offset)),
           newCustomer: offset == 0 && _state['created'] != true)];
-    final ids = existing.map((coupon) => coupon.id).toSet();
-    final added = incoming.where((coupon) => !ids.contains(coupon.id)).toList();
-    if (_state['created'] != true || added.isNotEmpty) {
+    final remote = fetchRemoteCoupons != null
+        ? await fetchRemoteCoupons!.call()
+        : const <ShopCoupon>[];
+    final byId = <String, ShopCoupon>{
+      for (final coupon in existing) coupon.id: coupon,
+    };
+    var changed = _state['created'] != true;
+    for (final coupon in incoming) {
+      if (!byId.containsKey(coupon.id)) {
+        byId[coupon.id] = coupon;
+        changed = true;
+      }
+    }
+    for (final coupon in remote) {
+      final prev = byId[coupon.id];
+      if (prev == null ||
+          prev.title != coupon.title ||
+          prev.percent != coupon.percent ||
+          prev.maxUsd != coupon.maxUsd ||
+          prev.minUsd != coupon.minUsd ||
+          prev.shipping != coupon.shipping ||
+          prev.expires != coupon.expires) {
+        byId[coupon.id] = coupon;
+        changed = true;
+      }
+    }
+    if (changed) {
       await _save({..._state, 'created': true, 'balance': balanceVnd,
-        'coupons': [...existing, ...added].map((coupon) => coupon.toJson()).toList()});
+        'coupons': byId.values.map((coupon) => coupon.toJson()).toList()});
     }
   }
 

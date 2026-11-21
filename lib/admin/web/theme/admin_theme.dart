@@ -67,14 +67,14 @@ class AdminOrderStatusMeta {
         );
       case OrderStatus.shipped:
         return const AdminOrderStatusMeta(
-          label: 'Đang giao',
+          label: 'Đang giao hàng',
           color: AdminColors.sky,
           bgColor: AdminColors.skyBg,
           icon: Iconsax.truck_fast,
         );
       case OrderStatus.received:
         return const AdminOrderStatusMeta(
-          label: 'Đã hoàn tất',
+          label: 'Đã nhận',
           color: AdminColors.emerald,
           bgColor: AdminColors.emeraldBg,
           icon: Iconsax.tick_circle,
@@ -476,9 +476,7 @@ class _AdminImageUploadFieldState extends State<AdminImageUploadField> {
   String? _error;
 
   Future<void> _pickAndUpload() async {
-    setState(() {
-      _error = null;
-    });
+    setState(() => _error = null);
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
@@ -512,83 +510,622 @@ class _AdminImageUploadFieldState extends State<AdminImageUploadField> {
         Text(
           widget.label,
           style: const TextStyle(
-            fontSize: 12,
+            fontSize: 12.5,
             fontWeight: FontWeight.w600,
             color: AdminColors.inkSecondary,
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: widget.controller,
-              builder: (_, value, __) => AdminImageThumb(
-                url: value.text,
-                width: widget.previewWidth,
-                height: widget.previewHeight,
-                borderRadius: 12,
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: widget.controller,
+          builder: (_, value, __) {
+            final hasImage = value.text.trim().isNotEmpty;
+            return InkWell(
+              onTap: _uploading ? null : _pickAndUpload,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AdminColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: hasImage ? AdminColors.borderStrong : AdminColors.border,
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    AdminImageThumb(
+                      url: value.text,
+                      width: widget.previewWidth,
+                      height: widget.previewHeight,
+                      borderRadius: 12,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _uploading
+                                ? 'Đang tải ảnh lên...'
+                                : hasImage
+                                    ? 'Đã có ảnh • Nhấn để thay đổi'
+                                    : 'Nhấn để chọn ảnh từ máy tính',
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: AdminColors.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Hỗ trợ JPG, PNG, WEBP • Tự động lưu trên đám mây',
+                            style: TextStyle(fontSize: 11.5, color: AdminColors.inkMuted),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: _uploading ? null : _pickAndUpload,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AdminColors.forest,
+                                  backgroundColor: AdminColors.surface,
+                                  side: const BorderSide(color: AdminColors.borderStrong),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 9),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                icon: _uploading
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Icon(Iconsax.document_upload, size: 15),
+                                label: Text(hasImage ? 'Đổi ảnh khác' : 'Chọn ảnh từ máy'),
+                              ),
+                              if (hasImage)
+                                TextButton.icon(
+                                  onPressed: _uploading
+                                      ? null
+                                      : () {
+                                          widget.controller.clear();
+                                          setState(() {});
+                                        },
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: AdminColors.rose,
+                                  ),
+                                  icon: const Icon(Iconsax.trash, size: 15),
+                                  label: const Text('Xóa ảnh', style: TextStyle(fontSize: 12)),
+                                ),
+                            ],
+                          ),
+                          if (_error != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              _error!,
+                              style: const TextStyle(fontSize: 12, color: AdminColors.rose),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Visual multi-photo uploader for products: pick 1 or many photos at once,
+/// preview as clean tiles, click the star to set the cover photo, or remove any photo.
+class AdminMultiImageUploader extends StatefulWidget {
+  const AdminMultiImageUploader({
+    super.key,
+    required this.images,
+    required this.thumbnailUrl,
+    required this.onChanged,
+    required this.onUploadBytes,
+  });
+
+  final List<String> images;
+  final String thumbnailUrl;
+  final void Function(List<String> images, String thumbnailUrl) onChanged;
+  final Future<String> Function(Uint8List bytes, String filename) onUploadBytes;
+
+  @override
+  State<AdminMultiImageUploader> createState() => _AdminMultiImageUploaderState();
+}
+
+class _AdminMultiImageUploaderState extends State<AdminMultiImageUploader> {
+  bool _uploading = false;
+  int _uploadedCount = 0;
+  int _totalToUpload = 0;
+  String? _error;
+
+  Future<void> _pickMultiple() async {
+    setState(() => _error = null);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: true,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      final validFiles =
+          result.files.where((f) => f.bytes != null && f.bytes!.isNotEmpty).toList();
+      if (validFiles.isEmpty) {
+        setState(() => _error = 'Không đọc được dữ liệu ảnh đã chọn.');
+        return;
+      }
+
+      setState(() {
+        _uploading = true;
+        _uploadedCount = 0;
+        _totalToUpload = validFiles.length;
+      });
+
+      final updated = List<String>.from(widget.images);
+      String nextThumb = widget.thumbnailUrl;
+
+      for (final file in validFiles) {
+        final url = await widget.onUploadBytes(file.bytes!, file.name);
+        if (!updated.contains(url)) {
+          updated.add(url);
+        }
+        if (nextThumb.trim().isEmpty) {
+          nextThumb = url;
+        }
+        if (mounted) {
+          setState(() => _uploadedCount++);
+        }
+      }
+
+      widget.onChanged(updated, nextThumb);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _uploadedCount = 0;
+          _totalToUpload = 0;
+        });
+      }
+    }
+  }
+
+  void _setAsThumbnail(String url) {
+    final reordered = List<String>.from(widget.images)
+      ..remove(url)
+      ..insert(0, url);
+    widget.onChanged(reordered, url);
+  }
+
+  void _removeImage(String url) {
+    final updated = List<String>.from(widget.images)..remove(url);
+    final nextThumb = widget.thumbnailUrl == url
+        ? (updated.isNotEmpty ? updated.first : '')
+        : widget.thumbnailUrl;
+    widget.onChanged(updated, nextThumb);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextFormField(
-                    controller: widget.controller,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: adminInputDecoration(
-                      hint: 'Dán URL ảnh https://... hoặc tải lên từ máy',
+                  Text(
+                    'Hình ảnh sản phẩm *',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AdminColors.ink,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: _uploading ? null : _pickAndUpload,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AdminColors.forest,
-                          side: const BorderSide(color: AdminColors.borderStrong),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        icon: _uploading
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Iconsax.document_upload, size: 16),
-                        label: Text(_uploading ? 'Đang tải lên Cloudinary...' : 'Tải ảnh lên'),
-                      ),
-                      if (widget.controller.text.isNotEmpty)
-                        TextButton(
-                          onPressed: () {
-                            widget.controller.clear();
-                            setState(() {});
-                          },
-                          child: const Text('Xóa ảnh', style: TextStyle(color: AdminColors.rose, fontSize: 12)),
-                        ),
-                    ],
+                  SizedBox(height: 2),
+                  Text(
+                    'Chọn một hoặc nhiều ảnh từ máy tính. Nhấn biểu tượng ngôi sao để chọn làm ảnh đại diện.',
+                    style: TextStyle(fontSize: 11.5, color: AdminColors.inkMuted),
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      _error!,
-                      style: const TextStyle(fontSize: 12, color: AdminColors.rose),
-                    ),
-                  ],
                 ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              onPressed: _uploading ? null : _pickMultiple,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AdminColors.forest,
+                backgroundColor: AdminColors.sageSoft.withValues(alpha: 0.6),
+                side: const BorderSide(color: AdminColors.forest),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+              ),
+              icon: _uploading
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AdminColors.forest,
+                      ),
+                    )
+                  : const Icon(Iconsax.gallery_add, size: 17),
+              label: Text(
+                _uploading
+                    ? 'Đang tải $_uploadedCount/$_totalToUpload ảnh...'
+                    : 'Thêm ảnh từ máy',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
               ),
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        if (widget.images.isEmpty)
+          InkWell(
+            onTap: _uploading ? null : _pickMultiple,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+              decoration: BoxDecoration(
+                color: AdminColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AdminColors.borderStrong),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AdminColors.sageSoft,
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: const Icon(Iconsax.gallery_add,
+                        size: 24, color: AdminColors.forest),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Nhấn vào đây để chọn ảnh sản phẩm (có thể chọn nhiều ảnh cùng lúc)',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AdminColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Ảnh đầu tiên sẽ tự động làm ảnh đại diện hiển thị ngoài trang chủ',
+                    style: TextStyle(fontSize: 11.5, color: AdminColors.inkMuted),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final url in widget.images) ...[
+                Builder(builder: (_) {
+                  final isMain = url == widget.thumbnailUrl;
+                  return Stack(
+                    children: [
+                      Container(
+                        width: 112,
+                        height: 112,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: AdminColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(
+                            color: isMain ? AdminColors.forest : AdminColors.border,
+                            width: isMain ? 2 : 1,
+                          ),
+                        ),
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Center(
+                            child: Icon(Iconsax.image, color: AdminColors.inkMuted),
+                          ),
+                        ),
+                      ),
+                      if (isMain)
+                        Positioned(
+                          left: 6,
+                          bottom: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AdminColors.forest,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Ảnh chính',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Positioned(
+                          left: 6,
+                          top: 6,
+                          child: Tooltip(
+                            message: 'Đặt làm ảnh chính',
+                            child: InkWell(
+                              onTap: () => _setAsThumbnail(url),
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.55),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.star_outline_rounded,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        right: 6,
+                        top: 6,
+                        child: Tooltip(
+                          message: 'Xóa ảnh này',
+                          child: InkWell(
+                            onTap: () => _removeImage(url),
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AdminColors.rose.withValues(alpha: 0.9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                size: 13,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+              // Quick "+ Thêm ảnh" tile
+              InkWell(
+                onTap: _uploading ? null : _pickMultiple,
+                borderRadius: BorderRadius.circular(13),
+                child: Container(
+                  width: 112,
+                  height: 112,
+                  decoration: BoxDecoration(
+                    color: AdminColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(color: AdminColors.borderStrong),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_uploading)
+                        const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AdminColors.forest,
+                          ),
+                        )
+                      else
+                        const Icon(Iconsax.add_circle,
+                            size: 24, color: AdminColors.forest),
+                      const SizedBox(height: 6),
+                      Text(
+                        _uploading ? '$_uploadedCount/$_totalToUpload' : 'Thêm ảnh',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AdminColors.forest,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _error!,
+            style: const TextStyle(fontSize: 12, color: AdminColors.rose),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class AdminVideoUploadField extends StatefulWidget {
+  const AdminVideoUploadField({
+    super.key,
+    required this.label,
+    required this.controller,
+    required this.onUploadBytes,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final Future<String> Function(Uint8List bytes, String filename) onUploadBytes;
+
+  @override
+  State<AdminVideoUploadField> createState() => _AdminVideoUploadFieldState();
+}
+
+class _AdminVideoUploadFieldState extends State<AdminVideoUploadField> {
+  bool _uploading = false;
+  String? _error;
+
+  Future<void> _pickAndUpload() async {
+    setState(() => _error = null);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.video,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        setState(() => _error = 'Không đọc được tệp video.');
+        return;
+      }
+      setState(() => _uploading = true);
+      final url = await widget.onUploadBytes(bytes, file.name);
+      widget.controller.text = url;
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.label,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: AdminColors.inkSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: widget.controller,
+          builder: (_, value, __) {
+            final hasVideo = value.text.trim().isNotEmpty;
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AdminColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AdminColors.border),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: hasVideo ? AdminColors.forest : AdminColors.sageSoft,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(
+                      Iconsax.video_play,
+                      size: 20,
+                      color: hasVideo ? AdminColors.sage : AdminColors.forest,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _uploading
+                              ? 'Đang tải video lên Cloudinary...'
+                              : hasVideo
+                                  ? 'Đã gắn video Lookbook (MP4)'
+                                  : 'Chưa có video (tùy chọn)',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AdminColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          hasVideo
+                              ? 'Video tự động phát không tiếng trên banner trang chủ.'
+                              : 'Tải lên video ngắn MP4 từ máy nếu muốn làm banner chuyển động.',
+                          style: const TextStyle(fontSize: 11.5, color: AdminColors.inkMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: _uploading ? null : _pickAndUpload,
+                    icon: _uploading
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Iconsax.document_upload, size: 15),
+                    label: Text(hasVideo ? 'Đổi video' : 'Tải video'),
+                  ),
+                  if (hasVideo)
+                    IconButton(
+                      tooltip: 'Gỡ video',
+                      onPressed: _uploading
+                          ? null
+                          : () {
+                              widget.controller.clear();
+                              setState(() {});
+                            },
+                      icon: const Icon(Iconsax.trash, size: 16, color: AdminColors.rose),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 6),
+          Text(_error!, style: const TextStyle(fontSize: 12, color: AdminColors.rose)),
+        ],
       ],
     );
   }

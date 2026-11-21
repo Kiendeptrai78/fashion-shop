@@ -1,12 +1,52 @@
 import 'package:fashion_business_app/admin/web/controllers/admin_web_controller.dart';
+import 'package:fashion_business_app/admin/web/data/admin_web_models.dart';
 import 'package:fashion_business_app/admin/web/theme/admin_theme.dart';
-import 'package:fashion_business_app/features/authentication/models/user_model.dart';
 import 'package:fashion_business_app/features/personalization/models/address_model.dart';
 import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
+
+({String label, Color color, Color bg, IconData icon}) segmentBadgeMeta(CustomerSegment seg) {
+  switch (seg) {
+    case CustomerSegment.vip:
+      return (
+        label: 'Khách VIP',
+        color: const Color(0xFFB45309),
+        bg: const Color(0xFFFEF3C7),
+        icon: Iconsax.crown_1,
+      );
+    case CustomerSegment.loyal:
+      return (
+        label: 'Khách lâu năm',
+        color: AdminColors.emerald,
+        bg: AdminColors.emeraldBg,
+        icon: Iconsax.verify,
+      );
+    case CustomerSegment.newMember:
+      return (
+        label: 'Thành viên mới',
+        color: AdminColors.sky,
+        bg: AdminColors.skyBg,
+        icon: Iconsax.user_add,
+      );
+    case CustomerSegment.bomHang:
+      return (
+        label: 'Cảnh báo bom hàng',
+        color: AdminColors.rose,
+        bg: AdminColors.roseBg,
+        icon: Iconsax.warning_2,
+      );
+    case CustomerSegment.admin:
+      return (
+        label: 'Quản trị viên',
+        color: AdminColors.forest,
+        bg: AdminColors.sageSoft,
+        icon: Iconsax.shield_tick,
+      );
+  }
+}
 
 class AdminUsersView extends StatefulWidget {
   const AdminUsersView({super.key, required this.controller});
@@ -19,13 +59,14 @@ class AdminUsersView extends StatefulWidget {
 
 class _AdminUsersViewState extends State<AdminUsersView> {
   String _query = '';
-  String _roleFilter = 'all';
+  String _segmentFilter = 'all'; // 'all' | 'vip' | 'loyal' | 'newMember' | 'bomHang' | 'admin'
 
-  Future<void> _openUserDetail(UserModel user) async {
+  Future<void> _openUserDetail(CustomerProfileStats stats) async {
+    final user = stats.user;
     final userOrders = widget.controller.ordersForUser(user.id);
-    final totalSpent = widget.controller.totalSpentForUser(user.id);
     final addressesFuture = widget.controller.fetchUserAddresses(user.id);
-    final isAdmin = AdminConfig.isAdminEmail(user.email);
+    final isAdmin = stats.segment == CustomerSegment.admin;
+    final badge = segmentBadgeMeta(stats.segment);
 
     await showDialog<void>(
       context: context,
@@ -33,7 +74,7 @@ class _AdminUsersViewState extends State<AdminUsersView> {
         backgroundColor: AdminColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720, maxHeight: 740),
+          constraints: const BoxConstraints(maxWidth: 740, maxHeight: 760),
           child: Column(
             children: [
               Container(
@@ -55,26 +96,24 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Flexible(
-                                child: Text(
-                                  user.fullName.trim().isNotEmpty
-                                      ? user.fullName
-                                      : user.username,
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: AdminColors.ink,
-                                  ),
+                              Text(
+                                user.fullName.trim().isNotEmpty ? user.fullName : user.username,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: AdminColors.ink,
                                 ),
                               ),
-                              const SizedBox(width: 8),
                               AdminBadge(
-                                label: isAdmin ? 'Quản trị viên' : 'Khách hàng',
-                                color: isAdmin ? AdminColors.forest : AdminColors.sky,
-                                bgColor: isAdmin ? AdminColors.sageSoft : AdminColors.skyBg,
-                                icon: isAdmin ? Iconsax.shield_tick : Iconsax.user,
+                                label: badge.label,
+                                color: badge.color,
+                                bgColor: badge.bg,
+                                icon: badge.icon,
                               ),
                             ],
                           ),
@@ -102,27 +141,56 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (stats.segment == CustomerSegment.bomHang) ...[
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AdminColors.roseBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AdminColors.rose.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Iconsax.warning_2, color: AdminColors.rose, size: 19),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Tài khoản có ${stats.cancelledOrders}/${stats.totalOrders} đơn bị hủy (${(stats.cancelRate * 100).round()}%). Hệ thống tự động loại trừ khi phát Voucher khuyến mãi chung.',
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AdminColors.rose,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       // Quick metrics
                       Row(
                         children: [
                           Expanded(
                             child: _MiniMetric(
-                              label: 'Số đơn hàng',
-                              value: '${userOrders.length}',
+                              label: 'Thành công / Tổng đơn',
+                              value: '${stats.receivedOrders} / ${stats.totalOrders}',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _MiniMetric(
+                              label: 'Đơn đã hủy',
+                              value: '${stats.cancelledOrders} đơn',
+                              highlightRose: stats.cancelledOrders >= 2,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _MiniMetric(
                               label: 'Tổng chi tiêu',
-                              value: widget.controller.formatMoney(totalSpent),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _MiniMetric(
-                              label: 'Username',
-                              value: user.username.isNotEmpty ? '@${user.username}' : '—',
+                              value: widget.controller.formatMoney(stats.totalSpent),
                             ),
                           ),
                         ],
@@ -175,10 +243,7 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                                   children: [
                                     Text(
                                       '${addr.name} • ${addr.phoneNumber}',
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
@@ -224,14 +289,13 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                               return ListTile(
                                 dense: true,
                                 title: Text(
-                                  'Đơn #${rec.order.id}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
+                                  rec.order.itemsSummary(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                                 ),
                                 subtitle: Text(
-                                  '${DateFormat('dd/MM/yyyy').format(rec.order.orderDate)} • ${rec.order.items.length} mặt hàng',
+                                  '${DateFormat('dd/MM/yyyy').format(rec.order.orderDate)} • #${rec.order.id}',
                                   style: const TextStyle(fontSize: 11.5),
                                 ),
                                 trailing: Row(
@@ -239,10 +303,7 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                                   children: [
                                     Text(
                                       widget.controller.formatMoney(rec.order.totalAmount),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12.5,
-                                      ),
+                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
                                     ),
                                     const SizedBox(width: 10),
                                     AdminBadge(
@@ -268,7 +329,16 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    if (!isAdmin)
+                    if (!isAdmin) ...[
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          widget.controller.openVoucherComposerForUser(user.id);
+                        },
+                        icon: const Icon(Iconsax.ticket_discount, size: 17),
+                        label: const Text('Tặng Voucher riêng'),
+                      ),
+                      const SizedBox(width: 10),
                       AdminPrimaryButton(
                         label: 'Gửi thông báo cho khách này',
                         icon: Iconsax.notification_bing,
@@ -277,6 +347,7 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                           widget.controller.openNotificationComposerForUser(user.id);
                         },
                       ),
+                    ],
                   ],
                 ),
               ),
@@ -291,21 +362,24 @@ class _AdminUsersViewState extends State<AdminUsersView> {
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     return Obx(() {
-      final all = widget.controller.users;
+      final allStats = widget.controller.users.map(widget.controller.customerStatsFor).toList();
       final q = _query.trim().toLowerCase();
-      final filtered = all.where((u) {
-        final isAdmin = AdminConfig.isAdminEmail(u.email);
-        if (_roleFilter == 'admin' && !isAdmin) return false;
-        if (_roleFilter == 'client' && isAdmin) return false;
+
+      int countOf(CustomerSegment s) => allStats.where((st) => st.segment == s).length;
+
+      final filtered = allStats.where((st) {
+        if (_segmentFilter == 'vip' && st.segment != CustomerSegment.vip) return false;
+        if (_segmentFilter == 'loyal' && st.segment != CustomerSegment.loyal) return false;
+        if (_segmentFilter == 'newMember' && st.segment != CustomerSegment.newMember) return false;
+        if (_segmentFilter == 'bomHang' && st.segment != CustomerSegment.bomHang) return false;
+        if (_segmentFilter == 'admin' && st.segment != CustomerSegment.admin) return false;
         if (q.isEmpty) return true;
+        final u = st.user;
         return u.fullName.toLowerCase().contains(q) ||
             u.email.toLowerCase().contains(q) ||
             u.phoneNumber.toLowerCase().contains(q) ||
             u.username.toLowerCase().contains(q);
       }).toList();
-
-      final adminCount = all.where((u) => AdminConfig.isAdminEmail(u.email)).length;
-      final clientCount = all.length - adminCount;
 
       return SingleChildScrollView(
         padding: EdgeInsets.all(width < 700 ? 16 : 28),
@@ -316,9 +390,9 @@ class _AdminUsersViewState extends State<AdminUsersView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AdminSectionToolbar(
-                  title: 'Quản lý Người dùng (${all.length})',
+                  title: 'Quản lý & Phân loại Khách hàng (${allStats.length})',
                   subtitle:
-                      'Email ${AdminConfig.adminEmail} là Quản trị viên duy nhất; toàn bộ email khác là tài khoản Khách hàng.',
+                      'Tự động phân hạng Khách VIP, Khách lâu năm, Thành viên mới và Cảnh báo bom hàng dựa trên lịch sử mua thực tế.',
                   actions: [
                     AdminSearchField(
                       hint: 'Tìm theo tên, email, số điện thoại...',
@@ -333,19 +407,41 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                   runSpacing: 8,
                   children: [
                     ChoiceChip(
-                      label: Text('Tất cả (${all.length})'),
-                      selected: _roleFilter == 'all',
-                      onSelected: (_) => setState(() => _roleFilter = 'all'),
+                      label: Text('Tất cả (${allStats.length})'),
+                      selected: _segmentFilter == 'all',
+                      onSelected: (_) => setState(() => _segmentFilter = 'all'),
                     ),
                     ChoiceChip(
-                      label: Text('Khách hàng ($clientCount)'),
-                      selected: _roleFilter == 'client',
-                      onSelected: (_) => setState(() => _roleFilter = 'client'),
+                      label: Text('Khách VIP (${countOf(CustomerSegment.vip)})'),
+                      selected: _segmentFilter == 'vip',
+                      onSelected: (_) => setState(() => _segmentFilter = 'vip'),
                     ),
                     ChoiceChip(
-                      label: Text('Quản trị viên ($adminCount)'),
-                      selected: _roleFilter == 'admin',
-                      onSelected: (_) => setState(() => _roleFilter = 'admin'),
+                      label: Text('Khách lâu năm (${countOf(CustomerSegment.loyal)})'),
+                      selected: _segmentFilter == 'loyal',
+                      onSelected: (_) => setState(() => _segmentFilter = 'loyal'),
+                    ),
+                    ChoiceChip(
+                      label: Text('Thành viên mới (${countOf(CustomerSegment.newMember)})'),
+                      selected: _segmentFilter == 'newMember',
+                      onSelected: (_) => setState(() => _segmentFilter = 'newMember'),
+                    ),
+                    ChoiceChip(
+                      selectedColor: AdminColors.roseBg,
+                      label: Text(
+                        'Cảnh báo bom hàng (${countOf(CustomerSegment.bomHang)})',
+                        style: TextStyle(
+                          color: _segmentFilter == 'bomHang' ? AdminColors.rose : null,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      selected: _segmentFilter == 'bomHang',
+                      onSelected: (_) => setState(() => _segmentFilter = 'bomHang'),
+                    ),
+                    ChoiceChip(
+                      label: Text('Quản trị viên (${countOf(CustomerSegment.admin)})'),
+                      selected: _segmentFilter == 'admin',
+                      onSelected: (_) => setState(() => _segmentFilter = 'admin'),
                     ),
                   ],
                 ),
@@ -357,32 +453,28 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                       ? const AdminEmptyState(
                           icon: Iconsax.people,
                           title: 'Không tìm thấy người dùng',
-                          subtitle: 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.',
+                          subtitle: 'Thử thay đổi phân khúc hoặc từ khóa tìm kiếm.',
                         )
                       : SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(minWidth: 960),
+                            constraints: const BoxConstraints(minWidth: 1020),
                             child: DataTable(
-                              headingRowColor:
-                                  WidgetStateProperty.all(AdminColors.surfaceMuted),
-                              dataRowMinHeight: 62,
-                              dataRowMaxHeight: 68,
+                              headingRowColor: WidgetStateProperty.all(AdminColors.surfaceMuted),
+                              dataRowMinHeight: 64,
+                              dataRowMaxHeight: 72,
                               columns: const [
-                                DataColumn(label: Text('Người dùng', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Số điện thoại', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Vai trò', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Đơn hàng', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text('Khách hàng', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text('Email & SĐT', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text('Phân loại', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text('Thành công / Hủy', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
                                 DataColumn(label: Text('Tổng chi tiêu', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
                                 DataColumn(label: Text('Thao tác', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
                               ],
-                              rows: filtered.map((user) {
+                              rows: filtered.map((stats) {
+                                final user = stats.user;
                                 final isAdmin = AdminConfig.isAdminEmail(user.email);
-                                final orderCount =
-                                    widget.controller.ordersForUser(user.id).length;
-                                final spent =
-                                    widget.controller.totalSpentForUser(user.id);
+                                final badge = segmentBadgeMeta(stats.segment);
                                 return DataRow(
                                   cells: [
                                     DataCell(Row(
@@ -420,30 +512,57 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                                         ),
                                       ],
                                     )),
-                                    DataCell(Text(user.email, style: const TextStyle(fontSize: 12.5))),
-                                    DataCell(Text(
-                                      user.phoneNumber.isNotEmpty ? user.phoneNumber : '—',
-                                      style: const TextStyle(
-                                        fontSize: 12.5,
-                                        color: AdminColors.inkSecondary,
-                                      ),
+                                    DataCell(Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(user.email, style: const TextStyle(fontSize: 12.5)),
+                                        if (user.phoneNumber.isNotEmpty)
+                                          Text(
+                                            user.phoneNumber,
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color: AdminColors.inkMuted,
+                                            ),
+                                          ),
+                                      ],
                                     )),
                                     DataCell(AdminBadge(
-                                      label: isAdmin ? 'Admin' : 'User',
-                                      color: isAdmin ? AdminColors.forest : AdminColors.sky,
-                                      bgColor:
-                                          isAdmin ? AdminColors.sageSoft : AdminColors.skyBg,
-                                      icon: isAdmin ? Iconsax.shield_tick : Iconsax.user,
+                                      label: badge.label,
+                                      color: badge.color,
+                                      bgColor: badge.bg,
+                                      icon: badge.icon,
+                                    )),
+                                    DataCell(Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '${stats.receivedOrders} nhận',
+                                          style: const TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: AdminColors.emerald,
+                                          ),
+                                        ),
+                                        const Text(' · ', style: TextStyle(color: AdminColors.inkMuted)),
+                                        Text(
+                                          '${stats.cancelledOrders} hủy',
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: stats.cancelledOrders >= 2
+                                                ? AdminColors.rose
+                                                : AdminColors.inkSecondary,
+                                          ),
+                                        ),
+                                      ],
                                     )),
                                     DataCell(Text(
-                                      '$orderCount đơn',
-                                      style: const TextStyle(fontSize: 12.5),
-                                    )),
-                                    DataCell(Text(
-                                      widget.controller.formatMoney(spent),
+                                      widget.controller.formatMoney(stats.totalSpent),
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w700,
                                         fontSize: 12.5,
+                                        color: AdminColors.forest,
                                       ),
                                     )),
                                     DataCell(Row(
@@ -451,11 +570,17 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                                       children: [
                                         IconButton(
                                           tooltip: 'Xem chi tiết khách hàng',
-                                          onPressed: () => _openUserDetail(user),
-                                          icon: const Icon(Iconsax.eye,
-                                              size: 18, color: AdminColors.forest),
+                                          onPressed: () => _openUserDetail(stats),
+                                          icon: const Icon(Iconsax.eye, size: 18, color: AdminColors.forest),
                                         ),
                                         if (!isAdmin) ...[
+                                          IconButton(
+                                            tooltip: 'Tặng Voucher riêng',
+                                            onPressed: () => widget.controller
+                                                .openVoucherComposerForUser(user.id),
+                                            icon: const Icon(Iconsax.ticket_discount,
+                                                size: 18, color: Color(0xFFB45309)),
+                                          ),
                                           IconButton(
                                             tooltip: 'Gửi thông báo riêng',
                                             onPressed: () => widget.controller
@@ -470,7 +595,7 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                                                 context,
                                                 title: 'Xóa hồ sơ ${user.email}?',
                                                 message:
-                                                    'Hồ sơ trong collection Users sẽ bị xóa. Lưu ý: để khóa đăng nhập vĩnh viễn hãy tắt/xóa tài khoản trong Firebase Authentication Console.',
+                                                    'Hồ sơ trong collection Users sẽ bị xóa.',
                                               );
                                               if (ok) {
                                                 await widget.controller.deleteUser(user);
@@ -499,19 +624,22 @@ class _AdminUsersViewState extends State<AdminUsersView> {
 }
 
 class _MiniMetric extends StatelessWidget {
-  const _MiniMetric({required this.label, required this.value});
+  const _MiniMetric({required this.label, required this.value, this.highlightRose = false});
 
   final String label;
   final String value;
+  final bool highlightRose;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AdminColors.surfaceMuted,
+        color: highlightRose ? AdminColors.roseBg : AdminColors.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AdminColors.border),
+        border: Border.all(
+          color: highlightRose ? AdminColors.rose.withValues(alpha: 0.3) : AdminColors.border,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,10 +650,10 @@ class _MiniMetric extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: AdminColors.ink,
+              color: highlightRose ? AdminColors.rose : AdminColors.ink,
             ),
           ),
         ],

@@ -48,7 +48,7 @@ void main() {
     await tester.pumpWidget(app(const MediaQuery(data: MediaQueryData(disableAnimations: true),
         child: SplashScreen())));
     await tester.pumpAndSettle();
-    expect(find.text('SNEAKERS'), findsOneWidget);
+    expect(find.text('VELORA'), findsOneWidget);
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.backgroundColor, SplashScreen.background);
     expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value, isNotNull);

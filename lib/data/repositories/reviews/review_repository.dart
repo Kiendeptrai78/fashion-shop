@@ -12,9 +12,15 @@ class ReviewRepository {
         .orderBy('createdAt', descending: true).limit(50).get();
     return snapshot.docs.map((doc) {
       final data = doc.data();
-      return ProductReviewEntry(id: doc.id, authorName: data['authorName'] as String? ?? 'Customer',
-          rating: (data['rating'] as num? ?? 0).toInt(), text: data['text'] as String? ?? '',
-          createdAt: (data['createdAt'] as Timestamp?)?.toDate());
+      return ProductReviewEntry(
+        id: doc.id,
+        authorName: data['authorName'] as String? ?? 'Customer',
+        rating: (data['rating'] as num? ?? 0).toInt(),
+        text: data['text'] as String? ?? '',
+        createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+        adminReply: (data['adminReply'] as String?)?.trim(),
+        adminReplyAt: (data['adminReplyAt'] as Timestamp?)?.toDate(),
+      );
     }).where((review) => review.rating >= 1 && review.rating <= 5).toList();
   }
 

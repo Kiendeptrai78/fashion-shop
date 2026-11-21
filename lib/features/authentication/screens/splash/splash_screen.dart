@@ -31,12 +31,22 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           child: SlideTransition(position: Tween(begin: const Offset(0, 0.04), end: Offset.zero)
               .animate(CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic)),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text('S', style: TextStyle(fontSize: 86, height: 1,
-                  fontWeight: FontWeight.w700, color: Color(0xFFDDEABB), letterSpacing: -5)),
-              const SizedBox(height: 26),
-              const Text('SNEAKERS', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600,
-                  color: Colors.white, letterSpacing: 5)),
-              const SizedBox(height: 16),
+              Container(
+                width: 92,
+                height: 92,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: const Color(0xFFDDEABB).withValues(alpha: 0.28), width: 1.5),
+                ),
+                child: const Text('V', style: TextStyle(fontSize: 58, height: 1,
+                    fontWeight: FontWeight.w700, color: Color(0xFFDDEABB), letterSpacing: -2)),
+              ),
+              const SizedBox(height: 24),
+              const Text('VELORA', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700,
+                  color: Colors.white, letterSpacing: 6)),
+              const SizedBox(height: 12),
               const ShopText('Find your next favorite pair.', style: TextStyle(color: Colors.white70,
                   fontSize: 13, letterSpacing: 0.3)),
             ]),

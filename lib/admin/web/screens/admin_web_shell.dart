@@ -5,11 +5,13 @@ import 'package:fashion_business_app/admin/web/views/banners_view.dart';
 import 'package:fashion_business_app/admin/web/views/brands_view.dart';
 import 'package:fashion_business_app/admin/web/views/categories_view.dart';
 import 'package:fashion_business_app/admin/web/views/dashboard_view.dart';
+import 'package:fashion_business_app/admin/web/views/finance_view.dart';
 import 'package:fashion_business_app/admin/web/views/notifications_view.dart';
 import 'package:fashion_business_app/admin/web/views/orders_view.dart';
 import 'package:fashion_business_app/admin/web/views/products_view.dart';
 import 'package:fashion_business_app/admin/web/views/reviews_view.dart';
 import 'package:fashion_business_app/admin/web/views/users_view.dart';
+import 'package:fashion_business_app/admin/web/views/vouchers_view.dart';
 import 'package:fashion_business_app/data/repositories/authentication/authentication_repository.dart';
 import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,7 +20,9 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
 class AdminWebShell extends StatefulWidget {
-  const AdminWebShell({super.key});
+  const AdminWebShell({super.key, this.initialSection});
+
+  final AdminSection? initialSection;
 
   @override
   State<AdminWebShell> createState() => _AdminWebShellState();
@@ -34,6 +38,9 @@ class _AdminWebShellState extends State<AdminWebShell> {
     _controller = Get.isRegistered<AdminWebController>()
         ? Get.find<AdminWebController>()
         : Get.put(AdminWebController());
+    if (widget.initialSection != null) {
+      _controller.selectSection(widget.initialSection!);
+    }
   }
 
   @override
@@ -141,10 +148,14 @@ class _AdminWebShellState extends State<AdminWebShell> {
     switch (section) {
       case AdminSection.dashboard:
         return AdminDashboardView(controller: _controller);
+      case AdminSection.finance:
+        return AdminFinanceView(controller: _controller);
       case AdminSection.orders:
         return AdminOrdersView(controller: _controller);
       case AdminSection.products:
         return AdminProductsView(controller: _controller);
+      case AdminSection.vouchers:
+        return AdminVouchersView(controller: _controller);
       case AdminSection.brands:
         return AdminBrandsView(controller: _controller);
       case AdminSection.categories:
@@ -176,10 +187,14 @@ class _AdminTopBar extends StatelessWidget {
     switch (section) {
       case AdminSection.dashboard:
         return 'Tổng quan cửa hàng';
+      case AdminSection.finance:
+        return 'Doanh thu, Lãi / Lỗ & Thuế';
       case AdminSection.orders:
         return 'Quản lý Đơn hàng';
       case AdminSection.products:
         return 'Quản lý Sản phẩm';
+      case AdminSection.vouchers:
+        return 'Quản lý Voucher & Mã giảm giá';
       case AdminSection.brands:
         return 'Quản lý Thương hiệu';
       case AdminSection.categories:
@@ -418,6 +433,12 @@ class _AdminSidebar extends StatelessWidget {
                       selected: active == AdminSection.dashboard,
                       onTap: () => _go(AdminSection.dashboard),
                     ),
+                    _SidebarItem(
+                      icon: Iconsax.money_recive,
+                      label: 'Doanh thu & Lãi/Lỗ',
+                      selected: active == AdminSection.finance,
+                      onTap: () => _go(AdminSection.finance),
+                    ),
                     const _SidebarGroupLabel('KINH DOANH'),
                     _SidebarItem(
                       icon: Iconsax.shopping_bag,
@@ -435,6 +456,14 @@ class _AdminSidebar extends StatelessWidget {
                       mutedBadge: true,
                       selected: active == AdminSection.products,
                       onTap: () => _go(AdminSection.products),
+                    ),
+                    _SidebarItem(
+                      icon: Iconsax.ticket_discount,
+                      label: 'Voucher giảm giá',
+                      badge: '${controller.vouchers.length}',
+                      mutedBadge: true,
+                      selected: active == AdminSection.vouchers,
+                      onTap: () => _go(AdminSection.vouchers),
                     ),
                     const _SidebarGroupLabel('DANH MỤC & HIỂN THỊ'),
                     _SidebarItem(

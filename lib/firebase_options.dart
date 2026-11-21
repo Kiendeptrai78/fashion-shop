@@ -34,17 +34,15 @@ class DefaultFirebaseOptions {
     }
   }
 
-  /// Web options for Flutter Web Admin portal.
-  /// Can be overridden via `--dart-define=FIREBASE_WEB_API_KEY=...` and
-  /// `--dart-define=FIREBASE_WEB_APP_ID=...` or replaced by running `flutterfire configure`.
+  /// Web options for Flutter Web Admin portal (`VELORA Admin Web`).
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: String.fromEnvironment(
       'FIREBASE_WEB_API_KEY',
-      defaultValue: 'AIzaSyCATx5-kLR2LOV5YerL0oU8QhaV_1FZwBc',
+      defaultValue: 'AIzaSyBW6Saf4k2fTQr1TYFRYHc76v1VxKXbO7Y',
     ),
     appId: String.fromEnvironment(
       'FIREBASE_WEB_APP_ID',
-      defaultValue: '1:823625169651:web:652238c77b815211559586',
+      defaultValue: '1:823625169651:web:b85a90f1740c4afc559586',
     ),
     messagingSenderId: String.fromEnvironment(
       'FIREBASE_WEB_MESSAGING_SENDER_ID',

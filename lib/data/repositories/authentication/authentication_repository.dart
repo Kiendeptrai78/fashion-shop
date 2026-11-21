@@ -4,7 +4,9 @@ import 'package:fashion_business_app/features/personalization/services/customer_
 import 'package:fashion_business_app/features/personalization/models_shopper_preferences.dart';
 import 'package:fashion_business_app/features/personalization/screens/preferences/shopper_onboarding.dart';
 import 'package:fashion_business_app/admin/login/login_admin_screen.dart';
+import 'package:fashion_business_app/routes/routes.dart';
 import 'package:fashion_business_app/utils/constants/admin_config.dart';
+import 'package:fashion_business_app/utils/web/url_strategy.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -79,6 +81,16 @@ class AuthenticationRepository extends GetxController {
       screenRedirectAdmin();
       return;
     }
+    // Clear any stale Firebase Auth session restored from iOS Keychain / OS backup on a fresh install.
+    if (deviceStorage.read('app_installed_v1') != true) {
+      if (_auth.currentUser != null) {
+        try {
+          await GoogleSignIn().signOut();
+        } catch (_) {}
+        await _auth.signOut();
+      }
+      await deviceStorage.write('app_installed_v1', true);
+    }
     final user = _auth.currentUser;
     if(user != null){
       if(user.emailVerified || AdminConfig.isAdminEmail(user.email)){
@@ -108,21 +120,40 @@ class AuthenticationRepository extends GetxController {
 
   }
 
+  String _resolveInitialAdminRoute() {
+    if (!kIsWeb) return TRoutes.adminDashboard;
+    final path = initialBrowserPath().trim().toLowerCase();
+    const validAdminPaths = {
+      TRoutes.adminDashboard,
+      TRoutes.adminFinance,
+      TRoutes.adminOrders,
+      TRoutes.adminProducts,
+      TRoutes.adminVouchers,
+      TRoutes.adminBrands,
+      TRoutes.adminCategories,
+      TRoutes.adminBanners,
+      TRoutes.adminUsers,
+      TRoutes.adminReviews,
+      TRoutes.adminNotifications,
+    };
+    return validAdminPaths.contains(path) ? path : TRoutes.adminDashboard;
+  }
+
   ///function to determine the relevant screen for the Admin portal
   void screenRedirectAdmin() async {
     final user = _auth.currentUser;
     if (user != null) {
       if (!AdminConfig.isAdminEmail(user.email)) {
         await _auth.signOut();
-        Get.offAll(() => const LoginAdminScreen());
+        Get.offAllNamed(TRoutes.adminLogin);
         return;
       }
 
       await TLocalStorage.init(user.uid);
       await _ensureAdminUserDoc(user);
-      Get.offAll(() => const HomeScreenAdmin());
+      Get.offAllNamed(_resolveInitialAdminRoute());
     } else {
-      Get.offAll(() => const LoginAdminScreen());
+      Get.offAllNamed(TRoutes.adminLogin);
     }
   }
 
@@ -195,7 +226,7 @@ class AuthenticationRepository extends GetxController {
       await AccountActivity.current?.disconnect();
       if (Get.isRegistered<AccountActivity>()) Get.delete<AccountActivity>(force: true);
       await FirebaseAuth.instance.signOut();
-      Get.offAll(() => const LoginAdminScreen());
+      Get.offAllNamed(TRoutes.adminLogin);
     } on FirebaseAuthException catch (e) {
       throw TFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
@@ -270,7 +301,11 @@ class AuthenticationRepository extends GetxController {
       await AccountActivity.current?.disconnect();
       if (Get.isRegistered<AccountActivity>()) Get.delete<AccountActivity>(force: true);
       await FirebaseAuth.instance.signOut();
-      Get.offAll(() => kIsWeb ? const LoginAdminScreen() : const LoginScreen());
+      if (kIsWeb) {
+        Get.offAllNamed(TRoutes.adminLogin);
+      } else {
+        Get.offAll(() => const LoginScreen());
+      }
     } on FirebaseAuthException catch (e) {
       throw TFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {

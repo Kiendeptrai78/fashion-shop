@@ -32,6 +32,9 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  web: ^1.1.0
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -92,7 +95,7 @@ dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/icons/fashion_icon.jpg"
+  image_path: "assets/icons/velora_icon.png"
 
 dev_dependencies:
   flutter_test:

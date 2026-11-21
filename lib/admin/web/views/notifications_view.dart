@@ -84,6 +84,163 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
       final clients = widget.controller.clientUsers;
       final products = widget.controller.products;
       final campaigns = widget.controller.campaigns;
+      final interests = widget.controller.userInterests;
+
+      // Aggregate trending tags across AI searches
+      final tagCounts = <String, int>{};
+      for (final item in interests) {
+        for (final b in item.interestedBrands) {
+          tagCounts[b] = (tagCounts[b] ?? 0) + 1;
+        }
+        for (final c in item.interestedCategories) {
+          tagCounts[c] = (tagCounts[c] ?? 0) + 1;
+        }
+      }
+      final topTags = tagCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+
+      final interestsCard = AdminCard(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.auto_awesome_rounded, size: 19, color: AdminColors.forest),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Khách hàng đang quan tâm gì? (Từ Trợ lý AI)',
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: AdminColors.ink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Ghi nhận tự động khi khách tìm kiếm với VELORA AI — khi bạn thêm sản phẩm mới cùng hãng/danh mục, hệ thống cũng tự động báo tới các khách này.',
+              style: TextStyle(fontSize: 12, color: AdminColors.inkSecondary, height: 1.4),
+            ),
+            if (topTags.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: topTags.take(8).map((entry) {
+                  return AdminBadge(
+                    label: '${entry.key} (${entry.value})',
+                    color: AdminColors.forest,
+                    bgColor: AdminColors.sageSoft,
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: 14),
+            if (interests.isEmpty)
+              const Text(
+                'Chưa có lượt tìm kiếm từ Trợ lý AI. Khi khách hàng hỏi tìm giày trên app mobile, dữ liệu quan tâm sẽ hiện tại đây.',
+                style: TextStyle(fontSize: 12.5, color: AdminColors.inkMuted),
+              )
+            else
+              Column(
+                children: interests.take(8).map((interest) {
+                  final tags = [
+                    ...interest.interestedBrands,
+                    ...interest.interestedCategories,
+                  ].take(4).join(' • ');
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AdminColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AdminColors.border),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${interest.userName} (${interest.userEmail})',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AdminColors.ink,
+                                ),
+                              ),
+                              if (interest.lastQuery.isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Vừa hỏi AI: "${interest.lastQuery}"',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AdminColors.inkSecondary,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                              if (tags.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Quan tâm: $tags (${interest.queryCount} lượt)',
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AdminColors.forest,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.tonalIcon(
+                          onPressed: () {
+                            // Match a relevant product if available
+                            final matched = products.firstWhereOrNull((p) {
+                              final bn = (p.brand?.name ?? '').toLowerCase();
+                              final cn = p.categoryName.toLowerCase();
+                              return interest.interestedBrands
+                                      .any((b) => b.toLowerCase() == bn) ||
+                                  interest.interestedCategories
+                                      .any((c) => c.toLowerCase() == cn);
+                            });
+                            setState(() {
+                              _audienceMode = 'user';
+                              _selectedUserId = interest.userId;
+                              _kind = matched != null ? 'product' : 'promo';
+                              _selectedProductId = matched?.id ?? '';
+                              final topic = tags.isNotEmpty ? tags : 'mẫu giày mới';
+                              _titleViCtrl.text = matched != null
+                                  ? 'Mẫu mới hợp gu bạn: ${matched.title}'
+                                  : 'VELORA vừa về hàng mới dòng $topic!';
+                              _bodyViCtrl.text = matched != null
+                                  ? 'Thấy bạn đang quan tâm $topic — ${matched.title} hiện đã sẵn size. Xem ngay nhé!'
+                                  : 'Gợi ý dành riêng cho bạn dựa trên phong cách bạn quan tâm tại VELORA.';
+                            });
+                          },
+                          icon: const Icon(Iconsax.send_2, size: 15),
+                          label: const Text('Gửi gợi ý', style: TextStyle(fontSize: 12)),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AdminColors.sageSoft,
+                            foregroundColor: AdminColors.forest,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
+      );
 
       final composerCard = AdminCard(
         padding: const EdgeInsets.all(24),
@@ -494,6 +651,8 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                   subtitle:
                       'Gửi thông báo khuyến mãi, giới thiệu sản phẩm mới hoặc nhắc đơn hàng trực tiếp đến khách hàng.',
                 ),
+                const SizedBox(height: 18),
+                interestsCard,
                 const SizedBox(height: 20),
                 if (isWide)
                   Row(

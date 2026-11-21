@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/dialogs/velora_confirm_dialog.dart';
 import 'package:fashion_business_app/features/personalization/services/account_activity.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -12,16 +13,20 @@ class PrivacyScreen extends StatelessWidget {
   const PrivacyScreen({super.key});
 
   Future<void> _clear(BuildContext context) async {
-    final confirmed = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
-      title: const ShopText('Clear local preferences?'),
-      content: const ShopText('This removes your age group and interests from this device. Your account, orders and bag stay available.'),
-      actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const ShopText('Cancel')),
-        TextButton(onPressed: () => Navigator.pop(dialog, true), child: const ShopText('Clear preferences'))],
-    ));
+    final confirmed = await showVeloraConfirmDialog(
+      context,
+      title: 'Clear local preferences?',
+      message: 'This removes your age group and interests from this device. Your account, orders and bag stay available.',
+      confirmLabel: 'Clear preferences',
+      cancelLabel: 'Cancel',
+      destructive: true,
+      icon: Iconsax.eraser_1,
+    );
     if (confirmed != true) return;
     try {
       // Keep completion so deleting preferences does not immediately ask for them again.
       await const ShopperPreferences(completed: true).save();
+      await AccountActivity.current?.syncFavoriteCategories(const []);
       await AccountActivity.current?.syncPush();
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: ShopText('Local preferences cleared.')));

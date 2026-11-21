@@ -1,4 +1,5 @@
 import 'package:fashion_business_app/admin/web/controllers/admin_web_controller.dart';
+import 'package:fashion_business_app/admin/web/data/admin_web_models.dart';
 import 'package:fashion_business_app/admin/web/theme/admin_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -18,16 +19,209 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
   String _query = '';
   int? _starFilter;
   String _productFilter = '';
+  bool _onlyUnreplied = false;
+  bool _bulkReplying = false;
+
+  Future<void> _openReplyDialog(AdminReviewRecord record) async {
+    final replyCtrl = TextEditingController(text: record.review.adminReply ?? '');
+    bool saving = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          backgroundColor: AdminColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Text(
+            record.review.hasAdminReply
+                ? 'Sửa phản hồi đánh giá'
+                : 'Trả lời đánh giá của ${record.review.authorName}',
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AdminColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AdminColors.border),
+                  ),
+                  child: Text(
+                    '"${record.review.text}"',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontStyle: FontStyle.italic,
+                      color: AdminColors.inkSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      final suggested = widget.controller.automation.value.renderAutoReply(
+                        authorName: record.review.authorName,
+                        productTitle: record.productTitle,
+                        rating: record.review.rating,
+                      );
+                      setModalState(() => replyCtrl.text = suggested);
+                    },
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                    label: const Text('Điền mẫu tự động theo số sao', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+                TextField(
+                  controller: replyCtrl,
+                  maxLines: 4,
+                  decoration: adminInputDecoration(
+                    label: 'Nội dung phản hồi (Nhập tay hoặc sửa mẫu) *',
+                    hint: 'Cảm ơn bạn đã tin tưởng và ủng hộ VELORA...',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Khách hàng sẽ nhận được thông báo ngay khi bạn gửi phản hồi.',
+                  style: TextStyle(fontSize: 11.5, color: AdminColors.forestLight),
+                ),
+              ],
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          actions: [
+            OutlinedButton(
+              onPressed: saving ? null : () => Navigator.of(context).pop(),
+              child: const Text('Hủy'),
+            ),
+            AdminPrimaryButton(
+              label: 'Gửi phản hồi',
+              icon: Iconsax.send_2,
+              loading: saving,
+              onPressed: () async {
+                if (replyCtrl.text.trim().isEmpty) return;
+                setModalState(() => saving = true);
+                final ok =
+                    await widget.controller.replyToReview(record, replyCtrl.text.trim());
+                if (!context.mounted) return;
+                setModalState(() => saving = false);
+                if (ok) Navigator.of(context).pop();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    replyCtrl.dispose();
+  }
+
+  Future<void> _openAutoTemplatesDialog() async {
+    final cfg = widget.controller.automation.value;
+    final highCtrl = TextEditingController(text: cfg.replyTemplateHigh);
+    final midCtrl = TextEditingController(text: cfg.replyTemplateMid);
+    final lowCtrl = TextEditingController(text: cfg.replyTemplateLow);
+    bool saving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Dialog(
+          backgroundColor: AdminColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Chỉnh mẫu Trả lời Đánh giá Tự động',
+                    style: TextStyle(fontSize: 17.5, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Biến tự động thay thế: {name} (tên khách), {product} (tên sản phẩm), {stars} (số sao).',
+                    style: TextStyle(fontSize: 12, color: AdminColors.inkSecondary),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: highCtrl,
+                    maxLines: 3,
+                    decoration: adminInputDecoration(label: 'Mẫu cho đánh giá 4★ – 5★ (Tích cực)'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: midCtrl,
+                    maxLines: 3,
+                    decoration: adminInputDecoration(label: 'Mẫu cho đánh giá 3★ (Trung lập)'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: lowCtrl,
+                    maxLines: 3,
+                    decoration: adminInputDecoration(label: 'Mẫu cho đánh giá 1★ – 2★ (Cần hỗ trợ)'),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton(
+                        onPressed: saving ? null : () => Navigator.of(context).pop(),
+                        child: const Text('Hủy'),
+                      ),
+                      const SizedBox(width: 10),
+                      AdminPrimaryButton(
+                        label: 'Lưu mẫu tự động',
+                        icon: Iconsax.tick_circle,
+                        loading: saving,
+                        onPressed: () async {
+                          setModalState(() => saving = true);
+                          final ok = await widget.controller.saveAutomationSettings(
+                            cfg.copyWith(
+                              replyTemplateHigh: highCtrl.text.trim(),
+                              replyTemplateMid: midCtrl.text.trim(),
+                              replyTemplateLow: lowCtrl.text.trim(),
+                            ),
+                          );
+                          if (!context.mounted) return;
+                          setModalState(() => saving = false);
+                          if (ok) Navigator.of(context).pop();
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    highCtrl.dispose();
+    midCtrl.dispose();
+    lowCtrl.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     return Obx(() {
       final all = widget.controller.reviews;
+      final cfg = widget.controller.automation.value;
+      final unrepliedCount = all.where((r) => !r.review.hasAdminReply).length;
       final q = _query.trim().toLowerCase();
       final filtered = all.where((r) {
         if (_starFilter != null && r.review.rating != _starFilter) return false;
         if (_productFilter.isNotEmpty && r.productId != _productFilter) return false;
+        if (_onlyUnreplied && r.review.hasAdminReply) return false;
         if (q.isEmpty) return true;
         return r.review.authorName.toLowerCase().contains(q) ||
             r.review.text.toLowerCase().contains(q) ||
@@ -45,12 +239,91 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const AdminSectionToolbar(
-                  title: 'Quản lý Đánh giá sản phẩm',
+                AdminSectionToolbar(
+                  title: 'Quản lý Đánh giá sản phẩm ($total)',
                   subtitle:
-                      'Theo dõi mức độ hài lòng của người mua đã nhận hàng và kiểm duyệt nội dung đánh giá.',
+                      'Hỗ trợ cả Trả lời Tự động theo số sao và Nhập tay chi tiết — tự động đẩy thông báo cho khách.',
+                  actions: [
+                    OutlinedButton.icon(
+                      onPressed: _openAutoTemplatesDialog,
+                      icon: const Icon(Iconsax.setting_2, size: 17),
+                      label: const Text('Mẫu trả lời tự động'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AdminColors.forest,
+                        side: const BorderSide(color: AdminColors.borderStrong),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                      ),
+                    ),
+                    AdminPrimaryButton(
+                      label: 'Trả lời tự động tất cả ($unrepliedCount)',
+                      icon: Icons.auto_awesome_rounded,
+                      loading: _bulkReplying,
+                      onPressed: unrepliedCount == 0
+                          ? null
+                          : () async {
+                              final ok = await showAdminConfirmDialog(
+                                context,
+                                title: 'Tự động trả lời $unrepliedCount đánh giá?',
+                                message:
+                                    'Hệ thống sẽ dùng đúng mẫu theo số sao (4-5★, 3★, 1-2★) để phản hồi toàn bộ đánh giá chưa trả lời và gửi thông báo tới khách hàng.',
+                                confirmLabel: 'Chạy tự động ngay',
+                                destructive: false,
+                              );
+                              if (!ok) return;
+                              setState(() => _bulkReplying = true);
+                              await widget.controller.autoReplyAllUnrepliedReviews();
+                              if (mounted) setState(() => _bulkReplying = false);
+                            },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
+
+                // Auto-reply status bar
+                AdminCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AdminColors.sageSoft,
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                        child: const Icon(Icons.auto_awesome_rounded,
+                            color: AdminColors.forest, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Chế độ Trả lời Tự động + Thủ công',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                            ),
+                            Text(
+                              unrepliedCount == 0
+                                  ? 'Tuyệt vời! Toàn bộ đánh giá đều đã được phản hồi.'
+                                  : 'Còn $unrepliedCount đánh giá chưa phản hồi — bạn có thể bấm "Trả lời tự động" 1 chạm hoặc "Nhập tay" từng đánh giá bên dưới.',
+                              style: const TextStyle(
+                                  fontSize: 12, color: AdminColors.inkSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: cfg.autoReviewReply,
+                        activeColor: AdminColors.forest,
+                        onChanged: (v) => widget.controller
+                            .saveAutomationSettings(cfg.copyWith(autoReviewReply: v)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
 
                 // Rating summary card
                 AdminCard(
@@ -116,8 +389,7 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                         children: [
                           for (var star = 5; star >= 1; star--) ...[
                             Builder(builder: (_) {
-                              final count =
-                                  all.where((r) => r.review.rating == star).length;
+                              final count = all.where((r) => r.review.rating == star).length;
                               final ratio = total == 0 ? 0.0 : count / total;
                               return Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 4),
@@ -197,11 +469,11 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                     children: [
                       AdminSearchField(
                         hint: 'Tìm nội dung, người đánh giá, sản phẩm...',
-                        width: 280,
+                        width: 260,
                         onChanged: (v) => setState(() => _query = v),
                       ),
                       SizedBox(
-                        width: 230,
+                        width: 220,
                         child: DropdownButtonFormField<String>(
                           value: _productFilter,
                           isExpanded: true,
@@ -217,6 +489,12 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                           ],
                           onChanged: (v) => setState(() => _productFilter = v ?? ''),
                         ),
+                      ),
+                      FilterChip(
+                        selected: _onlyUnreplied,
+                        selectedColor: AdminColors.amberBg,
+                        label: Text('Chưa trả lời ($unrepliedCount)'),
+                        onSelected: (v) => setState(() => _onlyUnreplied = v),
                       ),
                       Wrap(
                         spacing: 6,
@@ -324,6 +602,92 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                                         color: AdminColors.inkMuted,
                                       ),
                                     ),
+                                    const SizedBox(height: 10),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        if (!r.hasAdminReply)
+                                          FilledButton.tonalIcon(
+                                            onPressed: () =>
+                                                widget.controller.autoReplySingleReview(record),
+                                            icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                                            label: const Text('Trả lời tự động',
+                                                style: TextStyle(fontSize: 12)),
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor: AdminColors.sageSoft,
+                                              foregroundColor: AdminColors.forest,
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 12, vertical: 6),
+                                            ),
+                                          ),
+                                        OutlinedButton.icon(
+                                          onPressed: () => _openReplyDialog(record),
+                                          icon: const Icon(Iconsax.edit_2, size: 15),
+                                          label: Text(
+                                            r.hasAdminReply ? 'Sửa phản hồi' : 'Nhập tay',
+                                            style: const TextStyle(fontSize: 12),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 6),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (r.hasAdminReply) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: AdminColors.sageSoft.withValues(alpha: 0.6),
+                                          borderRadius: BorderRadius.circular(11),
+                                          border: Border.all(
+                                              color: AdminColors.forest.withValues(alpha: 0.18)),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(Iconsax.verify,
+                                                    size: 14, color: AdminColors.forest),
+                                                const SizedBox(width: 6),
+                                                const Text(
+                                                  'Phản hồi từ VELORA',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: AdminColors.forest,
+                                                  ),
+                                                ),
+                                                if (r.adminReplyAt != null) ...[
+                                                  const Spacer(),
+                                                  Text(
+                                                    DateFormat('dd/MM/yyyy HH:mm')
+                                                        .format(r.adminReplyAt!),
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: AdminColors.inkMuted,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              r.adminReply!,
+                                              style: const TextStyle(
+                                                fontSize: 12.5,
+                                                color: AdminColors.ink,
+                                                height: 1.45,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -340,8 +704,7 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                                     await widget.controller.deleteReview(record);
                                   }
                                 },
-                                icon: const Icon(Iconsax.trash,
-                                    size: 18, color: AdminColors.rose),
+                                icon: const Icon(Iconsax.trash, size: 18, color: AdminColors.rose),
                               ),
                             ],
                           ),

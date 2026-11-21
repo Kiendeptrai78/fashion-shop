@@ -8,11 +8,13 @@ import 'package:fashion_business_app/admin/web/views/banners_view.dart';
 import 'package:fashion_business_app/admin/web/views/brands_view.dart';
 import 'package:fashion_business_app/admin/web/views/categories_view.dart';
 import 'package:fashion_business_app/admin/web/views/dashboard_view.dart';
+import 'package:fashion_business_app/admin/web/views/finance_view.dart';
 import 'package:fashion_business_app/admin/web/views/notifications_view.dart';
 import 'package:fashion_business_app/admin/web/views/orders_view.dart';
 import 'package:fashion_business_app/admin/web/views/products_view.dart';
 import 'package:fashion_business_app/admin/web/views/reviews_view.dart';
 import 'package:fashion_business_app/admin/web/views/users_view.dart';
+import 'package:fashion_business_app/admin/web/views/vouchers_view.dart';
 import 'package:fashion_business_app/features/authentication/models/user_model.dart';
 import 'package:fashion_business_app/features/personalization/models/address_model.dart';
 import 'package:fashion_business_app/features/shop/models/banner_model.dart';
@@ -168,7 +170,54 @@ class _FakeAdminWebRepository implements AdminWebRepository {
       ];
 
   @override
+  Future<List<AdminVoucherRecord>> fetchVouchers() async => [
+        AdminVoucherRecord(
+          code: 'VELORA20',
+          title: 'Ưu đãi 20% cuối tuần',
+          percent: 20,
+          maxUsd: 25,
+          minUsd: 50,
+          active: true,
+          expires: DateTime(2027, 1, 1),
+        ),
+      ];
+
+  @override
   Future<int> fetchEnabledPushDevicesCount(List<UserModel> users) async => 2;
+
+  @override
+  Future<List<AdminUserInterest>> fetchUserInterests() async => [
+        AdminUserInterest(
+          userId: 'user-1',
+          userName: 'Lan Nguyen',
+          userEmail: 'customer@example.com',
+          lastQuery: 'Tìm giày chạy bộ Nike dưới 3 triệu',
+          interestedBrands: const ['Nike'],
+          interestedCategories: const ['Running'],
+          interestedCategoryIds: const ['sneaker-category-running'],
+          queryCount: 3,
+          updatedAt: DateTime(2026, 11, 21),
+        ),
+      ];
+
+  @override
+  Future<List<AdminStockReceipt>> fetchStockReceipts() async => [
+        AdminStockReceipt(
+          id: 'rcpt-1',
+          productId: 'p1',
+          productTitle: 'Air Force 1',
+          addedQuantity: 20,
+          previousStock: 5,
+          newStock: 25,
+          supplier: 'Kho Tổng VELORA',
+          note: 'Nhập bổ sung đợt cuối tháng',
+          createdAt: DateTime(2026, 11, 21),
+        ),
+      ];
+
+  @override
+  Future<AdminAutomationSettings> fetchAutomationSettings() async =>
+      AdminAutomationSettings.defaults();
 
   @override
   Future<List<AddressModel>> fetchUserAddresses(String userId) async => [];
@@ -229,8 +278,10 @@ void main() {
 
     final views = <Widget>[
       AdminDashboardView(controller: controller),
+      AdminFinanceView(controller: controller),
       AdminOrdersView(controller: controller),
       AdminProductsView(controller: controller),
+      AdminVouchersView(controller: controller),
       AdminBrandsView(controller: controller),
       AdminCategoriesView(controller: controller),
       AdminBannersView(controller: controller),

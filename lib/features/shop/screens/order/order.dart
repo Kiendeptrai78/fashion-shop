@@ -8,6 +8,7 @@ import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 import 'package:fashion_business_app/data/repositories/orders/orders_repository.dart';
 import 'package:fashion_business_app/features/shop/models/order_model.dart';
 import 'package:fashion_business_app/features/shop/screens/order/order_detail.dart';
+import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 
@@ -20,7 +21,14 @@ class OrderScreen extends StatefulWidget {
 class _OrderScreenState extends State<OrderScreen> {
   late Future<List<OrderModel>> _orders;
   int _filter = 0;
-  final _tabs = ['All orders', 'In progress', 'Received', 'Cancelled'];
+  final _tabs = const [
+    'All orders',
+    'Pending',
+    'Processing',
+    'On the way',
+    'Received',
+    'Cancelled',
+  ];
 
   @override
   void initState() { super.initState(); _orders = OrderRepository().fetchUserOrders(); }
@@ -32,9 +40,11 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 
   bool _matches(OrderModel order) => switch (_filter) {
-    1 => ![OrderStatus.received, OrderStatus.cancelled].contains(order.status),
-    2 => order.status == OrderStatus.received,
-    3 => order.status == OrderStatus.cancelled,
+    1 => order.status == OrderStatus.pending,
+    2 => order.status == OrderStatus.processing,
+    3 => order.status == OrderStatus.shipped,
+    4 => order.status == OrderStatus.received,
+    5 => order.status == OrderStatus.cancelled,
     _ => true,
   };
 
@@ -52,8 +62,12 @@ class _OrderScreenState extends State<OrderScreen> {
         itemBuilder: (_, index) => Obx(() {
           final activity = AccountActivity.current;
           final number = switch (index) {
-            1 => activity?.activeOrders ?? 0, 2 => activity?.counts['received'] ?? 0,
-            3 => activity?.counts['cancelled'] ?? 0, _ => activity?.orderCount ?? 0,
+            1 => activity?.counts['pending'] ?? 0,
+            2 => activity?.counts['processing'] ?? 0,
+            3 => activity?.counts['shipped'] ?? 0,
+            4 => activity?.counts['received'] ?? 0,
+            5 => activity?.counts['cancelled'] ?? 0,
+            _ => activity?.orderCount ?? 0,
           };
           final selected = _filter == index;
           final tone = Theme.of(context).colorScheme.primary;
@@ -132,6 +146,34 @@ class _OrderScreenState extends State<OrderScreen> {
             Text(formatShopMoney(order.totalAmount, language: locale),
                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
           ]),
+          if (order.status == OrderStatus.received && order.items.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  if (order.items.length == 1) {
+                    final item = order.items.first;
+                    Get.to(() => ProductReview(productId: item.productId, productTitle: item.title));
+                  } else {
+                    Get.to(() => OrderDetail(order: order));
+                  }
+                },
+                icon: const Icon(Icons.star_rounded, size: 17, color: Color(0xFFDDEABB)),
+                label: const ShopText(
+                  'Review product',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF173E32),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ],
         ],
       ))),
     ));

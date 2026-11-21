@@ -1,3 +1,5 @@
+import 'package:fashion_business_app/common/widgets/login_signup/form_divider.dart';
+import 'package:fashion_business_app/utils/constants/image_strings.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -87,6 +89,38 @@ class TLoginForm extends StatelessWidget {
                 child: OutlinedButton(
                     onPressed: () => Get.to(() => const SignupScreen()),
                     child: const ShopText(TTexts.createAccount)),
+              ),
+              const SizedBox(height: TSizes.spaceBtwSections),
+              const TFormDivider(dividerText: TTexts.orSignInWith),
+              const SizedBox(height: TSizes.spaceBtwItems),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => controller.googleSignIn(),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image(
+                        width: 20,
+                        height: 20,
+                        image: AssetImage(TImages.google),
+                      ),
+                      SizedBox(width: 10),
+                      Flexible(
+                        child: ShopText(
+                          'Continue with Google',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),

@@ -1,4 +1,6 @@
+import 'package:fashion_business_app/common/widgets/dialogs/velora_confirm_dialog.dart';
 import 'package:get/get.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/variation_controller.dart';
 import 'package:fashion_business_app/features/shop/models/cart_item_model.dart';
@@ -22,17 +24,17 @@ class CartController extends GetxController {
   }
 
   //add item in the cart
-  void addToCart(ProductModel product) {
+  bool addToCart(ProductModel product, {bool showToast = true}) {
     //quantity check
     if (productQuantityInCart.value < 1) {
       TLoaders.customToast(message: 'Select Quantity');
-      return;
+      return false;
     }
 
     if (product.productType == ProductType.variable.toString() &&
         variationController.selectedVariation.value.id.isEmpty) {
       TLoaders.customToast(message: 'Select Variation');
-      return;
+      return false;
     }
 
     //out of stock status
@@ -40,13 +42,13 @@ class CartController extends GetxController {
       if (variationController.selectedVariation.value.stock < 1) {
         TLoaders.warningSnackBar(
             title: 'Oh Snap!', message: 'Selected variation is out of Stock.');
-        return;
+        return false;
       }
     } else {
       if (product.stock < 1) {
         TLoaders.warningSnackBar(
             title: 'Oh Snap', message: 'Selected Product is out of Stock.');
-        return;
+        return false;
       }
     }
 
@@ -55,7 +57,7 @@ class CartController extends GetxController {
     if (productQuantityInCart.value > available) {
       TLoaders.warningSnackBar(title: 'Quantity unavailable',
           message: 'Only $available pairs are available for this selection.');
-      return;
+      return false;
     }
 
     //convert the Product model to a cartItemModel with the given quantity
@@ -75,7 +77,10 @@ class CartController extends GetxController {
     }
 
     updateCart();
-    TLoaders.customToast(message: 'Your Product has been added to the Cart.');
+    if (showToast) {
+      TLoaders.customToast(message: 'Your Product has been added to the Cart.');
+    }
+    return true;
   }
 
   void addOneToCart(CartItemModel item) {
@@ -110,17 +115,27 @@ class CartController extends GetxController {
     updateCart();
   }
 
-  void removeFromCartDialog(int index) {
-    Get.defaultDialog(
-        title: 'Remove Product',
-        middleText: 'Are you sure you want to remove this product?',
-        onConfirm: () {
-          cartItems.removeAt(index);
-          updateCart();
-          TLoaders.customToast(message: 'Product removed from the Cart.');
-          Get.back();
-        },
-        onCancel: () => () => Get.back());
+  void removeFromCartDialog(int index) async {
+    final ctx = Get.context;
+    if (ctx == null) {
+      cartItems.removeAt(index);
+      updateCart();
+      return;
+    }
+    final confirmed = await showVeloraConfirmDialog(
+      ctx,
+      title: 'Remove Product',
+      message: 'Are you sure you want to remove this product?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true,
+      icon: Iconsax.trash,
+    );
+    if (confirmed == true && index >= 0 && index < cartItems.length) {
+      cartItems.removeAt(index);
+      updateCart();
+      TLoaders.customToast(message: 'Product removed from the Cart.');
+    }
   }
 
   /// initialize already added item's count in the cart
