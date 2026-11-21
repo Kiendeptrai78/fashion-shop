@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -17,7 +18,7 @@ class OnBoardingSkip extends StatelessWidget {
         right: TSizes.spaceBtwItems,
         child: TextButton(
           onPressed: () => Get.offAll(() => const LoginScreen()),
-          child: const Text('Skip'),
+          child: const ShopText('Skip'),
         ));
   }
 }

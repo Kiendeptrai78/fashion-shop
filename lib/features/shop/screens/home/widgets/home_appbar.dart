@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -21,7 +22,7 @@ class THomeAppbar extends StatelessWidget {
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          ShopText(
             TTexts.homeAppbarTitle,
             style: Theme.of(context)
                 .textTheme
@@ -32,7 +33,7 @@ class THomeAppbar extends StatelessWidget {
              if(controller.profileLoading.value){
                return const TShimmerEffect(width: 80, height: 25);
              }else{
-               return Text(
+               return ShopText(
                  controller.user.value.fullName,
                  style:  TextStyle(color: dark ? TColors.light : TColors.black,fontSize: 18),
                );

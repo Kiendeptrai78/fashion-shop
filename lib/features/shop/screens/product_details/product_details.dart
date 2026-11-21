@@ -1,3 +1,5 @@
+import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/images_controller.dart';
 import 'package:fashion_business_app/common/widgets/product/favourite_icon/favourite_icon.dart';
@@ -62,7 +64,7 @@ class _ProductDetailState extends State<ProductDetail> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: TAppbar(showBackArrow: true,
-        title: Text(product.brand?.name ?? 'Sneakers', style: const TextStyle(fontSize: 15)),
+        title: ShopText(product.brand?.name ?? 'Sneakers', style: const TextStyle(fontSize: 15)),
         actions: [TFavouriteIcon(productId: product.id)]),
     bottomNavigationBar: TBottomAddToCart(product: product, onSelectOptions: () {
       final options = _optionsKey.currentContext;
@@ -81,8 +83,8 @@ class _ProductDetailState extends State<ProductDetail> {
           Theme(data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(tilePadding: EdgeInsets.zero, childrenPadding: const EdgeInsets.only(bottom: 20),
               initiallyExpanded: true,
-              title: const Text('About this pair', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-              children: [Align(alignment: Alignment.centerLeft, child: Text(product.description ?? '',
+              title: const ShopText('About this pair', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              children: [Align(alignment: Alignment.centerLeft, child: ShopText(product.description ?? '',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.7)))],
             )),
           const Divider(height: 32),
@@ -92,7 +94,15 @@ class _ProductDetailState extends State<ProductDetail> {
             if ((product.productAttributes?.where((a) => a.name == 'Size').firstOrNull?.values ?? []).isNotEmpty)
               _detail('Sizing', 'EU'),
           ]),
-          const Divider(height: 48),
+          const Divider(height: 32),
+          ListTile(contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.star_outline_rounded, color: Theme.of(context).colorScheme.primary),
+            title: const ShopText('Customer reviews', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const ShopText('See how this pair feels in everyday life.'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Get.to(() => ProductReview(productId: product.id, productTitle: product.title)),
+          ),
+          const Divider(height: 32),
           SimilarProducts(key: ValueKey(product.id), product: product, onOpen: _openSimilar),
         ],
       )),
@@ -100,8 +110,8 @@ class _ProductDetailState extends State<ProductDetail> {
   );
 
   Widget _detail(String label, String value) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(label, style: Theme.of(context).textTheme.bodySmall),
+    ShopText(label, style: Theme.of(context).textTheme.bodySmall),
     const SizedBox(height: 5),
-    Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+    ShopText(value, style: const TextStyle(fontWeight: FontWeight.w600)),
   ]);
 }

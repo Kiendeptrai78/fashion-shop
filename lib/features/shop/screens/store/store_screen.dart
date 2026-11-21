@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
@@ -31,7 +32,7 @@ class StoreScreen extends StatelessWidget {
         child: Scaffold(
           backgroundColor: dark ?  TColors.black : TColors.white,
           appBar: TAppbar(
-            title:  Text('Store',style: TextStyle(fontSize: 20,color: dark ? TColors.white :  TColors.dark),),
+            title:  ShopText('Store',style: TextStyle(fontSize: 20,color: dark ? TColors.white :  TColors.dark),),
             actions: [
               TCartCounterIcon( iconColor: dark ?  TColors.white : TColors.dark)
             ],
@@ -66,7 +67,7 @@ class StoreScreen extends StatelessWidget {
                          if(brandController.isLoading.value) return const TBrandShimmer();
 
                          if(brandController.featuredBrands.isEmpty){
-                           return Center(child: Text('No Data Found!',style: Theme.of(context).textTheme.bodyMedium!.apply(color: Colors.white),));
+                           return Center(child: ShopText('No Data Found!',style: Theme.of(context).textTheme.bodyMedium!.apply(color: Colors.white),));
                          }else{
                            return  TGridLayout(
                                itemCount: brandController.featuredBrands.length,
@@ -87,7 +88,7 @@ class StoreScreen extends StatelessWidget {
                   ),
 
                   ///tab
-                  bottom:  TTabBar(tabs: categories.map((category) => Tab(child: Text(category.name))).toList()),
+                  bottom:  TTabBar(tabs: categories.map((category) => Tab(child: ShopText(category.name))).toList()),
                 ),
               ];
             },

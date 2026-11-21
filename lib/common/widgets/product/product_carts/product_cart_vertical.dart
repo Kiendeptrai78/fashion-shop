@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
@@ -27,34 +28,36 @@ class TProductCartVertical extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Stack(fit: StackFit.expand, children: [
+              child: ClipRRect(borderRadius: BorderRadius.circular(14), child: Stack(fit: StackFit.expand, children: [
+                ColoredBox(color: theme.brightness == Brightness.dark
+                    ? const Color(0xFF22342B) : const Color(0xFFF1F2ED)),
                 TRoundedImage(imageUrl: product.thumbnail, isNetworkImage: true,
                     width: double.infinity, height: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(6, 20, 6, 10), borderRadius: 0),
+                    padding: const EdgeInsets.fromLTRB(10, 26, 10, 16), borderRadius: 0),
                 Positioned(top: 0, right: 0, child: TFavouriteIcon(productId: product.id)),
                 if (sale)
-                  Positioned(top: 8, left: 0, child: Text('SALE',
+                  Positioned(top: 12, left: 10, child: ShopText('SALE',
                       style: theme.textTheme.labelMedium?.copyWith(
                           color: theme.colorScheme.primary, fontWeight: FontWeight.w700, letterSpacing: 0.7))),
-              ]),
+              ])),
             ),
             const SizedBox(height: 12),
-            Text(product.brand?.name ?? product.categoryName,
+            ShopText(product.brand?.name ?? product.categoryName,
                 maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelMedium?.copyWith(fontSize: 11)),
             const SizedBox(height: 4),
-            Text(product.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+            ShopText(product.title, maxLines: 2, overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, height: 1.3)),
             const SizedBox(height: 4),
-            Text(colors == null ? product.categoryName : '${colors.length} colors · ${product.categoryName}',
+            ShopText(colors == null ? product.categoryName : '${colors.length} colors · ${product.categoryName}',
                 maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelMedium?.copyWith(fontSize: 11)),
             const SizedBox(height: 8),
             Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-              Text('\$${controller.getProductPrice(product)}',
+              ShopText(formatShopPrice(controller.getProductPrice(product), language: Localizations.localeOf(context).languageCode),
                   style: theme.textTheme.titleLarge?.copyWith(fontSize: 16, fontWeight: FontWeight.w700)),
               if (sale)
-                Text('\$${product.price.toStringAsFixed(product.price % 1 == 0 ? 0 : 2)}',
+                ShopText(formatShopMoney(product.price, language: Localizations.localeOf(context).languageCode),
                     style: theme.textTheme.labelMedium?.copyWith(decoration: TextDecoration.lineThrough)),
             ]),
           ],

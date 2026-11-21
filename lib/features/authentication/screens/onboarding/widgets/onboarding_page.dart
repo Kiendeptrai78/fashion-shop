@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
@@ -23,7 +24,7 @@ class OnBoardingPage extends StatelessWidget {
             height: THelperFunctions.screenHeight() * 0.6,
             image: AssetImage(image),
           ),
-          Text(
+          ShopText(
             title,
             style: Theme.of(context).textTheme.headlineMedium,
             textAlign: TextAlign.center,
@@ -31,7 +32,7 @@ class OnBoardingPage extends StatelessWidget {
           const SizedBox(
             height: TSizes.spaceBtwItems,
           ),
-          Text(
+          ShopText(
             subTitle,
             style: Theme.of(context).textTheme.bodyMedium,
             textAlign: TextAlign.center,

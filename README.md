@@ -115,3 +115,91 @@ and `SortOrder`. Old image-only records remain supported. Videos play muted only
 for the current visible slide, pause in the background, respect reduced motion,
 and show a poster if playback fails. Campaign links open filtered, paginated
 collections. Promotions are hidden during search/filtering and after page one.
+
+## Language, currency and local welcome flow
+
+Customer screens default to Vietnamese. Settings → Language switches between
+Vietnamese/VND and English/USD and persists the choice in the device-level
+`app_preferences` GetStorage container. Shared `ShopText` labels follow Flutter's
+inherited locale, including const widgets. Currency formatting is centralized in
+`lib/utils/localization/shop_locale.dart`: 1 USD = 25,812 VND, a fixed project rate
+rather than a live quote. Product/order prices remain USD in Firestore and local
+cart data. VND display rounds to whole dong; Demo bank uses the same rate and rounding.
+Existing shipping/tax calculations are unchanged. The storefront no longer calls
+the legacy ZaloPay payment integration.
+
+After verified login, users without `shopper_preferences_v1.completed` see the
+welcome, optional age-group and category-interest steps. Categories come from the
+catalog metadata. Preferences and completion/skip status stay in the existing
+per-user local storage bucket; no age or interest data is uploaded. Settings →
+Your preferences edits these choices. Clearing app data causes the flow to appear
+again. Intro transitions respect the OS reduced-motion setting.
+
+## Account screens and simulated checkout
+
+The storefront offers Cash on delivery and Demo bank. Demo bank is an in-app
+simulation, with no real bank account or transfer. Each per-user local benefits
+record starts at VND 10,000,000; users can add another VND 10,000,000 for testing.
+Balances, transaction history, redeemed coupons and checkout receipt IDs are kept
+in `customer_benefits_demo_v1`. A stable checkout document ID prevents duplicate
+Firestore orders on retry; only a successful order write consumes a coupon and
+debits demo funds. Cancelling a saved demo order refunds its recorded local debit
+once. Orders themselves remain in the user's Firestore Orders subcollection.
+
+Welcome gifts: WELCOME10 (10%, maximum USD 10, minimum USD 50, 30 days) and SHIPNEW
+(shipping fee, 14 days). One coupon per order. Holiday gifts are 15%, maximum USD
+15, minimum USD 40, valid for 7 days. They are issued once per holiday/year when
+the app is opened or the coupon wallet is refreshed during the validity window.
+The store's promotional calendar includes Jan 1, Mar 8, Apr 30, May 1, Sep 2,
+Nov 20, Dec 25, Tết, Hùng Kings Festival and Mid-autumn Festival. Lunar dates use
+[vnlunar](https://pub.dev/packages/vnlunar) with UTC+7. These are demo offers and
+local demo balances, rather than a server-enforced payment or promotion system.
+
+My Addresses and My Orders read the signed-in user's existing records, support
+refresh and render loading, empty and error states. Order actions target the
+specific order ID and validate the saved status before changing it. The account
+notification inbox shows current order updates and saves read status locally;
+it does not claim to deliver push notifications. Privacy controls edit or clear
+only age/interests and link to the existing account management screen. Cart and
+Wishlist badges use red/white counts, hide zero and display 99+ above 99.
+
+## Address map, activity badges and push setup
+
+The address picker now refreshes its cached request after returning from Add
+address. The add screen includes an interactive OpenStreetMap map, optional
+latitude/longitude and attribution; it does not request GPS permission. Map tiles
+use the app's user agent. OpenStreetMap's public tile policy applies; no offline
+bulk downloading is implemented. Older addresses without coordinates still work.
+
+The payment account UI uses normal balance/top-up/history labels; test-fund
+information remains in Account information and the top-up confirmation. It still
+uses the existing local test balance rather than a real bank/payment provider.
+
+Per-user Orders/Addresses/Notifications streams drive account counters. Order
+status tabs show totals with white selected labels; new coupon badges clear when
+the coupon wallet is viewed. Notifications can be marked read and route to the
+matching saved order/product. No age information is uploaded. When push is enabled,
+only device token, followed category IDs and language are registered for targeting.
+
+Actual Firebase push is deliberately gated behind `PUSH_BACKEND_READY=true` until
+private Firestore rules and server/APNs credentials are configured. See
+[server/push/README.md](server/push/README.md) for the ready-to-run Node worker and
+setup steps without deploying Cloud Functions or enabling Firebase billing.
+No Admin credential, APNs key, live worker, deployed rules or real push delivery
+has been fabricated by this implementation.
+
+
+## Branded startup and customer reviews
+
+Native iOS/Android launch resources and the Flutter splash use the same forest
+background. The Flutter intro respects reduced motion and adds no fixed startup
+wait. Launch resources are maintained directly; running a splash generator will
+overwrite this branding.
+
+Product detail links to recent product reviews (up to 50), with a summary,
+star filters, empty/error states and a review editor. Reviews are stored at
+`Products/{productId}/Reviews/{uid}`. The client checks for a received order
+containing the product before writing. Production release must also enforce
+purchase eligibility and review field/ownership validation in trusted server
+code or Firestore rules; the client check alone is not an authorization boundary.
+No review rules were deployed and no sample reviews were posted.

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/common/widgets/custom_shapes/containers/circular_container.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
@@ -23,7 +24,7 @@ class TChoiceChip extends StatelessWidget {
         child: ChoiceChip(
           label: isColor
               ? const SizedBox()
-              :  Text(text),
+              :  ShopText(text),
           selected: selected,
           labelStyle: TextStyle(color: selected ? TColors.white : null),
           onSelected: onSelected,

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 
@@ -17,7 +18,7 @@ class TBrandTitleText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
+    return ShopText(
       title,
       textAlign: textAlign,
       maxLines: maxLines,

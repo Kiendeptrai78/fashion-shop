@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
@@ -27,9 +28,9 @@ class TProductAttribute extends StatelessWidget {
         children: [
           if (colors.isNotEmpty) ...[
             Row(children: [
-              Text('Color', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              ShopText('Color', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(width: 12),
-              Expanded(child: Text(color ?? 'Choose a color', style: theme.textTheme.bodySmall)),
+              Expanded(child: ShopText(color ?? 'Choose a color', style: theme.textTheme.bodySmall)),
             ]),
             const SizedBox(height: 12),
             LayoutBuilder(builder: (context, constraints) {
@@ -58,7 +59,7 @@ class TProductAttribute extends StatelessWidget {
                               isNetworkImage: true, width: width - 16, height: 56,
                             ),
                             const SizedBox(height: 6),
-                            Text(value, maxLines: 2, overflow: TextOverflow.ellipsis,
+                            ShopText(value, maxLines: 2, overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center, style: theme.textTheme.labelLarge?.copyWith(
                                     fontWeight: color == value ? FontWeight.w600 : FontWeight.w400)),
                           ]),
@@ -71,9 +72,9 @@ class TProductAttribute extends StatelessWidget {
             const SizedBox(height: 28),
           ],
           Row(children: [
-            Expanded(child: Text('Select size', style: theme.textTheme.titleMedium?.copyWith(
+            Expanded(child: ShopText('Select size', style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600))),
-            Text('EU sizing', style: theme.textTheme.bodySmall),
+            ShopText('EU sizing', style: theme.textTheme.bodySmall),
           ]),
           const SizedBox(height: 12),
           LayoutBuilder(builder: (context, constraints) {
@@ -93,14 +94,14 @@ class TProductAttribute extends StatelessWidget {
                           : theme.dividerColor.withValues(alpha: 0.25)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: Text(value, style: TextStyle(
+                    child: ShopText(value, style: TextStyle(
                         decoration: availableSizes.contains(value) ? null : TextDecoration.lineThrough)),
                   ),
                 ),
             ]);
           }),
           const SizedBox(height: 14),
-          Text(selected.id.isEmpty ? 'Choose a size to check availability.'
+          ShopText(selected.id.isEmpty ? 'Choose a size to check availability.'
               : selected.stock > 0 ? '${selected.stock} pairs available in EU $size.'
                   : 'This color and size is currently sold out.',
               style: theme.textTheme.bodySmall),

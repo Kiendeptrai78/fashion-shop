@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:readmore/readmore.dart';
 import 'package:fashion_business_app/common/widgets/custom_shapes/containers/rounded_container.dart';
@@ -22,7 +23,7 @@ class TUserReviewCard extends StatelessWidget {
               children: [
                 const CircleAvatar(backgroundImage: AssetImage(TImages.userReview3),),
                   const SizedBox(width: TSizes.spaceBtwItems,),
-                Text('Phan Tinh',style: Theme.of(context).textTheme.titleLarge)
+                ShopText('Phan Tinh',style: Theme.of(context).textTheme.titleLarge)
               ],
             ),
             IconButton(onPressed: (){}, icon: const Icon(Icons.more_vert))
@@ -35,7 +36,7 @@ class TUserReviewCard extends StatelessWidget {
           children: [
             const TRatingBarIndicator(rating: 4.5),
             const SizedBox(width: TSizes.spaceBtwItems,),
-            Text('23,April,2024',style: Theme.of(context).textTheme.bodyMedium,)
+            ShopText('23,April,2024',style: Theme.of(context).textTheme.bodyMedium,)
           ],
         ),
         const SizedBox(height: TSizes.spaceBtwItems,),
@@ -59,8 +60,8 @@ class TUserReviewCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("T's Store",style: Theme.of(context).textTheme.bodyLarge),
-                    Text('23,Oct,2024',style: Theme.of(context).textTheme.bodyMedium),
+                    ShopText("T's Store",style: Theme.of(context).textTheme.bodyLarge),
+                    ShopText('23,Oct,2024',style: Theme.of(context).textTheme.bodyMedium),
                   ],
                 ),
                 const SizedBox(height: TSizes.spaceBtwItems,),

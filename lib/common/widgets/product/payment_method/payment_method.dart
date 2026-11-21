@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -28,9 +29,10 @@ class TPaymentTile extends StatelessWidget {
         height: 40,
         backgroundColor: THelperFunctions.isDarkMode(context) ? TColors.light : TColors.white,
         padding: const EdgeInsets.all(TSizes.sm),
-        child: Image(image: AssetImage(paymentMethod.image),fit: BoxFit.contain,),
+        child: paymentMethod.image.isEmpty ? const Icon(Iconsax.bank)
+            : Image(image: AssetImage(paymentMethod.image),fit: BoxFit.contain,),
       ),
-      title: Text(paymentMethod.name),
+      title: ShopText(paymentMethod.name == 'Demo bank' ? 'Bank payment' : paymentMethod.name),
       trailing: const Icon(Iconsax.arrow_right_34),
     );
   }

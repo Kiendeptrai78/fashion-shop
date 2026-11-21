@@ -12,6 +12,7 @@ import 'package:fashion_business_app/features/authentication/models/user_model.d
 import 'package:fashion_business_app/features/authentication/screens/login/login.dart';
 import 'package:fashion_business_app/features/personalization/screens/profile/widgets/re_auth_user_login_form.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/order_controller.dart';
+import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:fashion_business_app/utils/constants/image_strings.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
 import 'package:fashion_business_app/utils/popups/full_screen_loader.dart';
@@ -128,16 +129,18 @@ class UserController extends GetxController {
               userCredentials.user!.displayName ?? '');
 
           //map data
+          final userEmail = userCredentials.user!.email ?? '';
           final user = UserModel(
               id: userCredentials.user!.uid,
-              email: userCredentials.user!.email ?? '',
+              email: userEmail,
               firstName: nameParts[0],
               username: userName,
               lastName: nameParts.length > 1
                   ? nameParts.sublist(1).join(' ')
                   : '',
               phoneNumber: userCredentials.user!.phoneNumber ?? '',
-              profilePicture: userCredentials.user!.photoURL ?? '', role: 'Client'
+              profilePicture: userCredentials.user!.photoURL ?? '',
+              role: AdminConfig.roleForEmail(userEmail),
           );
 
           //save user data
@@ -166,16 +169,18 @@ class UserController extends GetxController {
               userCredentials.user!.displayName ?? '');
 
           //map data
+          final userEmail = userCredentials.user!.email ?? '';
           final user = UserModel(
               id: userCredentials.user!.uid,
-              email: userCredentials.user!.email ?? '',
+              email: userEmail,
               firstName: nameParts[0],
               username: userName,
               lastName: nameParts.length > 1
                   ? nameParts.sublist(1).join(' ')
                   : '',
               phoneNumber: userCredentials.user!.phoneNumber ?? '',
-              profilePicture: userCredentials.user!.photoURL ?? '', role: 'Admin'
+              profilePicture: userCredentials.user!.photoURL ?? '',
+              role: AdminConfig.roleForEmail(userEmail),
           );
 
           //save user data

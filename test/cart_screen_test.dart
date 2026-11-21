@@ -38,6 +38,15 @@ void main() {
     expect(find.text('\$227.00'), findsOneWidget);
     expect(find.text('\$117.00'), findsNothing);
   });
+  testWidgets('checkout shows selected discount in the final total', (tester) async {
+    final cart = Get.put<CartController>(_Cart());
+    cart.totalCartPrice.value = 110;
+    await tester.pumpWidget(const GetMaterialApp(home: Scaffold(
+        body: TBillingAmountSection(discount: 10))));
+    expect(find.text('Discount'), findsOneWidget);
+    expect(find.text('-\$10.00'), findsOneWidget);
+    expect(find.text('\$107.00'), findsOneWidget);
+  });
   testWidgets('bag updates quantities and removes checkout when emptied', (tester) async {
     final cart = Get.put<CartController>(_Cart());
     cart.cartItems.add(CartItemModel(productId: 'shoe', title: 'Air Force 1', quantity: 1,

@@ -1,0 +1,737 @@
+import 'dart:typed_data';
+
+import 'package:fashion_business_app/utils/constants/enums.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:iconsax/iconsax.dart';
+
+class AdminColors {
+  AdminColors._();
+
+  static const Color forestDark = Color(0xFF102B23);
+  static const Color forest = Color(0xFF173E32);
+  static const Color forestLight = Color(0xFF2D594D);
+  static const Color sage = Color(0xFFDDEABB);
+  static const Color sageSoft = Color(0xFFEAF2EE);
+
+  static const Color canvas = Color(0xFFF4F7F5);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceMuted = Color(0xFFF8FAF9);
+  static const Color border = Color(0xFFE2EAE6);
+  static const Color borderStrong = Color(0xFFCBD8D2);
+
+  static const Color ink = Color(0xFF111C18);
+  static const Color inkSecondary = Color(0xFF5A6B64);
+  static const Color inkMuted = Color(0xFF8A9B94);
+
+  static const Color emerald = Color(0xFF15803D);
+  static const Color emeraldBg = Color(0xFFDCFCE7);
+  static const Color amber = Color(0xFFB45309);
+  static const Color amberBg = Color(0xFFFEF3C7);
+  static const Color sky = Color(0xFF0369A1);
+  static const Color skyBg = Color(0xFFE0F2FE);
+  static const Color rose = Color(0xFFBE123C);
+  static const Color roseBg = Color(0xFFFFE4E6);
+  static const Color violet = Color(0xFF6D28D9);
+  static const Color violetBg = Color(0xFFEDE9FE);
+}
+
+class AdminOrderStatusMeta {
+  const AdminOrderStatusMeta({
+    required this.label,
+    required this.color,
+    required this.bgColor,
+    required this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final Color bgColor;
+  final IconData icon;
+
+  static AdminOrderStatusMeta of(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return const AdminOrderStatusMeta(
+          label: 'Chờ xác nhận',
+          color: AdminColors.amber,
+          bgColor: AdminColors.amberBg,
+          icon: Iconsax.clock,
+        );
+      case OrderStatus.processing:
+        return const AdminOrderStatusMeta(
+          label: 'Đang chuẩn bị',
+          color: AdminColors.violet,
+          bgColor: AdminColors.violetBg,
+          icon: Iconsax.box_time,
+        );
+      case OrderStatus.shipped:
+        return const AdminOrderStatusMeta(
+          label: 'Đang giao',
+          color: AdminColors.sky,
+          bgColor: AdminColors.skyBg,
+          icon: Iconsax.truck_fast,
+        );
+      case OrderStatus.received:
+        return const AdminOrderStatusMeta(
+          label: 'Đã hoàn tất',
+          color: AdminColors.emerald,
+          bgColor: AdminColors.emeraldBg,
+          icon: Iconsax.tick_circle,
+        );
+      case OrderStatus.cancelled:
+        return const AdminOrderStatusMeta(
+          label: 'Đã hủy',
+          color: AdminColors.rose,
+          bgColor: AdminColors.roseBg,
+          icon: Iconsax.close_circle,
+        );
+    }
+  }
+}
+
+class AdminCard extends StatelessWidget {
+  const AdminCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(20),
+    this.color = AdminColors.surface,
+    this.borderRadius = 16,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final Color color;
+  final double borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: AdminColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AdminColors.forestDark.withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class AdminStatCard extends StatelessWidget {
+  const AdminStatCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+    required this.accentBg,
+    this.onTap,
+  });
+
+  final String title;
+  final String value;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
+  final Color accentBg;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AdminCard(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: accentBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: accentColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AdminColors.inkSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: AdminColors.ink,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AdminColors.inkMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AdminBadge extends StatelessWidget {
+  const AdminBadge({
+    super.key,
+    required this.label,
+    required this.color,
+    required this.bgColor,
+    this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final Color bgColor;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AdminSectionToolbar extends StatelessWidget {
+  const AdminSectionToolbar({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.actions = const [],
+  });
+
+  final String title;
+  final String subtitle;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      runAlignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 16,
+      runSpacing: 12,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AdminColors.ink,
+                letterSpacing: -0.4,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AdminColors.inkSecondary,
+              ),
+            ),
+          ],
+        ),
+        if (actions.isNotEmpty)
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: actions,
+          ),
+      ],
+    );
+  }
+}
+
+class AdminPrimaryButton extends StatelessWidget {
+  const AdminPrimaryButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.loading = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: loading ? null : onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AdminColors.forest,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+      icon: loading
+          ? const SizedBox(
+              width: 15,
+              height: 15,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : Icon(icon ?? Icons.add_rounded, size: 17),
+      label: Text(label),
+    );
+  }
+}
+
+class AdminSearchField extends StatelessWidget {
+  const AdminSearchField({
+    super.key,
+    required this.hint,
+    required this.onChanged,
+    this.controller,
+    this.width = 300,
+  });
+
+  final String hint;
+  final ValueChanged<String> onChanged;
+  final TextEditingController? controller;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: const TextStyle(fontSize: 13, color: AdminColors.ink),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(fontSize: 13, color: AdminColors.inkMuted),
+          prefixIcon: const Icon(Iconsax.search_normal_1, size: 17, color: AdminColors.inkMuted),
+          filled: true,
+          fillColor: AdminColors.surfaceMuted,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(11),
+            borderSide: const BorderSide(color: AdminColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(11),
+            borderSide: const BorderSide(color: AdminColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(11),
+            borderSide: const BorderSide(color: AdminColors.forest, width: 1.4),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AdminImageThumb extends StatelessWidget {
+  const AdminImageThumb({
+    super.key,
+    required this.url,
+    this.width = 48,
+    this.height = 48,
+    this.borderRadius = 10,
+    this.fit = BoxFit.cover,
+    this.placeholderIcon = Iconsax.image,
+  });
+
+  final String url;
+  final double width;
+  final double height;
+  final double borderRadius;
+  final BoxFit fit;
+  final IconData placeholderIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = url.trim();
+    return Container(
+      width: width,
+      height: height,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AdminColors.sageSoft,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: AdminColors.border),
+      ),
+      child: trimmed.isEmpty
+          ? Icon(placeholderIcon, size: width * 0.42, color: AdminColors.inkMuted)
+          : Image.network(
+              trimmed,
+              fit: fit,
+              errorBuilder: (_, __, ___) => Icon(
+                placeholderIcon,
+                size: width * 0.42,
+                color: AdminColors.inkMuted,
+              ),
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return const Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 1.8),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
+class AdminImageUploadField extends StatefulWidget {
+  const AdminImageUploadField({
+    super.key,
+    required this.label,
+    required this.controller,
+    required this.onUploadBytes,
+    this.previewHeight = 110,
+    this.previewWidth = 110,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final Future<String> Function(Uint8List bytes, String filename) onUploadBytes;
+  final double previewHeight;
+  final double previewWidth;
+
+  @override
+  State<AdminImageUploadField> createState() => _AdminImageUploadFieldState();
+}
+
+class _AdminImageUploadFieldState extends State<AdminImageUploadField> {
+  bool _uploading = false;
+  String? _error;
+
+  Future<void> _pickAndUpload() async {
+    setState(() {
+      _error = null;
+    });
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        setState(() => _error = 'Không đọc được dữ liệu ảnh.');
+        return;
+      }
+      setState(() => _uploading = true);
+      final url = await widget.onUploadBytes(bytes, file.name);
+      widget.controller.text = url;
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AdminColors.inkSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: widget.controller,
+              builder: (_, value, __) => AdminImageThumb(
+                url: value.text,
+                width: widget.previewWidth,
+                height: widget.previewHeight,
+                borderRadius: 12,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: widget.controller,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: adminInputDecoration(
+                      hint: 'Dán URL ảnh https://... hoặc tải lên từ máy',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _uploading ? null : _pickAndUpload,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AdminColors.forest,
+                          side: const BorderSide(color: AdminColors.borderStrong),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: _uploading
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Iconsax.document_upload, size: 16),
+                        label: Text(_uploading ? 'Đang tải lên Cloudinary...' : 'Tải ảnh lên'),
+                      ),
+                      if (widget.controller.text.isNotEmpty)
+                        TextButton(
+                          onPressed: () {
+                            widget.controller.clear();
+                            setState(() {});
+                          },
+                          child: const Text('Xóa ảnh', style: TextStyle(color: AdminColors.rose, fontSize: 12)),
+                        ),
+                    ],
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _error!,
+                      style: const TextStyle(fontSize: 12, color: AdminColors.rose),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class AdminEmptyState extends StatelessWidget {
+  const AdminEmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: AdminColors.sageSoft,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, size: 28, color: AdminColors.forest),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AdminColors.ink,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AdminColors.inkSecondary),
+            ),
+            if (action != null) ...[
+              const SizedBox(height: 18),
+              action!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+InputDecoration adminInputDecoration({
+  String? label,
+  String? hint,
+  Widget? prefixIcon,
+  Widget? suffixIcon,
+}) {
+  return InputDecoration(
+    labelText: label,
+    hintText: hint,
+    prefixIcon: prefixIcon,
+    suffixIcon: suffixIcon,
+    filled: true,
+    fillColor: AdminColors.surfaceMuted,
+    labelStyle: const TextStyle(fontSize: 13, color: AdminColors.inkSecondary),
+    hintStyle: const TextStyle(fontSize: 13, color: AdminColors.inkMuted),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(11),
+      borderSide: const BorderSide(color: AdminColors.border),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(11),
+      borderSide: const BorderSide(color: AdminColors.border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(11),
+      borderSide: const BorderSide(color: AdminColors.forest, width: 1.5),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(11),
+      borderSide: const BorderSide(color: AdminColors.rose),
+    ),
+  );
+}
+
+Future<bool> showAdminConfirmDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+  String confirmLabel = 'Xác nhận xóa',
+  bool destructive = true,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: AdminColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AdminColors.ink),
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Text(
+          message,
+          style: const TextStyle(fontSize: 13.5, color: AdminColors.inkSecondary, height: 1.5),
+        ),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      actions: [
+        OutlinedButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AdminColors.inkSecondary,
+            side: const BorderSide(color: AdminColors.borderStrong),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: const Text('Hủy'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: destructive ? AdminColors.rose : AdminColors.forest,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  );
+  return result == true;
+}

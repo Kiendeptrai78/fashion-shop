@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
@@ -21,14 +22,14 @@ class TSectionHeading extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-         Text(
+         ShopText(
           title,
           style:  TextStyle(color: dark ? TColors.white : TColors.dark,fontSize: 18),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         if (showActionButton)
-          TextButton(onPressed: onPressed, child: Text(buttonTitle))
+          TextButton(onPressed: onPressed, child: ShopText(buttonTitle))
       ],
     );
   }

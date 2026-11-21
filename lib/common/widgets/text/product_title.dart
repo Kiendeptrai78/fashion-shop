@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 
 class TProductTextTitle extends StatelessWidget {
@@ -14,7 +15,7 @@ class TProductTextTitle extends StatelessWidget {
   final TextAlign? textAlign;
   @override
   Widget build(BuildContext context) {
-    return Text(
+    return ShopText(
       title,
       style: smallSize
           ? Theme.of(context).textTheme.labelLarge

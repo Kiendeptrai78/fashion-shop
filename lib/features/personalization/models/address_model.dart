@@ -11,6 +11,7 @@ class AddressModel{
   final String country;
   final DateTime? dateTime;
   bool selectedAddress;
+  final double? latitude, longitude;
 
   AddressModel({
     required this.id,
@@ -20,7 +21,7 @@ class AddressModel{
     required this.city,
     required this.state,
     required this.country,
-    this.dateTime,
+    this.dateTime, this.latitude, this.longitude,
      this.selectedAddress = true
 });
 
@@ -31,6 +32,8 @@ class AddressModel{
   Map<String, dynamic> toJson(){
     return {
       'Id': id,
+      if (latitude != null) 'Latitude': latitude,
+      if (longitude != null) 'Longitude': longitude,
       'Name': name,
       'PhoneNumber': phoneNumber,
       'Street': street,
@@ -51,8 +54,9 @@ class AddressModel{
         city: data['City'] as String,
         state: data['State'] as String,
         country: data['Country'] as String,
-        selectedAddress: data['SelectedAddress'] as bool,
-        dateTime: (data['DateTime'] as Timestamp).toDate(),
+        latitude: (data['Latitude'] as num?)?.toDouble(), longitude: (data['Longitude'] as num?)?.toDouble(),
+        selectedAddress: data['SelectedAddress'] == true,
+        dateTime: (data['DateTime'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -66,13 +70,14 @@ class AddressModel{
         city: data['City']  ?? '',
         state: data['State']  ?? '',
         country: data['Country']  ?? '',
-        selectedAddress: data['SelectedAddress'] as bool,
-        dateTime: (data['DateTime'] as Timestamp).toDate(),
+        latitude: (data['Latitude'] as num?)?.toDouble(), longitude: (data['Longitude'] as num?)?.toDouble(),
+        selectedAddress: data['SelectedAddress'] == true,
+        dateTime: (data['DateTime'] as Timestamp?)?.toDate(),
     );
   }
 
   @override
   String toString() {
-    return '$state, $street, $city, $country';
+    return [street, city, state, country].where((part) => part.trim().isNotEmpty).join(', ');
   }
 }

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -24,7 +25,7 @@ class TPromoSlider extends StatelessWidget {
 
       //no data found
       if(controller.banners.isEmpty){
-        return const Center(child: Text('No Data Found!'),);
+        return const Center(child: ShopText('No Data Found!'),);
       }else{
         return Column(
           children: [

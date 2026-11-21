@@ -1,10 +1,10 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/features/authentication/controllers/login/login_controller.dart';
 import 'package:fashion_business_app/features/authentication/screens/password/forget_password.dart';
 import 'package:fashion_business_app/features/authentication/screens/signup/signup.dart';
-import 'package:fashion_business_app/navigation_menu.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
 import 'package:fashion_business_app/utils/constants/text_strings.dart';
 import 'package:fashion_business_app/utils/validators/validation.dart';
@@ -16,7 +16,7 @@ class TLoginForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(LoginController());
+    final controller = Get.isRegistered<LoginController>() ? Get.find<LoginController>() : Get.put(LoginController());
     return Form(
         key: controller.loginFormKey,
         child: Padding(
@@ -28,9 +28,9 @@ class TLoginForm extends StatelessWidget {
               TextFormField(
                 controller: controller.email,
                 validator: (value) => TValidator.validateEmail(value) ,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                     prefixIcon: Icon(Iconsax.direct_right),
-                    labelText: TTexts.email),
+                    labelText: TTexts.email.tr),
               ),
               const SizedBox(
                 height: TSizes.spaceBtwInoutFields,
@@ -43,7 +43,7 @@ class TLoginForm extends StatelessWidget {
                 obscureText: controller.hidePassword.value,
                 expands: false,
                 decoration:  InputDecoration(
-                    labelText: TTexts.password,
+                    labelText: TTexts.password.tr,
                     prefixIcon: const Icon(Iconsax.password_check),
                     suffixIcon: IconButton(
                         onPressed: () => controller.hidePassword.value = !controller.hidePassword.value,
@@ -55,24 +55,15 @@ class TLoginForm extends StatelessWidget {
                 height: TSizes.spaceBtwInoutFields / 2,
               ),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ///Remember password
-                  Row(
-                    children: [
-                      Obx(() => Checkbox(
-                        value: controller.rememberMe.value,
-                        onChanged: (value) => controller.rememberMe.value = !controller.rememberMe.value,
-                      )),
-                      const Text(TTexts.rememberMe)
-                    ],
-                  ),
-
-                  ///forget password
-                  TextButton(
-                      onPressed: () => Get.to(() => const ForgetPassword()),
-                      child: const Text(TTexts.forgetPassword)),
+              Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8, children: [
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Obx(() => Checkbox(value: controller.rememberMe.value,
+                        onChanged: (value) => controller.rememberMe.value = value ?? false)),
+                    const Flexible(child: ShopText(TTexts.rememberMe)),
+                  ]),
+                  TextButton(onPressed: () => Get.to(() => const ForgetPassword()),
+                      child: const ShopText(TTexts.forgetPassword)),
                 ],
               ),
               const SizedBox(
@@ -84,7 +75,7 @@ class TLoginForm extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                     onPressed: () => controller.emailAndPasswordSignIn(),
-                    child: const Text(TTexts.signIn)),
+                    child: const ShopText(TTexts.signIn)),
               ),
               const SizedBox(
                 height: TSizes.spaceBtwItems,
@@ -95,7 +86,7 @@ class TLoginForm extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton(
                     onPressed: () => Get.to(() => const SignupScreen()),
-                    child: const Text(TTexts.createAccount)),
+                    child: const ShopText(TTexts.createAccount)),
               ),
             ],
           ),

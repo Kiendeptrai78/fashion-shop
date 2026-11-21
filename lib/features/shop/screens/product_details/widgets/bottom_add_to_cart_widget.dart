@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
@@ -37,11 +38,11 @@ class TBottomAddToCart extends StatelessWidget {
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2))),
               child: Row(children: [
-                IconButton(tooltip: 'Decrease quantity',
+                IconButton(tooltip: 'Decrease quantity'.tr,
                     onPressed: ready && quantity > 1 ? () => cart.productQuantityInCart.value-- : null,
                     icon: const Icon(Icons.remove, size: 18)),
-                Text('${quantity < 1 ? 1 : quantity}', style: theme.textTheme.titleMedium),
-                IconButton(tooltip: 'Increase quantity',
+                ShopText('${quantity < 1 ? 1 : quantity}', style: theme.textTheme.titleMedium),
+                IconButton(tooltip: 'Increase quantity'.tr,
                     onPressed: ready && quantity < stock ? () => cart.productQuantityInCart.value++ : null,
                     icon: const Icon(Icons.add, size: 18)),
               ]),
@@ -53,9 +54,14 @@ class TBottomAddToCart extends StatelessWidget {
                 onPressed: !ready ? onSelectOptions : stock < 1 ? null : () => cart.addToCart(product),
                 style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                child: Text(!ready ? 'Select size' : stock < 1 ? 'Sold out' : 'Add to bag · \$$price',
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                child: !ready || stock < 1
+                    ? ShopText(!ready ? 'Select size' : 'Sold out')
+                    : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        const ShopText('Add to bag', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        Text(formatShopPrice(price, language: Localizations.localeOf(context).languageCode),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      ]),
               ),
             )),
           ]);

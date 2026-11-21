@@ -1,3 +1,13 @@
+import 'package:fashion_business_app/features/personalization/services/account_activity.dart';
+import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
+import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
+import 'package:fashion_business_app/common/widgets/product/badges/shop_count_badge.dart';
+import 'package:fashion_business_app/features/personalization/screens/account/demo_bank_screen.dart';
+import 'package:fashion_business_app/features/personalization/screens/account/coupons_screen.dart';
+import 'package:fashion_business_app/features/personalization/screens/account/notifications_screen.dart';
+import 'package:fashion_business_app/features/personalization/screens/account/privacy_screen.dart';
+import 'package:fashion_business_app/features/personalization/screens/preferences/shopper_onboarding.dart';
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -32,8 +42,13 @@ class SettingScreen extends StatelessWidget {
                 child: Column(
               children: [
                 ///appbar
-                const TAppbar(
-                  title: Text('Account', style: TextStyle(fontSize: 20, color: TColors.white),),),
+                TAppbar(title: Obx(() => Row(mainAxisSize: MainAxisSize.min, children: [
+                  const ShopText('Account', style: TextStyle(fontSize: 20, color: TColors.white)),
+                  const SizedBox(width: 16),
+                  ShopCountBadge(count: (AccountActivity.current?.activeOrders ?? 0)
+                      + (AccountActivity.current?.unread ?? 0) + CustomerBenefits.instance.newCouponCount,
+                      child: const Icon(Iconsax.notification, color: Colors.white, size: 18)),
+                ]))),
 
                 ///user profile card
                 TUserProfileTile(onPressed:() => Get.to(() => const ProfileScreen()),),
@@ -46,27 +61,44 @@ class SettingScreen extends StatelessWidget {
               padding: const EdgeInsets.all(TSizes.defaultSpace),
               child: Column(
                 children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Iconsax.language_square),
+                    title: const ShopText('Language'),
+                    subtitle: Text(Get.locale?.languageCode == 'en' ? 'English · USD' : 'Tiếng Việt · VND'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => showModalBottomSheet(context: context, builder: (sheet) => SafeArea(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        for (final entry in {'vi': 'Tiếng Việt · VND', 'en': 'English · USD'}.entries)
+                          RadioListTile<String>(value: entry.key,
+                            groupValue: Get.locale?.languageCode ?? 'vi', title: Text(entry.value),
+                            onChanged: (value) async {
+                              Navigator.pop(sheet);
+                              await Get.find<ShopLocale>().change(value!);
+                              await AccountActivity.current?.syncPush();
+                            }),
+                      ]),
+                    )),
+                  ),
+                  ListTile(contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Iconsax.setting_4),
+                    title: const ShopText('Your preferences'),
+                    subtitle: const ShopText('Age group and favorite collections'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Get.to(() => const ShopperOnboarding(editing: true)),
+                  ),
+                  const Divider(height: 32),
                   /// account settings
                   const TSectionHeading(title: 'Account settings', showActionButton: false,),
                   const SizedBox(height: TSizes.spaceBtwItems,),
 
-                   TSettingMenuTiles(icon: Iconsax.safe_home, title: 'My Address', subtitle: 'Set shopping delivery address',onTap: () => Get.to(() => const AddressScreen()),),
-                   TSettingMenuTiles(icon: Iconsax.shopping_cart, title: 'My Cart', subtitle: 'Add, remove products and move to checkout',onTap: () => Get.to(() => const CartScreen()),),
-                   TSettingMenuTiles(icon: Iconsax.bag_tick, title: 'My Orders', subtitle: 'In-progress and Completed Orders',onTap: () => Get.to(() => const OrderScreen())),
-                  const TSettingMenuTiles(icon: Iconsax.bank, title: 'Bank Account', subtitle: 'Withdraw balance to registered bank account',),
-                  const TSettingMenuTiles(icon: Iconsax.discount_shape, title: 'My Coupons', subtitle: 'List of all the discounted coupons',),
-                  const TSettingMenuTiles(icon: Iconsax.notification, title: 'Notification', subtitle: 'Set any kind of notification message',),
-                  const TSettingMenuTiles(icon: Iconsax.security_card, title: 'Account Privacy', subtitle: 'Manage data usage and connected accounts',),
-
-                  ///app settings
-                  const SizedBox(height: TSizes.spaceBtwSections,),
-                  const TSectionHeading(title: 'App Settings', showActionButton: false,),
-
-                  const SizedBox(height: TSizes.spaceBtwItems,),
-                  const TSettingMenuTiles(icon: Iconsax.document_upload, title: 'Load Data', subtitle: 'Upload Data to your Cloud Firebase'),
-                  TSettingMenuTiles(icon: Iconsax.location, title: 'Geolocation', subtitle: 'Set recommendation based on location', trailing: Switch(value: true, onChanged: (value) {}),),
-                  TSettingMenuTiles(icon: Iconsax.security_user, title: 'Safe Mode', subtitle: 'Search result is safe for all ages', trailing: Switch(value: false, onChanged: (value) {}),),
-                  TSettingMenuTiles(icon: Iconsax.image, title: 'HD Image Quality', subtitle: 'Set image quality to be seen', trailing: Switch(value: false, onChanged: (value) {}),),
+                   TSettingMenuTiles(icon: Iconsax.safe_home, title: 'My Address', trailing: Obx(() => ShopCountBadge(count: AccountActivity.current?.addressCount.value ?? 0, child: const Icon(Icons.chevron_right))), subtitle: 'Set shopping delivery address',onTap: () => Get.to(() => const AddressScreen()),),
+                   TSettingMenuTiles(icon: Iconsax.shopping_cart, title: 'My Cart', trailing: Obx(() => ShopCountBadge(count: CartController.instance.noOfCartItem.value, child: const Icon(Icons.chevron_right))), subtitle: 'Add, remove products and move to checkout',onTap: () => Get.to(() => const CartScreen()),),
+                   TSettingMenuTiles(icon: Iconsax.bag_tick, title: 'My Orders', trailing: Obx(() => ShopCountBadge(count: AccountActivity.current?.activeOrders ?? 0, child: const Icon(Icons.chevron_right))), subtitle: 'In-progress and Completed Orders',onTap: () => Get.to(() => const OrderScreen())),
+                  TSettingMenuTiles(icon: Iconsax.bank, title: 'Payment account', subtitle: 'Balance and transaction history', onTap: () => Get.to(() => const DemoBankScreen())),
+                  TSettingMenuTiles(icon: Iconsax.discount_shape, title: 'My Coupons', trailing: Obx(() => ShopCountBadge(count: CustomerBenefits.instance.newCouponCount, child: const Icon(Icons.chevron_right))), subtitle: 'Welcome and holiday offers', onTap: () => Get.to(() => const CouponsScreen())),
+                  TSettingMenuTiles(icon: Iconsax.notification, title: 'Notification', trailing: Obx(() => ShopCountBadge(count: AccountActivity.current?.unread ?? 0, child: const Icon(Icons.chevron_right))), subtitle: 'Updates from your orders.', onTap: () => Get.to(() => const NotificationsScreen())),
+                  TSettingMenuTiles(icon: Iconsax.security_card, title: 'Account Privacy', subtitle: 'Manage data usage and connected accounts', onTap: () => Get.to(() => const PrivacyScreen())),
 
                   ///logout button
                   const SizedBox(height: TSizes.spaceBtwSections,),
@@ -78,11 +110,11 @@ class SettingScreen extends StatelessWidget {
                         context: context,
                         builder: (BuildContext context) {
                           return AlertDialog(
-                            title: const Text(
+                            title: const ShopText(
                               "Confirm Logout",
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
-                            content: Text(
+                            content: ShopText(
                               "Are you sure you want to log out?",
                               style: TextStyle(color: Colors.grey[600]),
                             ),
@@ -91,7 +123,7 @@ class SettingScreen extends StatelessWidget {
                                 onPressed: () {
                                   Navigator.pop(context); // Close the dialog
                                 },
-                                child: const Text(
+                                child: const ShopText(
                                   "Cancel",
                                   style: TextStyle(color: Colors.blue),
                                 ),
@@ -102,7 +134,7 @@ class SettingScreen extends StatelessWidget {
                                   AuthenticationRepository.instance.logout();
                                   Navigator.pop(context); // Close the dialog
                                 },
-                                child: const Text(
+                                child: const ShopText(
                                   "Logout",
                                   style: TextStyle(color: Colors.red),
                                 ),
@@ -112,7 +144,7 @@ class SettingScreen extends StatelessWidget {
                         },
                       );
                     },
-                    child: const Text('Logout'),
+                    child: const ShopText('Logout'),
                   ),
                 ),
 

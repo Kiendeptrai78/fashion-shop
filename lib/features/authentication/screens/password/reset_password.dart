@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -38,7 +39,7 @@ class ResetPassword extends StatelessWidget {
               ),
 
               ///title & subtitle
-              Text(
+              ShopText(
                 email,
                 style: Theme.of(context).textTheme.headlineMedium,
                 textAlign: TextAlign.center,
@@ -46,7 +47,7 @@ class ResetPassword extends StatelessWidget {
               const SizedBox(
                 height: TSizes.spaceBtwItems,
               ),
-              Text(
+              ShopText(
                 TTexts.changeYourPasswordSubTitle,
                 style: Theme.of(context).textTheme.labelMedium,
                 textAlign: TextAlign.center,
@@ -60,7 +61,7 @@ class ResetPassword extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed:() => Get.offAll(() => const LoginScreen()),
-                  child: const Text(TTexts.done),
+                  child: const ShopText(TTexts.done),
                 ),
               ),
               const SizedBox(
@@ -70,7 +71,7 @@ class ResetPassword extends StatelessWidget {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () => ForgetPasswordController.instance.resendPasswordResetEmail(email),
-                  child: const Text(TTexts.resendEmail),
+                  child: const ShopText(TTexts.resendEmail),
                 ),
               ),
             ],

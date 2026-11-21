@@ -1,4 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fashion_business_app/features/personalization/services/account_activity.dart';
+import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
+import 'package:fashion_business_app/features/personalization/models_shopper_preferences.dart';
+import 'package:fashion_business_app/features/personalization/screens/preferences/shopper_onboarding.dart';
 import 'package:fashion_business_app/admin/login/login_admin_screen.dart';
+import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -35,18 +41,60 @@ class AuthenticationRepository extends GetxController {
   ///called from main.dart on app launch
   @override
   void onReady() {
-    FlutterNativeSplash.remove();
-    screenRedirect();
+    if (!kIsWeb) {
+      FlutterNativeSplash.remove();
+    }
+    if (kIsWeb) {
+      screenRedirectAdmin();
+    } else {
+      screenRedirect();
+    }
   }
-///function to determine the relevant
- void screenRedirect() async {
+
+  Future<void> _ensureAdminUserDoc(User user) async {
+    try {
+      final ref = FirebaseFirestore.instance.collection('Users').doc(user.uid);
+      final snap = await ref.get();
+      if (!snap.exists) {
+        await ref.set({
+          'FirstName': 'Quản trị',
+          'LastName': 'Viên',
+          'Username': 'ADMIN',
+          'Email': user.email ?? AdminConfig.adminEmail,
+          'PhoneNumber': user.phoneNumber ?? '',
+          'ProfilePicture': user.photoURL ?? '',
+          'Role': 'Admin',
+        });
+      } else if (snap.data()?['Role'] != 'Admin') {
+        await ref.update({'Role': 'Admin'});
+      }
+    } catch (_) {
+      // Keep admin login resilient even if profile sync encounters a transient issue.
+    }
+  }
+
+  ///function to determine the relevant
+  void screenRedirect() async {
+    if (kIsWeb) {
+      screenRedirectAdmin();
+      return;
+    }
     final user = _auth.currentUser;
     if(user != null){
-      if(user.emailVerified){
+      if(user.emailVerified || AdminConfig.isAdminEmail(user.email)){
 
         await TLocalStorage.init(user.uid);
+        if (Get.isRegistered<CustomerBenefits>()) Get.delete<CustomerBenefits>(force: true);
+        final benefits = Get.put(CustomerBenefits.local(), permanent: true);
+        await benefits.initialize();
+        if (Get.isRegistered<AccountActivity>()) Get.delete<AccountActivity>(force: true);
+        Get.put(AccountActivity(user.uid), permanent: true);
 
-        Get.offAll(() => const NavigationMenu());
+        if (ShopperPreferences.load().completed) {
+          Get.offAll(() => const NavigationMenu());
+        } else {
+          Get.offAll(() => const ShopperOnboarding());
+        }
       } else{
         Get.offAll(() => VerifyEmailScreen(email: _auth.currentUser?.email));
       }
@@ -59,23 +107,23 @@ class AuthenticationRepository extends GetxController {
     }
 
   }
-  ///function to determine the relevant
+
+  ///function to determine the relevant screen for the Admin portal
   void screenRedirectAdmin() async {
     final user = _auth.currentUser;
-    if(user != null){
+    if (user != null) {
+      if (!AdminConfig.isAdminEmail(user.email)) {
+        await _auth.signOut();
+        Get.offAll(() => const LoginAdminScreen());
+        return;
+      }
 
       await TLocalStorage.init(user.uid);
-
+      await _ensureAdminUserDoc(user);
       Get.offAll(() => const HomeScreenAdmin());
-
-    }else{
-      //local storage
-      deviceStorage.writeIfNull('IsFirstTime', true);
-      deviceStorage.read('IsFirstTime') != true
-          ? Get.offAll(() => const LoginAdminScreen())
-          : Get.offAll(() => const OnBoardingScreen());
+    } else {
+      Get.offAll(() => const LoginAdminScreen());
     }
-
   }
 
 
@@ -139,7 +187,13 @@ class AuthenticationRepository extends GetxController {
   ///[logout user] -valid for any authentication
   Future<void> logoutAdmin() async {
     try {
-      await GoogleSignIn().signOut();
+      if (!kIsWeb) {
+        try {
+          await GoogleSignIn().signOut();
+        } catch (_) {}
+      }
+      await AccountActivity.current?.disconnect();
+      if (Get.isRegistered<AccountActivity>()) Get.delete<AccountActivity>(force: true);
       await FirebaseAuth.instance.signOut();
       Get.offAll(() => const LoginAdminScreen());
     } on FirebaseAuthException catch (e) {
@@ -208,9 +262,15 @@ class AuthenticationRepository extends GetxController {
   ///[logout user] -valid for any authentication
   Future<void> logout() async {
     try {
-      await GoogleSignIn().signOut();
+      if (!kIsWeb) {
+        try {
+          await GoogleSignIn().signOut();
+        } catch (_) {}
+      }
+      await AccountActivity.current?.disconnect();
+      if (Get.isRegistered<AccountActivity>()) Get.delete<AccountActivity>(force: true);
       await FirebaseAuth.instance.signOut();
-      Get.offAll(() => const LoginScreen());
+      Get.offAll(() => kIsWeb ? const LoginAdminScreen() : const LoginScreen());
     } on FirebaseAuthException catch (e) {
       throw TFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {

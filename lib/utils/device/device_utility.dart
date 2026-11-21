@@ -69,6 +69,7 @@ class TDeviceUtils{
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
   }
   static Future<bool> hasInternetConnection() async {
+    if (kIsWeb) return true;
     try{
       final result = await InternetAddress.lookup('example.com');
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
@@ -77,10 +78,10 @@ class TDeviceUtils{
     }
   }
   static bool isIOS(){
-    return Platform.isIOS;
+    return !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
   }
   static bool isAndroid(){
-    return Platform.isAndroid;
+    return !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   }
   static void launchUrl(String url) async {
     if(await canLaunchUrlString(url)){

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -70,7 +71,7 @@ class TOrderListItem extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              ShopText(
                                 order.orderStatusText,
                                 style: Theme.of(context)
                                     .textTheme
@@ -81,7 +82,7 @@ class TOrderListItem extends StatelessWidget {
                                         order.orderStatusText == 'Received' ? Colors.green : Colors.red,
                                         fontWeightDelta: 1),
                               ),
-                              Text(
+                              ShopText(
                                 order.formattedOrderDate,
                                 style: const TextStyle(
                                     fontSize: 16, fontWeight: FontWeight.bold),
@@ -121,11 +122,11 @@ class TOrderListItem extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Order',
+                                    ShopText('Order',
                                         style: Theme.of(context)
                                             .textTheme
                                             .labelMedium),
-                                    Text(order.id,
+                                    ShopText(order.id,
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleMedium)
@@ -151,11 +152,11 @@ class TOrderListItem extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Shipping Date',
+                                    ShopText('Shipping Date',
                                         style: Theme.of(context)
                                             .textTheme
                                             .labelMedium),
-                                    Text(order.formattedDeliveryDate,
+                                    ShopText(order.formattedDeliveryDate,
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleMedium)

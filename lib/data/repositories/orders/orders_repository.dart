@@ -9,6 +9,23 @@ import 'package:fashion_business_app/utils/constants/enums.dart';
 class OrderRepository extends GetxController{
   static OrderRepository get instance => Get.find();
 
+  Future<void> updateCustomerStatus(OrderModel order, OrderStatus next) async {
+    final uid = AuthenticationRepository.instance.authUser.uid;
+    final result = await _db.collection('Users').doc(uid).collection('Orders')
+        .where('id', isEqualTo: order.id).limit(1).get();
+    if (result.docs.isEmpty) throw StateError('Order no longer exists.');
+    final ref = result.docs.single.reference;
+    await _db.runTransaction((transaction) async {
+      final current = (await transaction.get(ref)).data();
+      final status = current?['status'];
+      final canCancel = next == OrderStatus.cancelled &&
+          [OrderStatus.pending.toString(), OrderStatus.processing.toString()].contains(status);
+      final canReceive = next == OrderStatus.received && status == OrderStatus.shipped.toString();
+      if (!canCancel && !canReceive) throw StateError('Order status has changed. Refresh and try again.');
+      transaction.update(ref, {'status': next.toString(), 'notificationPending': true});
+    });
+  }
+
   ///variable
   final _db = FirebaseFirestore.instance;
 
@@ -143,12 +160,12 @@ class OrderRepository extends GetxController{
       final querySnapshot = await orderRef.where('id', isEqualTo: order.id).get();
       if (querySnapshot.docs.isEmpty) {
         // Nếu đơn hàng chưa tồn tại, thêm mới đơn hàng
-        final docRef = await orderRef.add(order.toJson());
+        final docRef = await orderRef.add({...order.toJson(), 'notificationPending': true});
         return docRef.id;
       } else {
         // Nếu đơn hàng đã tồn tại, cập nhật đơn hàng
         final orderId = querySnapshot.docs.first.id;
-        await orderRef.doc(orderId).update(order.toJson());
+        await orderRef.doc(orderId).update({...order.toJson(), 'notificationPending': true});
         return orderId;
       }
     } catch (e) {

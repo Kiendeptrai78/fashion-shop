@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -23,7 +24,7 @@ class AllBrandScreen extends StatelessWidget {
     final brandController = BrandController.instance;
     return Scaffold(
       appBar: const TAppbar(
-        title: Text('Brands'),
+        title: ShopText('Brands'),
         showBackArrow: true,
       ),
       body: SingleChildScrollView(
@@ -45,7 +46,7 @@ class AllBrandScreen extends StatelessWidget {
                 if(brandController.isLoading.value) return const TBrandShimmer();
 
                 if(brandController.featuredBrands.isEmpty){
-                  return Center(child: Text('No Data Found!',style: Theme.of(context).textTheme.bodyMedium!.apply(color: Colors.white),));
+                  return Center(child: ShopText('No Data Found!',style: Theme.of(context).textTheme.bodyMedium!.apply(color: Colors.white),));
                 }else{
                   return  TGridLayout(
                       itemCount: brandController.featuredBrands.length,

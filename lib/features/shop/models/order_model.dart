@@ -9,6 +9,8 @@ class OrderModel {
   final String userId;
   OrderStatus status;
   final double totalAmount;
+  final double discountAmount;
+  final String couponCode;
   final DateTime orderDate;
   final String paymentMethod;
   final AddressModel? address;
@@ -21,6 +23,7 @@ class OrderModel {
       this.userId = '',
       required this.status,
       required this.totalAmount,
+      this.discountAmount = 0, this.couponCode = '',
       required this.orderDate,
       this.paymentMethod = 'Paypal',
       this.address,
@@ -47,6 +50,7 @@ class OrderModel {
       'userId': userId,
       'status': status.toString(),
       'totalAmount': totalAmount,
+      'discountAmount': discountAmount, 'couponCode': couponCode,
       'orderDate': orderDate,
       'paymentMethod': paymentMethod,
       'address': address?.toJson(),
@@ -64,12 +68,14 @@ class OrderModel {
         userId: data['userId'] as String,
         status: OrderStatus.values
             .firstWhere((element) => element.toString() == data['status']),
-        totalAmount: data['totalAmount'] as double,
+        totalAmount: (data['totalAmount'] as num).toDouble(),
+        discountAmount: (data['discountAmount'] as num? ?? 0).toDouble(),
+        couponCode: data['couponCode'] as String? ?? '',
         orderDate: (data['orderDate'] as Timestamp).toDate(),
         paymentMethod: data['paymentMethod'] as String,
-        address: AddressModel.fromMap(data['address'] as Map<String, dynamic>),
+        address: data['address'] == null ? null : AddressModel.fromMap(Map<String, dynamic>.from(data['address'] as Map)),
         deliveryDate: (data['deliveryDate'] as Timestamp).toDate(),
-        searchDate: (data['searchDate'] as Timestamp).toDate(),
+        searchDate: (data['searchDate'] as Timestamp?)?.toDate(),
         items: (data['items'] as List<dynamic>)
             .map((e) => CartItemModel.fromJson(e as Map<String, dynamic>))
             .toList());

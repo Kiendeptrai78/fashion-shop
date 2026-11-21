@@ -1,54 +1,63 @@
-
-
-
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
+import 'package:fashion_business_app/utils/device/device_utility.dart';
 
-class NetworkManager extends GetxController{
+class NetworkManager extends GetxController {
   static NetworkManager get instance => Get.find();
 
   final Connectivity _connectivity = Connectivity();
-  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
   final Rx<ConnectivityResult> _connectionStatus = ConnectivityResult.none.obs;
+  Timer? _offlineDebounce;
 
-  /// Initialize the network manager and set up a stream to continually check the connection status
   @override
   void onInit() {
     super.onInit();
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+    if (kIsWeb) return;
+    _connectivitySubscription =
+        _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
   }
 
-  ///Update the connection status based on changes in connectivity and show a relevant popup for no internet connection
+  /// Debounce transient `none` events (common on iOS cold start / simulator)
+  /// and double-check actual reachability before alerting the user.
   Future<void> _updateConnectionStatus(ConnectivityResult result) async {
     _connectionStatus.value = result;
-    if(_connectionStatus.value == ConnectivityResult.none){
-      TLoaders.warningSnackBar(title: 'No Internet connection');
+    _offlineDebounce?.cancel();
+
+    if (result == ConnectivityResult.none) {
+      _offlineDebounce = Timer(const Duration(milliseconds: 900), () async {
+        final hasInternet = await TDeviceUtils.hasInternetConnection();
+        if (!hasInternet && _connectionStatus.value == ConnectivityResult.none) {
+          TLoaders.warningSnackBar(title: 'No Internet connection');
+        }
+      });
     }
   }
 
-  /// Check the internet connection status
-  /// Returns 'true' if connection, 'false' otherwise
+  /// Check the internet connection status.
+  /// Returns `true` if connected, `false` otherwise.
   Future<bool> isConnected() async {
-    try{
+    if (kIsWeb) return true;
+    try {
       final result = await _connectivity.checkConnectivity();
-      if(result == ConnectivityResult.none){
-        return false;
-      }else{
-        return true;
+      if (result == ConnectivityResult.none) {
+        return await TDeviceUtils.hasInternetConnection();
       }
-    } on PlatformException catch (_){
-      return false;
+      return true;
+    } on PlatformException catch (_) {
+      return await TDeviceUtils.hasInternetConnection();
     }
   }
 
   @override
   void onClose() {
+    _offlineDebounce?.cancel();
+    _connectivitySubscription?.cancel();
     super.onClose();
-    _connectivitySubscription.cancel();
   }
-
 }

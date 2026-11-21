@@ -1,7 +1,10 @@
+import 'package:fashion_business_app/features/shop/controllers/product/favourite_controller.dart';
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:fashion_business_app/data/services/sneaker_catalog_importer.dart';
 import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:get/get.dart';
@@ -19,11 +22,15 @@ Future<void> main() async {
   ///add widgets binding
   final WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
 
+  if (!kIsWeb) {
+    FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  }
+
   ///GetX Local storage
   await GetStorage.init('');
+  await GetStorage.init('app_preferences');
+  Get.put(ShopLocale(GetStorage('app_preferences')), permanent: true);
 
-  ///splash
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   ///--Initialize firebase authentication repository
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
@@ -34,6 +41,7 @@ Future<void> main() async {
     await SneakerCatalogImporter().importCampaignsIfNeeded();
   }
 
+  Get.lazyPut(() => FavouritesController(), fenix: true);
   Get.lazyPut(() => CartController(), fenix: true);  // Ensure CartController is always available
 
   Get.lazyPut(() => ProductRepository(), fenix: true);  // Ensure CartController is always available

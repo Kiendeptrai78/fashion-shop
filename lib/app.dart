@@ -1,5 +1,9 @@
+import 'package:fashion_business_app/features/authentication/screens/splash/splash_screen.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
+import 'package:fashion_business_app/utils/localization/shop_translations.dart';
 import 'package:fashion_business_app/routes/app_route.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/utils/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -12,12 +16,18 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
+      title: kIsWeb ? 'VELORA Admin' : 'VELORA',
+      locale: Locale(Get.find<ShopLocale>().language),
+      fallbackLocale: const Locale('en'),
+      supportedLocales: const [Locale('vi'), Locale('en')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      translations: ShopTranslations(),
       themeMode: ThemeMode.system,
       theme: TAppTheme.lightTheme,
       darkTheme: TAppTheme.darkTheme,
       initialBinding: GeneralBinding(),
       getPages: AppRoutes.pages,
-      home: const Scaffold(backgroundColor: TColors.darkerGrey,body: Center(child: CircularProgressIndicator(color: TColors.white,),),),
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

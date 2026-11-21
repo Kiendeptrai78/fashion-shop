@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/common/widgets/product/product_carts/product_price_text.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/product_controller.dart';
@@ -18,11 +19,11 @@ class TProductMetaData extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (product.brand != null) ...[
-          Text('${product.brand!.name.toUpperCase()} · ${product.categoryName}',
+          ShopText('${product.brand!.name.toUpperCase()} · ${product.categoryName}',
               style: theme.textTheme.labelMedium?.copyWith(letterSpacing: 1)),
           const SizedBox(height: 8),
         ],
-        Text(product.title, style: theme.textTheme.headlineSmall?.copyWith(fontSize: 28, fontWeight: FontWeight.w600, letterSpacing: -0.8, height: 1.2)),
+        ShopText(product.title, style: theme.textTheme.headlineSmall?.copyWith(fontSize: 28, fontWeight: FontWeight.w600, letterSpacing: -0.8, height: 1.2)),
         const SizedBox(height: 12),
         Wrap(
           spacing: 12,
@@ -31,7 +32,7 @@ class TProductMetaData extends StatelessWidget {
           children: [
             TProductPriceText(price: controller.getProductPrice(product), isLarge: true),
             if (product.productType == ProductType.single.toString() && product.salePrice > 0)
-              Text('\$${product.price}', style: theme.textTheme.bodySmall?.copyWith(
+              ShopText(formatShopMoney(product.price, language: Localizations.localeOf(context).languageCode), style: theme.textTheme.bodySmall?.copyWith(
                   decoration: TextDecoration.lineThrough)),
             if (salePercentage != null)
               Container(
@@ -40,7 +41,7 @@ class TProductMetaData extends StatelessWidget {
                   color: theme.colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text('-$salePercentage%', style: theme.textTheme.labelLarge?.copyWith(
+                child: ShopText('-$salePercentage%', style: theme.textTheme.labelLarge?.copyWith(
                     color: theme.colorScheme.onPrimaryContainer)),
               ),
           ],
@@ -51,7 +52,7 @@ class TProductMetaData extends StatelessWidget {
             Icon(Icons.circle, size: 7,
                 color: product.stock > 0 ? theme.colorScheme.primary : theme.colorScheme.error),
             const SizedBox(width: 8),
-            Text('${controller.getProductStockStatus(product.stock)} · ${product.stock} pairs',
+            ShopText('${controller.getProductStockStatus(product.stock)} · ${product.stock} pairs',
                 style: theme.textTheme.bodySmall),
           ],
         ),

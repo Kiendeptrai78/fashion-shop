@@ -4,7 +4,6 @@ import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
 import 'package:fashion_business_app/data/repositories/users/user_repository.dart';
 import 'package:fashion_business_app/features/authentication/controllers/signup/network_manager.dart';
 import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
-import 'package:fashion_business_app/features/personalization/screens/profile/profile_screen.dart';
 import 'package:fashion_business_app/utils/constants/image_strings.dart';
 import 'package:fashion_business_app/utils/popups/full_screen_loader.dart';
 
@@ -51,11 +50,12 @@ class UpdateNameController extends GetxController{
       // update the Rx user value
       userController.user.value.firstName = firstName.text.trim();
       userController.user.value.lastName = lastName.text.trim();
+      userController.user.refresh();
 
       TFullScreenLoader.stopLoading();
 
       TLoaders.successSnackBar(title: 'Congratulations', message: 'Your Name Has Been Updated');
-      Get.off(() => const ProfileScreen());
+      Get.back();
     }catch(e){
       TFullScreenLoader.stopLoading();
       TLoaders.errorSnackBar(title: 'Oh snap!', message: e.toString());

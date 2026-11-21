@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/common/widgets/image_text_widget/vertical_image.dart';
@@ -18,7 +19,7 @@ class THomeCategories extends StatelessWidget {
       if(categoryController.isLoading.value) return const TCategoryShimmer();
 
       if(categoryController.featuredCategories.isEmpty){
-        return Center(child: Text('No Data Found!',style: Theme.of(context).textTheme.bodyMedium!.apply(color: Colors.white),),);
+        return Center(child: ShopText('No Data Found!',style: Theme.of(context).textTheme.bodyMedium!.apply(color: Colors.white),),);
       }
 
      return SizedBox(

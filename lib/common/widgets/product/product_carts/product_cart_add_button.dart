@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -46,7 +47,7 @@ class ProductCartAddToCartButton extends StatelessWidget {
             height: TSizes.iconLg * 1.2,
             child: Center(
               child: productQuantityInCart > 0
-                  ? Text(
+                  ? ShopText(
                       productQuantityInCart.toString(),
                       style: Theme.of(context)
                           .textTheme

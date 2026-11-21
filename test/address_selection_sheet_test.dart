@@ -1,0 +1,89 @@
+import 'package:fashion_business_app/features/shop/screens/checkout/checkout.dart';
+import 'package:fashion_business_app/features/shop/controllers/product/checkout_controller.dart';
+import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
+import 'package:fashion_business_app/features/shop/models/cart_item_model.dart';
+import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:get/get.dart';
+import 'package:fashion_business_app/features/personalization/controllers/address_controller.dart';
+import 'package:fashion_business_app/features/personalization/models/address_model.dart';
+import 'package:fashion_business_app/features/personalization/screens/address/widgets/address_selection_sheet.dart';
+
+class _Addresses extends GetxController implements AddressController {
+  _Addresses([this.records = const []]);
+  final List<AddressModel> records;
+  int loads = 0;
+  @override
+  Future<List<AddressModel>> getAllUserAddresses() async {
+    loads++;
+    selectedAddress.value = records.firstWhere((address) => address.selectedAddress, orElse: AddressModel.empty);
+    return records;
+  }
+  @override
+  final selectedAddress = AddressModel.empty().obs;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _Cart extends GetxController implements CartController {
+  @override
+  final cartItems = <CartItemModel>[CartItemModel(productId: 'p', quantity: 1, title: 'Shoe', price: 110)].obs;
+  @override
+  final totalCartPrice = 110.0.obs;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+void main() {
+  tearDown(() => Get.reset());
+  testWidgets('adding from checkout refreshes the open address sheet immediately', (tester) async {
+    final controller = Get.put<AddressController>(_Addresses());
+    final records = <AddressModel>[];
+    var loads = 0;
+    await tester.pumpWidget(GetMaterialApp(home: Scaffold(body: AddressSelectionSheet(
+      loadAddresses: () async { loads++; return records.toList(); },
+      addAddress: () async {
+        final address = AddressModel(id: 'new', name: 'New recipient', phoneNumber: '0901234567',
+            street: '12 Street', city: 'Hanoi', state: '', country: 'Vietnam');
+        records.add(address);
+        controller.selectedAddress.value = address;
+      },
+    ))));
+    await tester.pumpAndSettle();
+    expect(find.text('New recipient'), findsNothing);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Add new address'));
+    await tester.pumpAndSettle();
+    expect(loads, 2);
+    expect(find.text('New recipient'), findsOneWidget);
+    expect(find.byType(AddressSelectionSheet), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('checkout loads the saved default without first opening the picker', (tester) async {
+    final address = AddressModel(id: 'saved', name: 'Saved recipient', phoneNumber: '0901234567',
+        street: '12 Street', city: 'Hanoi', state: '', country: 'Vietnam');
+    final addresses = _Addresses([address]);
+    Get.put<AddressController>(addresses);
+    Get.put<CartController>(_Cart());
+    Get.put(CheckoutController());
+    Map<String, dynamic>? saved;
+    final benefits = Get.put(CustomerBenefits(read: () => saved, write: (data) async { saved = data; }));
+    await benefits.initialize();
+    await tester.pumpWidget(const GetMaterialApp(home: CheckoutScreen()));
+    await tester.pumpAndSettle();
+    expect(addresses.loads, 1);
+    expect(find.text('Saved recipient'), findsOneWidget);
+    expect(find.text('Select Address'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('delivery coordinates are optional for old addresses and retained for map pins', () {
+    final data = {'Id':'a','Name':'Recipient','PhoneNumber':'0901234567',
+      'Street':'12 Street','City':'Hanoi','State':'','Country':'Vietnam'};
+    expect(AddressModel.fromMap(data).latitude, isNull);
+    final pinned = AddressModel.fromMap({...data, 'Latitude':21.0285, 'Longitude':105.8542});
+    expect(pinned.toJson()['Latitude'], 21.0285);
+    expect(pinned.toJson()['Longitude'], 105.8542);
+  });
+}

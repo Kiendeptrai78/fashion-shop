@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
@@ -56,7 +57,7 @@ class _CampaignCarouselState extends State<CampaignCarousel> with WidgetsBinding
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Expanded(child: Text('THE SNEAKER EDIT', style: theme.textTheme.labelMedium?.copyWith(
+            Expanded(child: ShopText('THE SNEAKER EDIT', style: theme.textTheme.labelMedium?.copyWith(
                 fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.w600))),
             IconButton(
               tooltip: _paused || reduceMotion && !_requestedMotion ? 'Play campaigns' : 'Pause campaigns',
@@ -107,14 +108,14 @@ class _CampaignCarouselState extends State<CampaignCarousel> with WidgetsBinding
                         Positioned(left: 20, bottom: 20, right: 20, child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('IN MOTION', style: TextStyle(color: Colors.white70,
+                            const ShopText('IN MOTION', style: TextStyle(color: Colors.white70,
                                 fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 8),
-                            Text(campaign.title, maxLines: 2, style: const TextStyle(color: Colors.white,
+                            ShopText(campaign.title, maxLines: 2, style: const TextStyle(color: Colors.white,
                                 fontSize: 26, height: 1.1, fontWeight: FontWeight.w700, letterSpacing: -0.6)),
                             const SizedBox(height: 8),
                             Row(children: [
-                              Text(campaign.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                              ShopText(campaign.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 11)),
                               const SizedBox(width: 10),
                               const Icon(Icons.arrow_forward, size: 16, color: Colors.white),
                             ]),
@@ -132,7 +133,7 @@ class _CampaignCarouselState extends State<CampaignCarousel> with WidgetsBinding
             Expanded(child: InkWell(
               onTap: () => widget.onOpen(current),
               child: Row(children: [
-                Flexible(child: Text(current.videoUrl.isNotEmpty ? 'Shop the collection'
+                Flexible(child: ShopText(current.videoUrl.isNotEmpty ? 'Shop the collection'
                     : current.title.isEmpty ? 'Explore collection' : current.title,
                     maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),

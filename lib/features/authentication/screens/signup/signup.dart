@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -31,7 +32,7 @@ class SignupScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ///title
-              Text(TTexts.signupTitle,style: Theme.of(context).textTheme.headlineMedium,),
+              ShopText(TTexts.signupTitle,style: Theme.of(context).textTheme.headlineMedium,),
               const SizedBox(height: TSizes.spaceBtwSections,),
 
               ///form Signup

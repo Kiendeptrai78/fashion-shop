@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -14,7 +15,7 @@ class ReAuthLoginForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = UserController.instance;
     return Scaffold(
-      appBar: const TAppbar(showBackArrow: true,title: Text('Re-Authenticate User'),),
+      appBar: const TAppbar(showBackArrow: true,title: ShopText('Re-Authenticate User'),),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(TSizes.defaultSpace),
@@ -27,7 +28,7 @@ class ReAuthLoginForm extends StatelessWidget {
                 TextFormField(
                   controller: controller.verifyEmail,
                   validator: TValidator.validateEmail,
-                  decoration: const InputDecoration(prefixIcon: Icon(Iconsax.direct_right),labelText: TTexts.email),
+                  decoration: InputDecoration(prefixIcon: Icon(Iconsax.direct_right),labelText: TTexts.email.tr),
                 ),
                 const SizedBox(height: TSizes.spaceBtwInoutFields,),
                 
@@ -38,7 +39,7 @@ class ReAuthLoginForm extends StatelessWidget {
                   validator: (value) => TValidator.validateEmptyText('Password', value),
                   decoration:  InputDecoration(
                       prefixIcon: const Icon(Iconsax.password_check),
-                      labelText: TTexts.password,
+                      labelText: TTexts.password.tr,
                       suffixIcon: IconButton(
                           onPressed: () => controller.hidePassword.value = !controller.hidePassword.value,
                           icon:  Icon(controller.hidePassword.value ? Iconsax.eye_slash : Iconsax.eye)
@@ -51,7 +52,7 @@ class ReAuthLoginForm extends StatelessWidget {
                 ///login button
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(onPressed: () => controller.reAuthenticateEmailAndPasswordUser(),child: const Text('Verify'),),
+                  child: ElevatedButton(onPressed: () => controller.reAuthenticateEmailAndPasswordUser(),child: const ShopText('Verify'),),
                 )
 
               ],

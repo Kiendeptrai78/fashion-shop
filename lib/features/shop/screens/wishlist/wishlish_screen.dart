@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -30,7 +31,7 @@ class _WishListState extends State<WishList> {
 
   Future<void> _reload() async {
     final future = _controller.favouriteProducts();
-    setState(() => _products = future);
+    setState(() { _products = future; });
     try { await future; } catch (_) { /* Displayed by FutureBuilder. */ }
   }
 
@@ -42,9 +43,9 @@ class _WishListState extends State<WishList> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: TAppbar(title: const Text('Saved pairs', style: TextStyle(fontSize: 22,
+    appBar: TAppbar(title: const ShopText('Saved pairs', style: TextStyle(fontSize: 22,
         fontWeight: FontWeight.w600, letterSpacing: -0.6)), actions: [
-      IconButton(tooltip: 'Explore sneakers', onPressed: exploreSneakers,
+      IconButton(tooltip: 'Explore sneakers'.tr, onPressed: exploreSneakers,
           icon: const Icon(Iconsax.search_normal, size: 22)),
     ]),
     body: FutureBuilder<List<ProductModel>>(future: _products, builder: (context, snapshot) {
@@ -56,9 +57,9 @@ class _WishListState extends State<WishList> {
         return Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(
           mainAxisSize: MainAxisSize.min, children: [
             const Icon(Iconsax.wifi_square, size: 36), const SizedBox(height: 20),
-            const Text('Couldn’t load your saved pairs.', textAlign: TextAlign.center),
+            const ShopText('Couldn’t load your saved pairs.', textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            OutlinedButton(onPressed: _reload, child: const Text('Try again')),
+            OutlinedButton(onPressed: _reload, child: const ShopText('Try again')),
           ])));
       }
       final products = snapshot.data ?? [];
@@ -67,12 +68,12 @@ class _WishListState extends State<WishList> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('YOUR PERSONAL EDIT', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 2)),
+          ShopText('YOUR PERSONAL EDIT', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 2)),
           const SizedBox(height: 10),
-          const Text('Worth coming back for.', style: TextStyle(fontSize: 25,
+          const ShopText('Worth coming back for.', style: TextStyle(fontSize: 25,
               fontWeight: FontWeight.w600, letterSpacing: -0.8)),
           const SizedBox(height: 8),
-          Text('${products.length} saved ${products.length == 1 ? 'pair' : 'pairs'} · Tap a pair to choose your size',
+          ShopText('${products.length} saved ${products.length == 1 ? 'pair' : 'pairs'} · Tap a pair to choose your size',
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 28),
           TGridLayout(itemCount: products.length,

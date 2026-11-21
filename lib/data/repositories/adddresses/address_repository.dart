@@ -21,6 +21,18 @@ class AddressRepository extends GetxController{
     }
   }
 
+  Future<void> selectAddress(String addressId) async {
+    final uid = AuthenticationRepository.instance.authUser.uid;
+    final collection = _db.collection('Users').doc(uid).collection('Addresses');
+    final selected = await collection.where('SelectedAddress', isEqualTo: true).get();
+    final batch = _db.batch();
+    for (final doc in selected.docs) {
+      if (doc.id != addressId) batch.update(doc.reference, {'SelectedAddress': false});
+    }
+    batch.update(collection.doc(addressId), {'SelectedAddress': true});
+    await batch.commit();
+  }
+
   ///clear the "selected" field for all addresses
   Future<void> updateSelectedField(String addressId, bool selected) async{
     try{
