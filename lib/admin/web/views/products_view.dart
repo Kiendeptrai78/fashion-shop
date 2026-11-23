@@ -173,57 +173,109 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                             all.where((p) => p.isDiscontinued).length;
                         final lowCount =
                             widget.controller.lowStockProducts.length;
+                        Widget buildStatusChip({
+                          required String label,
+                          required bool selected,
+                          required Color activeColor,
+                          required Color idleBg,
+                          required Color idleText,
+                          required VoidCallback onTap,
+                        }) {
+                          return InkWell(
+                            onTap: onTap,
+                            borderRadius: BorderRadius.circular(10),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 9,
+                              ),
+                              decoration: BoxDecoration(
+                                color: selected ? activeColor : idleBg,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: selected
+                                      ? activeColor
+                                      : activeColor.withValues(alpha: 0.32),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (selected) ...[
+                                    const Icon(
+                                      Icons.check_rounded,
+                                      size: 15,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 6),
+                                  ],
+                                  Text(
+                                    label,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: selected ? Colors.white : idleText,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
                         return Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            ChoiceChip(
-                              label: Text(
-                                vi
-                                    ? 'Tất cả kho (${all.length})'
-                                    : 'All Inventory (${all.length})',
-                              ),
+                            buildStatusChip(
+                              label: vi
+                                  ? 'Tất cả kho (${all.length})'
+                                  : 'All Inventory (${all.length})',
                               selected: _sellingTab == 'all',
-                              onSelected: (_) => setState(() {
+                              activeColor: AdminColors.forest,
+                              idleBg: AdminColors.surfaceMuted,
+                              idleText: AdminColors.ink,
+                              onTap: () => setState(() {
                                 _sellingTab = 'all';
                                 _onlyLowStock = false;
                               }),
                             ),
-                            ChoiceChip(
-                              label: Text(
-                                vi
-                                    ? '✅ Đang mở bán ($activeCount)'
-                                    : '✅ Active ($activeCount)',
-                              ),
+                            buildStatusChip(
+                              label: vi
+                                  ? '✅ Đang mở bán ($activeCount)'
+                                  : '✅ Active ($activeCount)',
                               selected: _sellingTab == 'active',
-                              selectedColor: AdminColors.emeraldBg,
-                              onSelected: (_) => setState(() {
+                              activeColor: const Color(0xFF15803D),
+                              idleBg: AdminColors.emeraldBg,
+                              idleText: const Color(0xFF166534),
+                              onTap: () => setState(() {
                                 _sellingTab = 'active';
                                 _onlyLowStock = false;
                               }),
                             ),
-                            ChoiceChip(
-                              label: Text(
-                                vi
-                                    ? '⚠️ Sắp hết hàng ($lowCount)'
-                                    : '⚠️ Low Stock ($lowCount)',
-                              ),
+                            buildStatusChip(
+                              label: vi
+                                  ? '⚠️ Sắp hết hàng ($lowCount)'
+                                  : '⚠️ Low Stock ($lowCount)',
                               selected: _sellingTab == 'lowStock' || _onlyLowStock,
-                              selectedColor: AdminColors.amberBg,
-                              onSelected: (_) => setState(() {
+                              activeColor: const Color(0xFFD97706),
+                              idleBg: AdminColors.amberBg,
+                              idleText: const Color(0xFFB45309),
+                              onTap: () => setState(() {
                                 _sellingTab = 'lowStock';
                                 _onlyLowStock = true;
                               }),
                             ),
-                            ChoiceChip(
-                              label: Text(
-                                vi
-                                    ? '🚫 Sản phẩm Ngừng bán ($discontinuedCount)'
-                                    : '🚫 Discontinued ($discontinuedCount)',
-                              ),
+                            buildStatusChip(
+                              label: vi
+                                  ? '🚫 Sản phẩm Ngừng bán ($discontinuedCount)'
+                                  : '🚫 Discontinued ($discontinuedCount)',
                               selected: _sellingTab == 'discontinued',
-                              selectedColor: AdminColors.roseBg,
-                              onSelected: (_) => setState(() {
+                              activeColor: const Color(0xFFDC2626),
+                              idleBg: AdminColors.roseBg,
+                              idleText: const Color(0xFFBE123C),
+                              onTap: () => setState(() {
                                 _sellingTab = 'discontinued';
                                 _onlyLowStock = false;
                               }),
@@ -239,10 +291,10 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                         children: [
                           AdminSearchField(
                             hint: vi
-                                ? 'Tìm tên mẫu giày VELORA, danh mục...'
-                                : 'Search VELORA model, SKU, or category...',
+                                ? 'Tìm tên mẫu giày VELORA, danh mục'
+                                : 'Search VELORA model, SKU, or category',
                             onChanged: (v) => setState(() => _query = v),
-                            width: 280,
+                            width: 330,
                           ),
                           SizedBox(
                             width: 240,
@@ -374,8 +426,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                                               children: [
                                                 Text(
                                                   product.title,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  softWrap: true,
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.w700,
                                                     fontSize: 13,
@@ -387,8 +438,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                                                 ),
                                                 Text(
                                                   product.id,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  softWrap: true,
                                                   style: const TextStyle(
                                                     fontSize: 11,
                                                     color: AdminColors.inkMuted,
@@ -1218,11 +1268,19 @@ class _ProductEditorDialogState extends State<_ProductEditorDialog> {
                                 children: [
                                   for (final color in allColors)
                                     FilterChip(
-                                      label: Text(color,
-                                          style: const TextStyle(fontSize: 12)),
+                                      label: Text(
+                                        color,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: _selectedColors.contains(color)
+                                              ? Colors.white
+                                              : AdminColors.ink,
+                                        ),
+                                      ),
                                       selected: _selectedColors.contains(color),
-                                      selectedColor: AdminColors.sageSoft,
-                                      checkmarkColor: AdminColors.forest,
+                                      selectedColor: AdminColors.forest,
+                                      checkmarkColor: Colors.white,
                                       onSelected: (selected) {
                                         setState(() {
                                           if (selected) {
@@ -1276,11 +1334,19 @@ class _ProductEditorDialogState extends State<_ProductEditorDialog> {
                                 children: [
                                   for (final size in _presetSizes)
                                     FilterChip(
-                                      label: Text(size,
-                                          style: const TextStyle(fontSize: 12)),
+                                      label: Text(
+                                        size,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: _selectedSizes.contains(size)
+                                              ? Colors.white
+                                              : AdminColors.ink,
+                                        ),
+                                      ),
                                       selected: _selectedSizes.contains(size),
-                                      selectedColor: AdminColors.sageSoft,
-                                      checkmarkColor: AdminColors.forest,
+                                      selectedColor: AdminColors.forest,
+                                      checkmarkColor: Colors.white,
                                       onSelected: (selected) {
                                         setState(() {
                                           if (selected) {

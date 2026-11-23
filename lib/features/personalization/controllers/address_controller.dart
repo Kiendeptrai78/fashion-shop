@@ -88,7 +88,7 @@ class AddressController extends GetxController{
           street: street.text.trim(),
           city: city.text.trim(),
           state: state.text.trim(),
-          country: country.text.trim(),
+          country: country.text.trim().isNotEmpty ? country.text.trim() : 'Việt Nam',
           selectedAddress: true,
           latitude: location.value?.latitude, longitude: location.value?.longitude,
       );
@@ -115,6 +115,85 @@ class AddressController extends GetxController{
     }catch(e){
       TFullScreenLoader.stopLoading();
       TLoaders.errorSnackBar(title: 'Address not found!',message: e.toString());
+    }
+  }
+
+  /// Update an existing saved address
+  Future<void> updateAddress(AddressModel existing) async {
+    try {
+      TFullScreenLoader.openLoadingDialog('Đang cập nhật địa chỉ...', TImages.loading);
+
+      final isConnected = await NetworkManager.instance.isConnected();
+      if (!isConnected) {
+        TFullScreenLoader.stopLoading();
+        return;
+      }
+
+      if (!addressFormKey.currentState!.validate()) {
+        TFullScreenLoader.stopLoading();
+        return;
+      }
+
+      final updated = AddressModel(
+        id: existing.id,
+        name: name.text.trim(),
+        phoneNumber: phoneNumber.text.trim(),
+        street: street.text.trim(),
+        city: city.text.trim(),
+        state: state.text.trim(),
+        country: country.text.trim().isNotEmpty ? country.text.trim() : 'Việt Nam',
+        selectedAddress: existing.selectedAddress,
+        latitude: location.value?.latitude,
+        longitude: location.value?.longitude,
+      );
+
+      await addressRepository.updateAddress(updated);
+
+      if (selectedAddress.value.id == existing.id) {
+        selectedAddress.value = updated;
+      }
+
+      TFullScreenLoader.stopLoading();
+      TLoaders.successSnackBar(
+        title: 'Thành công',
+        message: 'Đã cập nhật địa chỉ giao hàng của bạn',
+      );
+      refreshData.toggle();
+      resetFormFields();
+      Get.back(result: updated);
+    } catch (e) {
+      TFullScreenLoader.stopLoading();
+      TLoaders.errorSnackBar(
+        title: 'Không thể cập nhật địa chỉ',
+        message: e.toString(),
+      );
+    }
+  }
+
+  /// Delete a saved address
+  Future<void> deleteAddress(AddressModel address) async {
+    try {
+      await addressRepository.deleteAddress(address.id);
+      if (selectedAddress.value.id == address.id) {
+        final remaining = await addressRepository.fetchUserAddresses();
+        if (remaining.isNotEmpty) {
+          await addressRepository.selectAddress(remaining.first.id);
+          remaining.first.selectedAddress = true;
+          selectedAddress.value = remaining.first;
+        } else {
+          selectedAddress.value = AddressModel.empty();
+        }
+      }
+      refreshData.toggle();
+      TLoaders.successSnackBar(
+        title: 'Đã xóa địa chỉ',
+        message: 'Địa chỉ nhận hàng đã được xóa khỏi danh sách',
+      );
+    } catch (e) {
+      TLoaders.errorSnackBar(
+        title: 'Không thể xóa địa chỉ',
+        message: e.toString(),
+      );
     }
   }
 

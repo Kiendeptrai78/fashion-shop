@@ -18,8 +18,8 @@ class OrderRepository extends GetxController{
     await _db.runTransaction((transaction) async {
       final current = (await transaction.get(ref)).data();
       final status = current?['status'];
-      final canCancel = next == OrderStatus.cancelled &&
-          [OrderStatus.pending.toString(), OrderStatus.processing.toString()].contains(status);
+      final canCancel =
+          next == OrderStatus.cancelled && status == OrderStatus.pending.toString();
       final canReceive = next == OrderStatus.received && status == OrderStatus.shipped.toString();
       if (!canCancel && !canReceive) throw StateError('Order status has changed. Refresh and try again.');
       transaction.update(ref, {'status': next.toString(), 'notificationPending': true});

@@ -14,6 +14,7 @@ import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/features/shop/models/product_review_model.dart';
 import 'package:fashion_business_app/features/shop/models/return_request_model.dart';
 import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
+import 'package:fashion_business_app/features/shop/models/support_chat_model.dart';
 import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 
@@ -685,11 +686,138 @@ class AdminWebRepository {
         'recipientCount': 1,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Mirror Admin's return update into the customer's private 1-1 Support Chat
+      await sendAdminSupportMessage(
+        userId: request.userId,
+        customerName: request.customerName,
+        customerEmail: request.customerEmail,
+        text: '[$statusVi] $bodyVi',
+        orderId: request.orderId,
+        returnRequestId: request.id,
+        productId: request.productId,
+        productTitle: request.productTitle,
+        productThumbnail: request.productThumbnail,
+        contextSummary:
+            '${request.typeLabel()} • ${request.requestedSizeOrColor}'
+            '${request.pickupAddress.isNotEmpty ? ' • Địa chỉ đổi mới: ${request.pickupAddress}' : ''}',
+        sendPushNotification: false,
+      );
     }
   }
 
   Future<void> deleteReturnRequest(String requestId) async {
     await _db.collection('ReturnRequests').doc(requestId).delete();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private 1-1 Customer ↔ VELORA Support Chat (SupportChats/{userId})
+  // ---------------------------------------------------------------------------
+  Future<List<SupportChatThreadModel>> fetchSupportChatThreads() async {
+    try {
+      final snap = await _db.collection('SupportChats').get();
+      final list = snap.docs
+          .map(SupportChatThreadModel.fromSnapshot)
+          .toList()
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> markSupportChatReadByAdmin(String userId) async {
+    if (userId.trim().isEmpty) return;
+    try {
+      await _db
+          .collection('SupportChats')
+          .doc(userId)
+          .set({'unreadByAdmin': 0}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  Future<void> sendAdminSupportMessage({
+    required String userId,
+    required String customerName,
+    String customerEmail = '',
+    required String text,
+    String imageUrl = '',
+    String videoUrl = '',
+    String orderId = '',
+    String returnRequestId = '',
+    String productId = '',
+    String productTitle = '',
+    String productThumbnail = '',
+    String contextSummary = '',
+    bool sendPushNotification = true,
+  }) async {
+    final trimmed = text.trim();
+    if (userId.trim().isEmpty ||
+        (trimmed.isEmpty && imageUrl.isEmpty && videoUrl.isEmpty)) {
+      return;
+    }
+
+    final threadRef = _db.collection('SupportChats').doc(userId);
+    final msgId = 'admin_${DateTime.now().millisecondsSinceEpoch}';
+    final msg = SupportChatMessageModel(
+      id: msgId,
+      sender: 'admin',
+      senderName: 'VELORA CSKH',
+      text: trimmed.isNotEmpty
+          ? trimmed
+          : (videoUrl.isNotEmpty
+              ? '🎬 VELORA đã gửi video đính kèm'
+              : '📷 VELORA đã gửi hình ảnh'),
+      imageUrl: imageUrl,
+      videoUrl: videoUrl,
+      orderId: orderId,
+      returnRequestId: returnRequestId,
+      productId: productId,
+      productTitle: productTitle,
+      productThumbnail: productThumbnail,
+      contextSummary: contextSummary,
+      createdAt: DateTime.now(),
+    );
+
+    await threadRef.collection('Messages').doc(msgId).set(msg.toMap());
+    await threadRef.set({
+      'userId': userId,
+      'customerName':
+          customerName.trim().isNotEmpty ? customerName.trim() : 'Khách hàng VELORA',
+      if (customerEmail.trim().isNotEmpty) 'customerEmail': customerEmail.trim(),
+      'lastMessage': msg.text,
+      'lastSender': 'admin',
+      'unreadByAdmin': 0,
+      'unreadByCustomer': FieldValue.increment(1),
+      if (orderId.isNotEmpty) 'activeOrderId': orderId,
+      if (returnRequestId.isNotEmpty) 'activeReturnId': returnRequestId,
+      if (productTitle.isNotEmpty) 'activeProductTitle': productTitle,
+      if (productThumbnail.isNotEmpty) 'activeProductThumbnail': productThumbnail,
+      if (contextSummary.isNotEmpty) 'activeContextSummary': contextSummary,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    if (sendPushNotification) {
+      final notifId = 'chat-$msgId';
+      await _db
+          .collection('Users')
+          .doc(userId)
+          .collection('Notifications')
+          .doc(notifId)
+          .set({
+        'id': notifId,
+        'kind': 'support_chat',
+        'targetId': userId,
+        if (productThumbnail.isNotEmpty) 'imageUrl': productThumbnail,
+        'titleVi': 'Tin nhắn riêng từ VELORA CSKH',
+        'titleEn': 'Direct message from VELORA Support',
+        'bodyVi': msg.text,
+        'bodyEn': msg.text,
+        'read': false,
+        'pushPending': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
   }
 
   (String, String, String, String) _orderStatusNotificationCopy(

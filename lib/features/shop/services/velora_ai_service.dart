@@ -2,9 +2,15 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
+import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
+import 'package:fashion_business_app/features/shop/models/order_model.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
+import 'package:fashion_business_app/features/shop/models/return_request_model.dart';
+import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
+import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 
 class VeloraAiReply {
@@ -12,71 +18,82 @@ class VeloraAiReply {
     required this.text,
     this.products = const [],
     this.showVoucherShortcut = false,
+    this.showOrdersShortcut = false,
+    this.showReturnsShortcut = false,
+    this.showSupportChatShortcut = false,
+    this.showCartShortcut = false,
     this.followUpPrompts = const [],
   });
 
   final String text;
   final List<ProductModel> products;
   final bool showVoucherShortcut;
+  final bool showOrdersShortcut;
+  final bool showReturnsShortcut;
+  final bool showSupportChatShortcut;
+  final bool showCartShortcut;
   final List<String> followUpPrompts;
 }
 
 class VeloraAiService {
-  VeloraAiService({FirebaseFirestore? db}) : _db = db ?? FirebaseFirestore.instance;
+  VeloraAiService({FirebaseFirestore? db})
+      : _db = db ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
   List<ProductModel>? _cachedProducts;
   DateTime? _cacheTime;
 
-  /// Curated rotating library of 36+ diverse VELORA discovery ideas
   static const List<String> promptIdeasVi = [
     'Giày chạy bộ dưới 2.5 triệu',
+    'Kiểm tra đơn hàng của tôi đến đâu rồi?',
     'Mẫu nào đang giảm giá sâu nhất?',
     'Giày trắng tối giản đi học & đi làm',
     'Chân dài 26cm đi size mấy?',
+    'Mình muốn đổi size / đổi trả giày thì làm thế nào?',
+    'Ship về Thanh Hóa mất mấy ngày?',
     'Đôi nào giá mềm nhất tại VELORA?',
     'Giày tập gym đế bám chắc',
     'Phối đồ với quần jeans nên chọn đôi nào?',
     'Giày bóng rổ bật nhảy êm cổ chân',
     'Giày leo núi địa hình chống trơn',
-    'Gợi ý giày đi du lịch đi bộ cả ngày',
+    'Gợi ý giày đi du lịch đi bộ cả ngày không đau chân',
     'Tư vấn quà tặng giày cho người yêu',
     'Giày chân bè đi không bị đau mũi',
-    'Mẫu nào hack dáng nhẹ cho cả nam nữ?',
+    'Cao 1m72 nặng 68kg thường đi size mấy?',
     'Giày thoáng khí cho mùa hè không bí chân',
     'Tầm giá từ 2 đến 3 triệu có đôi nào đẹp?',
     'Giày màu đen dễ vệ sinh đi mưa',
     'Có mã giảm giá / voucher nào hôm nay?',
     'Cách vệ sinh giày trắng không bị ố vàng',
-    'Chính sách đổi size & giao hàng VELORA',
     'Đôi nào nổi bật bán chạy nhất hiện tại?',
     'Giày màu xanh rêu signature của VELORA',
-    'Đi chạy bộ 5km mỗi sáng chọn mẫu nào?',
-    'Giày cặp đôi unisex phối đồ cực chất',
-    'Mẫu nào trên 3 triệu dòng cao cấp nhất?',
+    'Giỏ hàng của tôi đang có những gì?',
   ];
 
   static const List<String> promptIdeasEn = [
     'Running shoes under \$100',
+    'Where is my current order?',
     'Biggest discounts right now?',
     'Minimal white sneakers for daily wear',
     '26cm foot length — what EU size?',
+    'How do I exchange size or return a pair?',
     'Most affordable VELORA pairs?',
     'Gym & HIIT stability trainers',
     'Best pair to style with jeans?',
     'Basketball shoes with ankle support',
     'Trail sneakers for outdoor hiking',
     'All-day walking & travel shoes',
-    'Gift ideas for my partner',
     'Any active VELORA vouchers?',
     'How to clean white sneakers safely',
-    'VELORA sizing & return policy',
   ];
 
   Future<List<ProductModel>> _loadProducts({bool forceRefresh = false}) async {
     final fresh = _cacheTime != null &&
         DateTime.now().difference(_cacheTime!) < const Duration(minutes: 2);
-    if (!forceRefresh && fresh && _cachedProducts != null && _cachedProducts!.isNotEmpty) {
+    if (!forceRefresh &&
+        fresh &&
+        _cachedProducts != null &&
+        _cachedProducts!.isNotEmpty) {
       return _cachedProducts!;
     }
     try {
@@ -91,7 +108,10 @@ class VeloraAiService {
 
   Future<List<Map<String, dynamic>>> _loadActiveVouchers() async {
     try {
-      final snap = await _db.collection('Vouchers').where('active', isEqualTo: true).get();
+      final snap = await _db
+          .collection('Vouchers')
+          .where('active', isEqualTo: true)
+          .get();
       final now = DateTime.now();
       return snap.docs
           .map((d) => {...d.data(), 'code': d.id})
@@ -108,11 +128,17 @@ class VeloraAiService {
 
   static String _normalize(String input) {
     const map = {
-      'à': 'a', 'á': 'a', 'ạ': 'a', 'ả': 'a', 'ã': 'a', 'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ậ': 'a', 'ẩ': 'a', 'ẫ': 'a', 'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ặ': 'a', 'ẳ': 'a', 'ẵ': 'a',
-      'è': 'e', 'é': 'e', 'ẹ': 'e', 'ẻ': 'e', 'ẽ': 'e', 'ê': 'e', 'ề': 'e', 'ế': 'e', 'ệ': 'e', 'ể': 'e', 'ễ': 'e',
+      'à': 'a', 'á': 'a', 'ạ': 'a', 'ả': 'a', 'ã': 'a',
+      'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ậ': 'a', 'ẩ': 'a', 'ẫ': 'a',
+      'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ặ': 'a', 'ẳ': 'a', 'ẵ': 'a',
+      'è': 'e', 'é': 'e', 'ẹ': 'e', 'ẻ': 'e', 'ẽ': 'e',
+      'ê': 'e', 'ề': 'e', 'ế': 'e', 'ệ': 'e', 'ể': 'e', 'ễ': 'e',
       'ì': 'i', 'í': 'i', 'ị': 'i', 'ỉ': 'i', 'ĩ': 'i',
-      'ò': 'o', 'ó': 'o', 'ọ': 'o', 'ỏ': 'o', 'õ': 'o', 'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ộ': 'o', 'ổ': 'o', 'ỗ': 'o', 'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ợ': 'o', 'ở': 'o', 'ỡ': 'o',
-      'ù': 'u', 'ú': 'u', 'ụ': 'u', 'ủ': 'u', 'ũ': 'u', 'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ự': 'u', 'ử': 'u', 'ữ': 'u',
+      'ò': 'o', 'ó': 'o', 'ọ': 'o', 'ỏ': 'o', 'õ': 'o',
+      'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ộ': 'o', 'ổ': 'o', 'ỗ': 'o',
+      'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ợ': 'o', 'ở': 'o', 'ỡ': 'o',
+      'ù': 'u', 'ú': 'u', 'ụ': 'u', 'ủ': 'u', 'ũ': 'u',
+      'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ự': 'u', 'ử': 'u', 'ữ': 'u',
       'ỳ': 'y', 'ý': 'y', 'ỵ': 'y', 'ỷ': 'y', 'ỹ': 'y',
       'đ': 'd',
     };
@@ -136,45 +162,92 @@ class VeloraAiService {
   static const _categoryAliases = <String, List<String>>{
     'Running': [
       'chay bo', 'chay', 'running', 'marathon', 'jogging', 'the duc',
-      '5km', '10km', 'chay sang', 'chay duong dai', 'dem em', 'nhe chan',
+      '5km', '10km', '21km', 'chay sang', 'chay duong dai', 'cardio',
     ],
     'Basketball': [
-      'bong ro', 'basketball', 'san bong', 'court', 'bat nhay', 'co chan', 'co lung',
+      'bong ro', 'basketball', 'san bong', 'court', 'bat nhay', 'co chan', 'co lung', 'bong chuyen', 'cau long', 'tennis',
     ],
     'Lifestyle': [
       'hang ngay', 'di choi', 'di hoc', 'di lam', 'lifestyle', 'street', 'thoi trang',
-      'casual', 'toi gian', 'minimal', 'quan jeans', 'phoi do', 'hen ho', 'cong so',
-      'cap doi', 'unisex', 'hack dang', 'tang chieu cao', 'qua tang', 'tang nguoi yeu',
+      'casual', 'toi gian', 'minimal', 'quan jeans', 'quan au', 'quan kaki', 'phoi do', 'hen ho', 'cong so',
+      'cap doi', 'unisex', 'hack dang', 'tang chieu cao', 'qua tang', 'tang nguoi yeu', 'van phong',
     ],
     'Training': [
-      'tap luyen', 'gym', 'training', 'tap ta', 'fitness', 'hiit', 'cardio', 'de phang', 'bam san',
+      'tap luyen', 'gym', 'training', 'tap ta', 'fitness', 'hiit', 'squat', 'deadlift', 'de phang', 'bam san',
     ],
     'Trail': [
       'dia hinh', 'leo nui', 'trail', 'outdoor', 'phuot', 'du lich', 'di bo nhieu',
-      'chong tron', 'di mua', 'da ngoai',
+      'chong tron', 'di mua', 'da ngoai', 'trekking', 'camping',
     ],
   };
 
+  /// Matches product category whether stored in Vietnamese, English, or categoryId ('1'..'5').
+  static bool _productMatchesCategory(ProductModel p, String canonicalCat) {
+    final cNorm = _normalize(p.categoryName);
+    final id = p.categoryId.trim();
+    return switch (canonicalCat) {
+      'Running' =>
+        id == '1' || cNorm.contains('running') || cNorm.contains('chay'),
+      'Basketball' =>
+        id == '2' || cNorm.contains('basketball') || cNorm.contains('bong ro'),
+      'Lifestyle' =>
+        id == '3' ||
+            cNorm.contains('lifestyle') ||
+            cNorm.contains('hang ngay') ||
+            cNorm.contains('thoi trang'),
+      'Training' =>
+        id == '4' ||
+            cNorm.contains('training') ||
+            cNorm.contains('tap luyen') ||
+            cNorm.contains('gym'),
+      'Trail' =>
+        id == '5' ||
+            cNorm.contains('trail') ||
+            cNorm.contains('dia hinh') ||
+            cNorm.contains('leo nui'),
+      _ => cNorm.contains(_normalize(canonicalCat)),
+    };
+  }
+
   static const _colorAliases = <String, List<String>>{
-    'White': ['trang', 'white', 'ngoc', 'tinh khoi'],
+    'White': ['trang', 'white', 'ngoc', 'tinh khoi', 'studio'],
     'Black': ['den', 'black', 'than', 'obsidian'],
     'Red': ['do', 'red', 'do do', 'crimson'],
     'Blue': ['xanh duong', 'xanh bien', 'navy', 'blue', 'xanh bang'],
-    'Green': ['xanh la', 'xanh reu', 'xanh rung', 'olive', 'sage', 'green', 'reu'],
-    'Grey': ['xam', 'ghi', 'bac', 'grey', 'gray'],
-    'Cream': ['kem', 'be', 'cat', 'beige', 'cream', 'sand'],
+    'Green': ['xanh la', 'xanh reu', 'xanh rung', 'olive', 'sage', 'green', 'reu', 'forest'],
+    'Grey': ['xam', 'ghi', 'bac', 'grey', 'gray', 'slate'],
+    'Cream': ['kem', 'be', 'cat', 'beige', 'cream', 'sand', 'nga'],
     'Pink': ['hong', 'pink'],
     'Purple': ['tim', 'purple'],
-    'Brown': ['nau', 'brown', 'dat'],
+    'Brown': ['nau', 'brown', 'dat', 'mocha'],
     'Orange': ['cam', 'san ho', 'orange'],
     'Yellow': ['vang', 'yellow', 'dong'],
   };
 
-  /// Parses budget range (minUsd, maxUsd) from Vietnamese or English text
+  static bool _productMatchesColor(ProductModel p, String canonicalColor) {
+    final keywords = _colorAliases[canonicalColor] ?? [_normalize(canonicalColor)];
+    final pColors = (p.productAttributes
+                ?.where((a) =>
+                    a.name?.toLowerCase() == 'color' ||
+                    _normalize(a.name ?? '').contains('mau'))
+                .firstOrNull
+                ?.values ??
+            [])
+        .map(_normalize)
+        .join(' ');
+    final titleNorm = _normalize(p.title);
+    final descNorm = _normalize(p.description ?? '');
+    return keywords.any(
+      (kw) =>
+          pColors.contains(kw) ||
+          titleNorm.contains(kw) ||
+          descNorm.contains(kw),
+    );
+  }
+
   (double?, double?) _extractPriceRangeUsd(String norm) {
-    // Range: "tu 2 den 3 trieu" / "2 - 3tr" / "2 den 3.5 trieu"
     final rangeTrieu = RegExp(
-      r'(?:tu\s+)?(\d+(?:[.,]\d+)?)\s*(?:trieu|tr)?\s*(?:den|-|~|to)\s*(\d+(?:[.,]\d+)?)\s*(?:trieu|tr)\b',
+      r'(?:tu\s+)?(\d+(?:[.,]\d+)?)\s*(?:trieu|tr|củ|cu)?\s*(?:den|-|~|to)\s*(\d+(?:[.,]\d+)?)\s*(?:trieu|tr|cu)\b',
     ).firstMatch(norm);
     if (rangeTrieu != null) {
       final lo = double.tryParse(rangeTrieu.group(1)!.replaceAll(',', '.'));
@@ -184,42 +257,45 @@ class VeloraAiService {
       }
     }
 
-    // "tren 3 trieu" / "hon 2.5tr"
-    final minTrieu = RegExp(r'(?:tren|hon|tu|over|above)\s+(\d+(?:[.,]\d+)?)\s*(?:trieu|tr)\b')
+    final minTrieu = RegExp(
+            r'(?:tren|hon|tu|over|above)\s+(\d+(?:[.,]\d+)?)\s*(?:trieu|tr|cu)\b')
         .firstMatch(norm);
     if (minTrieu != null) {
       final val = double.tryParse(minTrieu.group(1)!.replaceAll(',', '.'));
       if (val != null && val > 0) return ((val * 1000000) / usdToVnd, null);
     }
 
-    // "duoi 3 trieu" / "tam 2.5tr" / "khoang 2 trieu" / "3tr"
-    final maxTrieu = RegExp(r'(\d+(?:[.,]\d+)?)\s*(?:trieu|tr)\b').firstMatch(norm);
+    final maxTrieu =
+        RegExp(r'(\d+(?:[.,]\d+)?)\s*(?:trieu|tr|cu)\b').firstMatch(norm);
     if (maxTrieu != null) {
       final val = double.tryParse(maxTrieu.group(1)!.replaceAll(',', '.'));
       if (val != null && val > 0) {
         final usd = (val * 1000000) / usdToVnd;
-        if (norm.contains('tam') || norm.contains('khoang') || norm.contains('around')) {
+        if (norm.contains('tam') ||
+            norm.contains('khoang') ||
+            norm.contains('around')) {
           return (usd * 0.78, usd * 1.18);
         }
         return (null, usd);
       }
     }
 
-    // k patterns: "2000k", "1800k"
     final kMatch = RegExp(r'(\d{3,4})\s*k\b').firstMatch(norm);
     if (kMatch != null) {
       final val = double.tryParse(kMatch.group(1)!);
       if (val != null && val >= 200) return (null, (val * 1000) / usdToVnd);
     }
 
-    // USD patterns: "$120", "under 100$"
-    final usdMatch = RegExp(r'(?:\$|usd\s*)(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:usd|\$)')
+    final usdMatch = RegExp(
+            r'(?:\$|usd\s*)(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:usd|\$)')
         .firstMatch(norm);
     if (usdMatch != null) {
       final raw = usdMatch.group(1) ?? usdMatch.group(2);
       final val = double.tryParse(raw ?? '');
       if (val != null && val > 0) {
-        if (norm.contains('over') || norm.contains('above') || norm.contains('tren')) {
+        if (norm.contains('over') ||
+            norm.contains('above') ||
+            norm.contains('tren')) {
           return (val, null);
         }
         return (null, val);
@@ -229,7 +305,7 @@ class VeloraAiService {
   }
 
   String? _extractSize(String norm) {
-    final m = RegExp(r'(?:size|co|sz)\s*(3[6-9]|4[0-6])\b').firstMatch(norm);
+    final m = RegExp(r'(?:size|co|sz|eu)\s*(3[6-9]|4[0-6])\b').firstMatch(norm);
     return m?.group(1);
   }
 
@@ -239,6 +315,23 @@ class VeloraAiService {
     final val = double.tryParse(m.group(1)!.replaceAll(',', '.'));
     if (val != null && val >= 21.5 && val <= 31.0) return val;
     return null;
+  }
+
+  /// Extracts height in cm (e.g., "1m72", "1.72m", "172cm") and weight in kg ("68kg")
+  (double?, double?) _extractHeightWeight(String norm) {
+    double? heightCm;
+    final m1 = RegExp(r'1\s*m\s*(\d{2})\b').firstMatch(norm);
+    if (m1 != null) {
+      final sub = double.tryParse(m1.group(1)!);
+      if (sub != null) heightCm = 100 + sub;
+    } else {
+      final m2 = RegExp(r'(1[4-9]\d)\s*cm\b').firstMatch(norm);
+      if (m2 != null) heightCm = double.tryParse(m2.group(1)!);
+    }
+    double? weightKg;
+    final w = RegExp(r'(\d{2,3})\s*(?:kg|can|ky)\b').firstMatch(norm);
+    if (w != null) weightKg = double.tryParse(w.group(1)!);
+    return (heightCm, weightKg);
   }
 
   int _euFromCm(double cm) {
@@ -253,132 +346,352 @@ class VeloraAiService {
     return 45;
   }
 
+  int _euFromHeightWeight(double? heightCm, double? weightKg) {
+    final h = heightCm ?? 168;
+    var base = 40;
+    if (h < 158) {
+      base = 38;
+    } else if (h < 164) {
+      base = 39;
+    } else if (h < 170) {
+      base = 40;
+    } else if (h < 175) {
+      base = 41;
+    } else if (h < 180) {
+      base = 42;
+    } else if (h < 185) {
+      base = 43;
+    } else {
+      base = 44;
+    }
+    if (weightKg != null && weightKg >= 78 && base < 44) {
+      base += 1;
+    }
+    return base;
+  }
+
   Future<VeloraAiReply> ask(String query, {String language = 'vi'}) async {
     final trimmed = query.trim();
     final isEn = language == 'en';
     if (trimmed.isEmpty) {
       return VeloraAiReply(
         text: isEn
-            ? 'Tell me how you plan to wear your next VELORA pair — running, gym, daily style, foot length, or budget!'
-            : 'Bạn đang tìm mẫu giày VELORA cho dịp nào? Hãy nhắn mục đích sử dụng, màu sắc, tầm giá hoặc chiều dài bàn chân để mình tư vấn chính xác nhất nhé!',
+            ? 'Ask me anything — your orders, return/exchange requests, shipping time to your city, foot size calculator, or sneaker recommendations!'
+            : 'Bạn muốn hỏi mình về đơn hàng, đổi trả sản phẩm, thời gian giao hàng về tỉnh của bạn, cách tính size giày hay tìm mẫu giày theo ngân sách? Cứ nhắn thoải mái nhé!',
       );
     }
 
     final norm = _normalize(trimmed);
+    final allProducts = await _loadProducts();
+    final activeProducts =
+        allProducts.where((p) => !p.isDiscontinued && p.stock > 0).toList();
+    final poolProducts =
+        activeProducts.isNotEmpty ? activeProducts : allProducts;
 
-    // -------------------------------------------------------------------------
-    // 1. Greeting / About VELORA
-    // -------------------------------------------------------------------------
-    if (RegExp(r'^(xin chao|chao|hello|hi|hey|alo)\b').hasMatch(norm) && norm.length < 24) {
-      final products = await _loadProducts();
-      final highlights = products.where((p) => p.isFeatured && p.stock > 0).take(3).toList();
+    // =========================================================================
+    // 1. LIVE ORDER TRACKING / MY ORDERS / CANCELLATION INQUIRIES
+    // =========================================================================
+    if (norm.contains('don hang') ||
+        norm.contains('don cua toi') ||
+        norm.contains('don cua minh') ||
+        norm.contains('kiem tra don') ||
+        norm.contains('huy don') ||
+        norm.contains('my order') ||
+        norm.contains('cancel order') ||
+        norm.contains('track order')) {
+      final user = Firebase.apps.isNotEmpty
+          ? FirebaseAuth.instance.currentUser
+          : null;
+      if (user != null) {
+        try {
+          final snap = await _db
+              .collection('Users')
+              .doc(user.uid)
+              .collection('Orders')
+              .get();
+          final orders = snap.docs
+              .map(OrderModel.fromSnapshot)
+              .toList()
+            ..sort((a, b) => b.orderDate.compareTo(a.orderDate));
+
+          if (norm.contains('huy don') || norm.contains('cancel')) {
+            final pendingOrders =
+                orders.where((o) => o.status == OrderStatus.pending).toList();
+            final shippingOrders = orders
+                .where((o) =>
+                    o.status == OrderStatus.processing ||
+                    o.status == OrderStatus.shipped)
+                .toList();
+            final buf = StringBuffer();
+            buf.writeln(
+              '📌 Quy định hủy đơn tại VELORA: Bạn **chỉ có thể hủy đơn hàng khi đơn đang ở trạng thái "Chờ xác nhận"**.',
+            );
+            buf.writeln(
+              'Khi đơn đã chuyển sang **Đang đóng gói** hoặc **Đang vận chuyển**, đơn đã xuất kho nên không thể hủy nữa.',
+            );
+            if (pendingOrders.isNotEmpty) {
+              buf.writeln(
+                '\n• Hiện bạn có **${pendingOrders.length} đơn đang Chờ xác nhận** (${pendingOrders.first.itemsSummary()}) — bạn có thể bấm vào Chi tiết đơn hàng để hủy ngay nếu muốn.',
+              );
+            } else if (shippingOrders.isNotEmpty) {
+              buf.writeln(
+                '\n• Đơn hàng hiện tại của bạn (${shippingOrders.first.itemsSummary()}) đã ở bước **${shippingOrders.first.orderStatusLabel()}** nên không thể hủy. Sau khi nhận hàng, nếu cần đổi size hoặc trả hàng bạn có thể tạo yêu cầu **Đổi trả & Bảo hành** miễn phí nhé!',
+              );
+            }
+            return VeloraAiReply(
+              text: buf.toString().trim(),
+              showOrdersShortcut: true,
+              showSupportChatShortcut: true,
+              followUpPrompts: const [
+                'Kiểm tra đơn hàng của tôi đến đâu rồi?',
+                'Mình muốn đổi size / đổi trả giày thì làm thế nào?',
+              ],
+            );
+          }
+
+          if (orders.isEmpty) {
+            return VeloraAiReply(
+              text:
+                  'Mình vừa kiểm tra tài khoản của bạn: hiện bạn chưa có đơn hàng nào tại VELORA. Bạn muốn mình gợi ý một vài mẫu giày đang giảm giá tốt để đặt thử không?',
+              products: poolProducts.take(3).toList(),
+              followUpPrompts: const [
+                'Mẫu nào đang giảm giá sâu nhất?',
+                'Giày chạy bộ dưới 2.5 triệu',
+              ],
+            );
+          }
+
+          final buf = StringBuffer();
+          buf.writeln(
+            '📦 Mình vừa tra cứu trực tiếp **${orders.length} đơn hàng** trong tài khoản của bạn:',
+          );
+          for (final o in orders.take(3)) {
+            final eta = ShippingRouteHelper.estimateForAddress(o.address);
+            final total = formatShopMoney(o.totalAmount, language: language);
+            buf.writeln(
+              '\n• **${o.itemsSummary()}** ($total)\n'
+              '  Trạng thái: **${o.orderStatusLabel()}** — ${o.orderStatusSubtitle()}\n'
+              '  Lộ trình: Tổng Kho Hà Nội → ${eta.destinationCity} (dự kiến ${eta.minDays}–${eta.maxDays} ngày)',
+            );
+          }
+          buf.writeln(
+            '\nBạn có thể bấm nút bên dưới để mở danh sách Đơn hàng hoặc Chat riêng với VELORA nếu cần hỗ trợ về đơn nhé!',
+          );
+          return VeloraAiReply(
+            text: buf.toString().trim(),
+            showOrdersShortcut: true,
+            showSupportChatShortcut: true,
+            followUpPrompts: const [
+              'Mình muốn đổi size / đổi trả giày thì làm thế nào?',
+              'Quy định hủy đơn hàng như thế nào?',
+            ],
+          );
+        } catch (_) {}
+      }
       return VeloraAiReply(
-        text: isEn
-            ? 'Welcome to VELORA! I can recommend sneakers by activity, exact budget, color, EU size (even from foot length in cm), outfit matching, or care tips. Here are 3 standout VELORA designs today:'
-            : 'Chào bạn đến với VELORA! Mình có thể giúp bạn:\n'
-                '• Lọc giày VELORA chuẩn theo ngân sách & mục đích (chạy bộ, gym, bóng rổ, hằng ngày, địa hình)\n'
-                '• Tính size EU chuẩn từ chiều dài bàn chân (cm)\n'
-                '• Tư vấn phối đồ, chọn quà tặng & kiểm tra mã ưu đãi hôm nay\n\n'
-                'Dưới đây là 3 mẫu VELORA đang được yêu thích nhất:',
-        products: highlights,
+        text:
+            'Bạn có thể theo dõi bản đồ hành trình đơn hàng trực tiếp trong mục **Đơn hàng của tôi**. Lưu ý: Đơn hàng chỉ có thể hủy khi đang ở trạng thái **Chờ xác nhận**; khi đã đóng gói hoặc đang giao hàng sẽ không hủy được nữa.',
+        showOrdersShortcut: true,
+        showSupportChatShortcut: true,
+      );
+    }
+
+    // =========================================================================
+    // 2. RETURN / EXCHANGE / DEFECTIVE SHOE / WRONG SIZE / WARRANTY INQUIRIES
+    // =========================================================================
+    if (norm.contains('doi tra') ||
+        norm.contains('doi size') ||
+        norm.contains('doi giay') ||
+        norm.contains('tra hang') ||
+        norm.contains('hoan tien') ||
+        norm.contains('bao hanh') ||
+        norm.contains('giao sai') ||
+        norm.contains('giay loi') ||
+        norm.contains('bi loi') ||
+        norm.contains('bi chat') ||
+        norm.contains('bi rong') ||
+        norm.contains('return') ||
+        norm.contains('exchange') ||
+        norm.contains('refund')) {
+      final user = Firebase.apps.isNotEmpty
+          ? FirebaseAuth.instance.currentUser
+          : null;
+      String activeReturnInfo = '';
+      if (user != null) {
+        try {
+          final rSnap = await _db
+              .collection('ReturnRequests')
+              .where('userId', isEqualTo: user.uid)
+              .get();
+          if (rSnap.docs.isNotEmpty) {
+            final reqs = rSnap.docs
+                .map(ReturnRequestModel.fromSnapshot)
+                .toList()
+              ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            final latest = reqs.first;
+            activeReturnInfo =
+                '\n\n🔄 **Yêu cầu Đổi/Trả hiện tại của bạn:**\n'
+                '• Sản phẩm: **${latest.productTitle}** (${latest.typeLabel()} — ${latest.requestedSizeOrColor})\n'
+                '• Trạng thái: **${latest.statusLabel()}**\n'
+                '• Địa chỉ đổi mới: ${latest.pickupAddress}';
+          }
+        } catch (_) {}
+      }
+
+      return VeloraAiReply(
+        text: '🛡️ **Quy trình Đổi trả & Bảo hành trong 7 ngày tại VELORA:**\n'
+            '1. Với các đơn hàng đã **Giao thành công trong vòng 7 ngày**, bạn vào **Chi tiết đơn hàng** hoặc mục **Đổi trả & Bảo hành** → bấm **Đổi / Trả**.\n'
+            '2. Chọn 1 trong 3 hình thức: **Đổi kích cỡ EU (38–44)**, **Đổi đôi mới 1-1** (nếu giày lỗi / giao sai) hoặc **Trả hàng & Hoàn tiền 100%**.\n'
+            '3. Đính kèm ảnh/video thực tế và điền **Địa chỉ đổi mới**.\n'
+            '4. Sau khi Admin VELORA kiểm tra (duyệt hoặc từ chối nếu không đạt điều kiện), Admin sẽ gửi thông báo và **nhắn tin riêng trực tiếp cho bạn** qua mục **Chat với VELORA**!'
+            '$activeReturnInfo',
+        showReturnsShortcut: true,
+        showSupportChatShortcut: true,
         followUpPrompts: const [
-          'Mẫu nào đang giảm giá sâu nhất?',
+          'Kiểm tra đơn hàng của tôi đến đâu rồi?',
           'Chân dài 26cm đi size mấy?',
-          'Giày chạy bộ dưới 2.5 triệu',
         ],
       );
     }
 
-    if (norm.contains('velora la gi') ||
-        norm.contains('ve velora') ||
-        norm.contains('thuong hieu velora') ||
-        norm.contains('about velora')) {
-      final products = await _loadProducts();
+    // =========================================================================
+    // 3. LIVE CART / PAYMENT / BANK WALLET INQUIRIES
+    // =========================================================================
+    if (norm.contains('gio hang') ||
+        norm.contains('trong gio') ||
+        norm.contains('my cart') ||
+        norm.contains('thanh toan') ||
+        norm.contains('phuong thuc thanh toan') ||
+        norm.contains('chuyen khoan') ||
+        norm.contains('ship cod') ||
+        norm.contains('ngan hang')) {
+      final hasCart = Get.isRegistered<CartController>();
+      final items = hasCart ? CartController.instance.cartItems : const [];
+      final buf = StringBuffer();
+      if (items.isNotEmpty) {
+        final total = CartController.instance.totalCartPrice.value;
+        buf.writeln(
+          '🛒 Trong giỏ hàng của bạn hiện đang có **${items.length} sản phẩm** (Tổng tạm tính: **${formatShopMoney(total, language: language)}**):',
+        );
+        for (final item in items.take(4)) {
+          buf.writeln(
+            '• **${item.title}** × ${item.quantity} (${formatShopMoney(item.price * item.quantity, language: language)})',
+          );
+        }
+        buf.writeln();
+      } else if (norm.contains('gio hang') || norm.contains('trong gio')) {
+        buf.writeln('🛒 Giỏ hàng của bạn hiện đang trống.\n');
+      }
+      buf.writeln(
+        '💳 **Phương thức thanh toán tại VELORA:**\n'
+        '• Thanh toán khi nhận hàng (COD)\n'
+        '• Thanh toán qua Tài khoản Ngân hàng liên kết trong ứng dụng (Demo Bank)\n'
+        '• Áp dụng trực tiếp mã Voucher giảm giá hoặc Freeship ở bước Thanh toán.',
+      );
       return VeloraAiReply(
-        text: isEn
-            ? 'VELORA is our independent athletic footwear studio crafting minimalist, high-performance sneakers across 5 lines: Running, Lifestyle, Training, Basketball, and Trail — all engineered for everyday comfort and modern silhouette.'
-            : 'VELORA là thương hiệu giày thể thao thiết kế độc quyền với triết lý **tối giản · chuẩn công thái học · bền bỉ mỗi ngày**. Bộ sưu tập hiện có 5 dòng chuyên biệt: Chạy bộ, Hằng ngày, Tập luyện, Bóng rổ và Địa hình — tất cả đều thiết kế riêng với bảng màu xanh rừng & trung tính sang trọng.',
-        products: products.where((p) => p.stock > 0).take(4).toList(),
+        text: buf.toString().trim(),
+        showCartShortcut: true,
+        showVoucherShortcut: true,
         followUpPrompts: const [
-          'Đôi nào nổi bật bán chạy nhất hiện tại?',
-          'Giày trắng tối giản đi học & đi làm',
+          'Có mã giảm giá / voucher nào hôm nay?',
+          'Mẫu nào đang giảm giá sâu nhất?',
+        ],
+      );
+    }
+
+    // =========================================================================
+    // 4. WAREHOUSE LOCATION & SHIPPING TIME TO ANY PROVINCE/CITY
+    // =========================================================================
+    if (norm.contains('shop o dau') ||
+        norm.contains('kho o dau') ||
+        norm.contains('dia chi shop') ||
+        norm.contains('cua hang o dau') ||
+        norm.contains('ship ve') ||
+        norm.contains('giao ve') ||
+        norm.contains('ship thanh hoa') ||
+        norm.contains('ship ha noi') ||
+        norm.contains('ship hcm') ||
+        norm.contains('ship saigon') ||
+        norm.contains('ship da nang') ||
+        norm.contains('giao mat bao lau') ||
+        norm.contains('may ngay nhan duoc') ||
+        norm.contains('bao lau nhan duoc')) {
+      final eta = ShippingRouteHelper.estimateFromRawText(trimmed);
+      return VeloraAiReply(
+        text: '📍 **Tổng Kho & Showroom VELORA:** đặt tại **Cầu Giấy, Hà Nội**.\n\n'
+            '🚚 **Thời gian giao hàng tự động theo khoảng cách từ Tổng Kho Hà Nội:**\n'
+            '• **Hà Nội & khu vực lân cận (~5–30 km):** Nhận hàng siêu tốc trong **1–2 ngày**.\n'
+            '• **Thanh Hóa & các tỉnh Miền Bắc / Bắc Trung Bộ (~60–180 km):** Dự kiến **2–3 ngày**.\n'
+            '• **Đà Nẵng, Nghệ An, Huế & Miền Trung (~300–760 km):** Dự kiến **3–4 ngày**.\n'
+            '• **TP.HCM & các tỉnh Miền Nam (~1.100–1.700 km):** Dự kiến **3–5 ngày**.\n\n'
+            '👉 Theo địa điểm bạn hỏi (**${eta.destinationCity}**, cách kho ~${eta.distanceKm} km): đơn hàng sẽ giao tới tay bạn trong khoảng **${eta.minDays}–${eta.maxDays} ngày**!',
+        showOrdersShortcut: true,
+        followUpPrompts: const [
+          'Kiểm tra đơn hàng của tôi đến đâu rồi?',
           'Có mã giảm giá / voucher nào hôm nay?',
         ],
       );
     }
 
-    // -------------------------------------------------------------------------
-    // 2. Shoe Care / Cleaning Advice
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // 5. CHAT WITH HUMAN SUPPORT / CSKH / CONTACT
+    // =========================================================================
+    if (norm.contains('nhan vien') ||
+        norm.contains('cskh') ||
+        norm.contains('nguoi that') ||
+        norm.contains('chat voi shop') ||
+        norm.contains('chat voi admin') ||
+        norm.contains('chat voi velora') ||
+        norm.contains('lien he') ||
+        norm.contains('hotline') ||
+        norm.contains('so dien thoai shop')) {
+      return VeloraAiReply(
+        text:
+            '💬 Bạn có thể nhắn tin **trực tiếp 1-1 với Quản trị viên VELORA** ngay trong ứng dụng!\n\n'
+            'Chỉ cần bấm nút **"Chat riêng 1-1 với VELORA"** bên dưới, bạn có thể gửi tin nhắn, hình ảnh thực tế đôi giày hoặc trao đổi trực tiếp về đơn hàng & địa chỉ đổi trả với đội ngũ VELORA.',
+        showSupportChatShortcut: true,
+        showReturnsShortcut: true,
+      );
+    }
+
+    // =========================================================================
+    // 6. SHOE CARE / CLEANING GUIDE
+    // =========================================================================
     if (norm.contains('ve sinh') ||
         norm.contains('giat giay') ||
         norm.contains('bao quan') ||
         norm.contains('o vang') ||
+        norm.contains('lau giay') ||
+        norm.contains('bi ban') ||
         norm.contains('clean') ||
         norm.contains('wash')) {
       return VeloraAiReply(
-        text: isEn
-            ? 'VELORA Sneaker Care Guide:\n'
-                '• Remove laces & insoles before cleaning.\n'
-                '• Use a soft brush + mild soap & cold water (avoid bleach and washing machines).\n'
-                '• For white sneakers: wrap in dry tissue paper while air-drying in shade to prevent yellowing.\n'
-                '• For suede/knit: dry-brush gently and use a waterproof spray before rainy days.'
-            : 'Mẹo vệ sinh & giữ form giày VELORA luôn như mới:\n'
-                '1. Tháo dây và lót giày giặt riêng với nước mát + xà phòng dịu nhẹ.\n'
-                '2. Dùng bàn chải lông mềm chà nhẹ theo 1 chiều — tuyệt đối không bỏ máy giặt hoặc ngâm chất tẩy mạnh.\n'
-                '3. Chống ố vàng cho giày trắng: bọc kín giấy ăn khô quanh thân giày rồi phơi nơi râm gió (tránh nắng gắt trực tiếp).\n'
-                '4. Nhét giấy báo hoặc shoe-tree bên trong để giữ chuẩn form mũi giày.',
+        text: '🧼 **Hướng dẫn vệ sinh & giữ form giày VELORA chuẩn Studio:**\n'
+            '1. **Tháo rời dây & lót giày**: Giặt riêng bằng nước mát và dung dịch vệ sinh giày chuyên dụng (hoặc xà phòng dịu nhẹ).\n'
+            '2. **Vệ sinh thân giày**: Dùng bàn chải lông mềm chà nhẹ theo một chiều — tuyệt đối không cho vào máy giặt hoặc dùng thuốc tẩy Javel.\n'
+            '3. **Mẹo chống ố vàng cho giày trắng**: Sau khi rửa sạch bọt, dùng khăn khô thấm ráo rồi đắp 1 lớp giấy ăn trắng phủ kín bề mặt giày, phơi ở nơi thoáng gió, tránh ánh nắng gắt chiếu trực tiếp.\n'
+            '4. **Khử mùi & giữ form**: Nhét giấy hút ẩm hoặc shoe-tree vào mũi giày khi không sử dụng.',
         followUpPrompts: const [
           'Giày màu đen dễ vệ sinh đi mưa',
           'Giày trắng tối giản đi học & đi làm',
-          'Chính sách đổi size & giao hàng VELORA',
         ],
       );
     }
 
-    // -------------------------------------------------------------------------
-    // 3. Shipping, Returns, Exchange & Warranty Policy
-    // -------------------------------------------------------------------------
-    if (norm.contains('doi size') ||
-        norm.contains('doi tra') ||
-        norm.contains('bao hanh') ||
-        norm.contains('ship mat bao lau') ||
-        norm.contains('giao hang') ||
-        norm.contains('return') ||
-        norm.contains('shipping')) {
-      return VeloraAiReply(
-        text: isEn
-            ? 'VELORA Shopping Policy:\n'
-                '• Delivery: 2–3 business days nationwide with live order tracking.\n'
-                '• Size Exchange: Free size exchange within 7 days for unworn pairs in original box.\n'
-                '• Warranty: 6-month sole & stitching warranty on all authentic VELORA footwear.'
-            : 'Chính sách mua sắm tại VELORA:\n'
-                '• Giao hàng nhanh 2–3 ngày toàn quốc, theo dõi trực tiếp từng chặng trong mục Đơn hàng.\n'
-                '• Hỗ trợ đổi size dễ dàng trong vòng 7 ngày nếu giày chưa qua sử dụng ngoài trời.\n'
-                '• Bảo hành keo & đường may 6 tháng cho toàn bộ sản phẩm VELORA chính hãng.',
-        followUpPrompts: const [
-          'Chân dài 26cm đi size mấy?',
-          'Có mã giảm giá / voucher nào hôm nay?',
-          'Đôi nào giá mềm nhất tại VELORA?',
-        ],
-      );
-    }
-
-    // -------------------------------------------------------------------------
-    // 4. Vouchers / Promotions
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // 7. VOUCHERS & PROMOTIONS
+    // =========================================================================
     if (norm.contains('voucher') ||
         norm.contains('ma giam') ||
         norm.contains('coupon') ||
         norm.contains('freeship')) {
       final vouchers = await _loadActiveVouchers();
-      final products = await _loadProducts();
-      final salePicks = products.where((p) => _discountPct(p) > 0 && p.stock > 0).take(3).toList();
+      final salePicks =
+          poolProducts.where((p) => _discountPct(p) > 0).take(3).toList();
       if (vouchers.isEmpty) {
         return VeloraAiReply(
-          text: isEn
-              ? 'Open your VELORA Voucher Wallet to claim welcome & holiday offers (like WELCOME10 and SHIPNEW) at checkout!'
-              : 'Bạn hãy mở ngay Ví Voucher của VELORA để nhận mã chào mừng thành viên mới (WELCOME10, SHIPNEW) và các ưu đãi dịp lễ đang có sẵn nhé!',
+          text:
+              '🎟️ Bạn hãy mở **Ví Voucher VELORA** bên dưới để lưu các mã chào mừng thành viên mới (`WELCOME10`, `SHIPNEW`) và ưu đãi theo sự kiện nhé!',
           products: salePicks,
           showVoucherShortcut: true,
           followUpPrompts: const [
@@ -393,20 +706,17 @@ class VeloraAiService {
         final shipping = v['shipping'] == true;
         final pct = v['percent'] ?? 0;
         final minUsd = (v['minUsd'] as num? ?? 0).toDouble();
-        final offer = shipping
-            ? (isEn ? 'Free shipping' : 'Miễn phí vận chuyển')
-            : (isEn ? '$pct% off' : 'Giảm $pct%');
+        final offer =
+            shipping ? 'Miễn phí vận chuyển' : 'Giảm $pct%';
         final minLabel = minUsd > 0
-            ? (isEn
-                ? ' (min ${formatShopMoney(minUsd, language: 'en')})'
-                : ' (đơn từ ${formatShopMoney(minUsd, language: 'vi')})')
+            ? ' (đơn từ ${formatShopMoney(minUsd, language: 'vi')})'
             : '';
-        return '• $code — $offer$minLabel: $title';
+        return '• **$code** — $offer$minLabel: $title';
       }).join('\n');
       return VeloraAiReply(
-        text: isEn
-            ? 'Active VELORA vouchers right now:\n\n$lines\n\nTap below to open your Voucher Wallet!'
-            : 'Các mã ưu đãi VELORA đang hoạt động hôm nay:\n\n$lines\n\nChạm nút bên dưới để mở Ví Voucher và áp dụng khi thanh toán nhé!',
+        text: '🎟️ **Các mã Voucher VELORA đang có hiệu lực hôm nay:**\n\n'
+            '$lines\n\n'
+            'Bạn bấm vào nút bên dưới để mở Ví Voucher hoặc xem các đôi giày đang được áp dụng ưu đãi nhé!',
         products: salePicks,
         showVoucherShortcut: true,
         followUpPrompts: const [
@@ -416,82 +726,90 @@ class VeloraAiService {
       );
     }
 
-    // -------------------------------------------------------------------------
-    // 5. Foot Length (cm) → EU Size Calculator + Matching Stock!
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // 8. FOOT LENGTH (cm) OR HEIGHT + WEIGHT → EXACT EU SIZE CALCULATOR
+    // =========================================================================
     final footCm = _extractFootLengthCm(norm);
-    final products = await _loadProducts();
-    if (products.isEmpty) {
-      return VeloraAiReply(
-        text: isEn
-            ? 'I couldn’t load the VELORA catalog right now. Please check your connection and try again.'
-            : 'Hiện chưa tải được danh mục giày VELORA. Bạn kiểm tra kết nối mạng và thử lại giúp mình nhé.',
-      );
-    }
-
-    if (footCm != null) {
-      final eu = _euFromCm(footCm);
-      final wideFoot = norm.contains('be') || norm.contains('rong') || norm.contains('wide');
-      final recommendedEu = wideFoot ? min(45, eu + 1) : eu;
+    final (heightCm, weightKg) = _extractHeightWeight(norm);
+    if (footCm != null || heightCm != null || weightKg != null) {
+      final wideFoot =
+          norm.contains('be') || norm.contains('rong') || norm.contains('day');
+      final baseEu = footCm != null
+          ? _euFromCm(footCm)
+          : _euFromHeightWeight(heightCm, weightKg);
+      final recommendedEu = wideFoot ? min(44, baseEu + 1) : baseEu;
       final sizeStr = '$recommendedEu';
-      final inSize = products.where((p) {
-        if (p.stock <= 0) return false;
+
+      final inSize = poolProducts.where((p) {
         final hasVar = (p.productVariations ?? []).any(
-          (v) => v.stock > 0 && v.attributeValues.values.any((val) => val.trim() == sizeStr),
+          (v) =>
+              v.stock > 0 &&
+              v.attributeValues.values.any((val) => val.trim().contains(sizeStr)),
         );
         final hasAttr = p.productAttributes
                 ?.where((a) => a.name?.toLowerCase() == 'size')
                 .firstOrNull
                 ?.values
-                ?.contains(sizeStr) ??
+                ?.any((v) => v.contains(sizeStr)) ??
             false;
         return hasVar || hasAttr;
-      }).take(5).toList();
+      }).take(4).toList();
+
+      final reasonText = footCm != null
+          ? 'chiều dài bàn chân **${footCm.toStringAsFixed(1)} cm**'
+          : '${heightCm != null ? 'chiều cao **${heightCm.round()} cm**' : ''}${heightCm != null && weightKg != null ? ' · ' : ''}${weightKg != null ? 'cân nặng **${weightKg.round()} kg**' : ''}';
 
       return VeloraAiReply(
-        text: isEn
-            ? 'For a ${footCm.toStringAsFixed(1)} cm foot${wideFoot ? ' (wide fit)' : ''}, your ideal VELORA size is EU $recommendedEu. Here are ${inSize.length} VELORA pairs currently in stock in EU $recommendedEu:'
-            : 'Với chiều dài bàn chân ${footCm.toStringAsFixed(1)} cm${wideFoot ? ' (form chân bè, đã cộng +1 size cho thoải mái)' : ''}, size chuẩn VELORA dành cho bạn là **EU $recommendedEu** (nếu chân bè ngang bạn có thể cân nhắc tăng 0.5–1 size).\n\n'
-                'Dưới đây là ${inSize.length} mẫu VELORA đang sẵn size EU $recommendedEu trong kho:',
-        products: inSize.isNotEmpty ? inSize : products.take(4).toList(),
+        text: '📏 Với $reasonText${wideFoot ? ' (form chân bè ngang)' : ''}, size giày chuẩn nhất tại VELORA cho bạn là **Size EU $recommendedEu**.\n'
+            '• Nếu bạn thích đi tất dày thể thao hoặc mũi chân bè rộng, có thể chọn lên **EU ${min(44, recommendedEu + 1)}**.\n'
+            '• Nếu nhận giày về mang thử trong nhà thấy hơi chật/rộng, VELORA hỗ trợ **đổi size miễn phí tận nơi trong 7 ngày**!\n\n'
+            'Dưới đây là các mẫu VELORA đang sẵn **size EU $recommendedEu** trong kho:',
+        products: inSize.isNotEmpty ? inSize : poolProducts.take(4).toList(),
         followUpPrompts: [
           'Giày chạy bộ size $recommendedEu',
-          'Giày trắng size $recommendedEu dưới 3 triệu',
-          'Chính sách đổi size & giao hàng VELORA',
+          'Giày đi làm hằng ngày size $recommendedEu',
+          'Mình muốn đổi size / đổi trả giày thì làm thế nào?',
         ],
       );
     }
 
-    // -------------------------------------------------------------------------
-    // 6. Direct Product Price / Detail Lookup or Comparison
-    // -------------------------------------------------------------------------
-    final directMatches = products.where((p) {
+    // =========================================================================
+    // 9. DIRECT PRODUCT LOOKUP (including Discontinued Check & Comparison)
+    // =========================================================================
+    final directMatches = allProducts.where((p) {
       final t = _normalize(p.title).replaceFirst('velora ', '').trim();
       if (t.length < 3) return false;
       return norm.contains(t) ||
           t.split(' ').where((w) => w.length >= 4).any((w) => norm.contains(w));
     }).toList();
 
-    if (directMatches.length >= 2 && (norm.contains('so sanh') || norm.contains('compare') || norm.contains('hay'))) {
-      final a = directMatches[0];
-      final b = directMatches[1];
-      final pa = formatShopMoney(_effectivePrice(a), language: language);
-      final pb = formatShopMoney(_effectivePrice(b), language: language);
-      return VeloraAiReply(
-        text: isEn
-            ? 'Comparing ${a.title} vs ${b.title}:\n'
-                '• ${a.title} (${a.categoryName}): $pa — ${a.stock} pairs in stock.\n'
-                '• ${b.title} (${b.categoryName}): $pb — ${b.stock} pairs in stock.\n'
-                'Tap either pair below to check exact colors & sizes!'
-            : 'So sánh nhanh 2 mẫu VELORA bạn đang cân nhắc:\n'
-                '• ${a.title} (${_viCat(a.categoryName)}): giá chuẩn $pa · còn ${a.stock} đôi trong kho.\n'
-                '• ${b.title} (${_viCat(b.categoryName)}): giá chuẩn $pb · còn ${b.stock} đôi trong kho.\n\n'
-                'Nếu ưu tiên ${_viCat(a.categoryName).toLowerCase()} hãy chọn ${a.title}, còn thiên về ${_viCat(b.categoryName).toLowerCase()} thì ${b.title} sẽ tối ưu hơn!',
-        products: [a, b],
-      );
-    }
+    if (directMatches.isNotEmpty) {
+      // Check if user asked to compare 2 specific shoes
+      if (directMatches.length >= 2 &&
+          (norm.contains('so sanh') ||
+              norm.contains('khac gi') ||
+              norm.contains('chon doi nao') ||
+              norm.contains('hay'))) {
+        final a = directMatches[0];
+        final b = directMatches[1];
+        final pa = formatShopMoney(_effectivePrice(a), language: language);
+        final pb = formatShopMoney(_effectivePrice(b), language: language);
+        return VeloraAiReply(
+          text: '⚖️ **So sánh chi tiết ${a.title} và ${b.title}:**\n\n'
+              '1. **${a.title}** (Dòng ${_viCat(a.categoryName)}):\n'
+              '   • Giá: **$pa**${_discountPct(a) > 0 ? ' (đang giảm ${_discountPct(a)}%)' : ''}\n'
+              '   • Tồn kho: ${a.isDiscontinued ? 'Đã ngừng bán' : 'Còn ${a.stock} đôi'}\n'
+              '   • Đặc điểm: ${a.description ?? 'Thiết kế chuyên biệt, êm ái.'}\n\n'
+              '2. **${b.title}** (Dòng ${_viCat(b.categoryName)}):\n'
+              '   • Giá: **$pb**${_discountPct(b) > 0 ? ' (đang giảm ${_discountPct(b)}%)' : ''}\n'
+              '   • Tồn kho: ${b.isDiscontinued ? 'Đã ngừng bán' : 'Còn ${b.stock} đôi'}\n'
+              '   • Đặc điểm: ${b.description ?? 'Form hiện đại, bám sàn tốt.'}\n\n'
+              '👉 **Lời khuyên:** Nếu bạn ưu tiên ${_viCat(a.categoryName).toLowerCase()} thì chọn **${a.title}**, còn nếu thiên về ${_viCat(b.categoryName).toLowerCase()} thì **${b.title}** là lựa chọn tối ưu hơn!',
+          products: [a, b].where((p) => !p.isDiscontinued).toList(),
+        );
+      }
 
-    if (directMatches.length == 1 && (norm.contains('gia') || norm.contains('bao nhieu') || norm.contains('price') || norm.contains('con hang'))) {
+      // Single product deep Q&A
       final p = directMatches.first;
       final eff = formatShopMoney(_effectivePrice(p), language: language);
       final orig = formatShopMoney(p.price, language: language);
@@ -502,22 +820,85 @@ class VeloraAiService {
                   ?.values ??
               [])
           .join(', ');
+      final colors = (p.productAttributes
+                  ?.where((a) =>
+                      a.name?.toLowerCase() == 'color' ||
+                      _normalize(a.name ?? '').contains('mau'))
+                  .firstOrNull
+                  ?.values ??
+              [])
+          .join(', ');
+
+      if (p.isDiscontinued) {
+        final alternatives = poolProducts
+            .where((x) => x.id != p.id && x.categoryId == p.categoryId)
+            .take(3)
+            .toList();
+        return VeloraAiReply(
+          text:
+              '🚫 Mẫu **${p.title}** hiện **đã ngừng kinh doanh (Ngừng bán)** tại VELORA.\n\n'
+              'Mình gợi ý cho bạn các mẫu cùng phân khúc **${_viCat(p.categoryName)}** mới nhất đang sẵn hàng để thay thế nhé:',
+          products: alternatives,
+        );
+      }
+
       return VeloraAiReply(
-        text: isEn
-            ? '${p.title} (${p.categoryName}):\n'
-                '• Current price: $eff${pct > 0 ? ' (-$pct% off from $orig)' : ''}\n'
-                '• Stock: ${p.stock} pairs available${sizes.isNotEmpty ? ' · Sizes: EU $sizes' : ''}'
-            : 'Thông tin chính xác cho **${p.title}** (${_viCat(p.categoryName)}):\n'
-                '• Giá bán hiện tại: $eff${pct > 0 ? ' (đang giảm $pct% từ $orig)' : ''}\n'
-                '• Tình trạng kho: ${p.stock > 0 ? 'Còn ${p.stock} đôi' : 'Tạm hết hàng'}${sizes.isNotEmpty ? ' · Size EU: $sizes' : ''}\n'
-                'Chạm vào thẻ bên dưới để chọn màu và đặt mua ngay nhé!',
+        text: '👟 Thông tin chi tiết mẫu **${p.title}** (Dòng ${_viCat(p.categoryName)}):\n'
+            '• **Giá bán:** $eff${pct > 0 ? ' (Giảm $pct% từ $orig)' : ''}\n'
+            '• **Tồn kho:** ${p.stock > 0 ? 'Sẵn hàng (${p.stock} đôi)' : 'Tạm hết hàng'}\n'
+            '${sizes.isNotEmpty ? '• **Size EU sẵn có:** $sizes\n' : ''}'
+            '${colors.isNotEmpty ? '• **Phối màu:** $colors\n' : ''}'
+            '• **Mô tả:** ${p.description ?? 'Đệm êm ái, thoáng khí, thiết kế chính hãng VELORA.'}\n\n'
+            'Bạn có thể bấm trực tiếp vào thẻ sản phẩm bên dưới để xem video/ảnh góc nghiêng và chọn size nhé!',
         products: [p],
+        followUpPrompts: [
+          'Chân dài 26cm đi size mấy?',
+          'Ship về Hà Nội mất mấy ngày?',
+          'Có mã giảm giá / voucher nào hôm nay?',
+        ],
       );
     }
 
-    // -------------------------------------------------------------------------
-    // 7. Smart Multi-Criteria Sneaker Recommendation Engine (100+ scenarios)
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // 10. GREETING / CONVERSATIONAL / IDENTITY QUESTIONS
+    // =========================================================================
+    if (norm.contains('ban la ai') ||
+        norm.contains('ban ten gi') ||
+        norm.contains('ai day') ||
+        norm.contains('lam duoc gi') ||
+        (RegExp(r'^(xin chao|chao|hello|hi|hey|alo)\b').hasMatch(norm) &&
+            norm.length < 28)) {
+      return VeloraAiReply(
+        text: 'Xin chào! Mình là **Trợ lý AI thông minh của VELORA**.\n'
+            'Bạn hỏi gì mình sẽ trả lời trực tiếp vấn đề đó:\n'
+            '• **Tra cứu đơn hàng trực tiếp**: Kiểm tra đơn của bạn đang ở đâu, bao giờ giao, quy định hủy đơn.\n'
+            '• **Hỗ trợ Đổi trả & Bảo hành**: Hướng dẫn đổi size EU 38–44, đổi mới 1-1, hoàn tiền hoặc kết nối **Chat 1-1 với nhân viên VELORA**.\n'
+            '• **Tính size giày chuẩn**: Từ chiều dài chân (cm) hoặc chiều cao + cân nặng.\n'
+            '• **Tư vấn chọn giày chuẩn gu & đúng tầm giá**: Chạy bộ, Hằng ngày, Tập gym, Bóng rổ, Địa hình.',
+        showOrdersShortcut: true,
+        showSupportChatShortcut: true,
+        followUpPrompts: const [
+          'Kiểm tra đơn hàng của tôi đến đâu rồi?',
+          'Giày chạy bộ dưới 2.5 triệu',
+          'Mình muốn đổi size / đổi trả giày thì làm thế nào?',
+        ],
+      );
+    }
+
+    if (norm.contains('cam on') ||
+        norm.contains('thank') ||
+        norm.contains('ok shop') ||
+        norm.contains('tuyet voi')) {
+      return VeloraAiReply(
+        text:
+            'Rất vui được hỗ trợ bạn! Nếu bạn cần kiểm tra đơn hàng, đổi size hay nhắn tin riêng với quản trị viên VELORA, cứ nhắn mình bất cứ lúc nào nhé ❤️',
+        showSupportChatShortcut: true,
+      );
+    }
+
+    // =========================================================================
+    // 11. SPECIFIC USE-CASE & SYMPTOM CONSULTATION (Foot pain, standing long, weather, etc.)
+    // =========================================================================
     final matchedCategories = <String>[];
     for (final entry in _categoryAliases.entries) {
       if (entry.value.any((alias) => norm.contains(alias))) {
@@ -532,6 +913,49 @@ class VeloraAiService {
       }
     }
 
+    String? directAdviceHeader;
+    if (norm.contains('dung lau') ||
+        norm.contains('dau chan') ||
+        norm.contains('dau got') ||
+        norm.contains('moi chan') ||
+        norm.contains('em nhat') ||
+        norm.contains('di bo nhieu')) {
+      if (matchedCategories.isEmpty) {
+        matchedCategories.addAll(['Running', 'Lifestyle']);
+      }
+      directAdviceHeader =
+          '💡 **Tư vấn cho người hay đứng lâu / đi bộ nhiều / cần đế cực êm:**\n'
+          'Bạn nên ưu tiên dòng **Chạy bộ (Running)** hoặc **Hằng ngày (Lifestyle)** có đệm giữa NitroFoam / CloudFoam dày và cổ giày bọc đệm mềm để giảm áp lực lên gót chân & lòng bàn chân.';
+    } else if (norm.contains('nhe nhat') || norm.contains('sieu nhe')) {
+      if (matchedCategories.isEmpty) matchedCategories.add('Running');
+      directAdviceHeader =
+          '🪶 **Tư vấn dòng giày siêu nhẹ tại VELORA:**\n'
+          'Các mẫu dòng **Chạy bộ (AeroMesh / CloudPace / AeroPulse)** có trọng lượng nhẹ nhất (chỉ ~210–240g/chiếc) nhờ thân lưới dệt thoáng khí.';
+    } else if (norm.contains('quan jeans') ||
+        norm.contains('quan au') ||
+        norm.contains('cong so') ||
+        norm.contains('di lam') ||
+        norm.contains('di hoc') ||
+        norm.contains('phoi do')) {
+      if (matchedCategories.isEmpty) matchedCategories.add('Lifestyle');
+      directAdviceHeader =
+          '👔 **Tư vấn phối đồ đi học / đi làm / mặc quần Jeans & Kaki:**\n'
+          'Dòng **Hằng ngày (Lifestyle)** cổ thấp với phom tối giản (tông Trắng, Kem hoặc Xanh rêu VELORA) là lựa chọn thanh lịch và dễ phối đồ nhất.';
+    } else if (norm.contains('di mua') ||
+        norm.contains('chong nuoc') ||
+        norm.contains('chong tron') ||
+        norm.contains('leo nui') ||
+        norm.contains('phuot')) {
+      if (matchedCategories.isEmpty) matchedCategories.add('Trail');
+      directAdviceHeader =
+          '🌧️ **Tư vấn giày đi mưa / chống trơn trượt / dã ngoại:**\n'
+          'Bạn nên chọn dòng **Địa hình (Trail)** hoặc các mẫu tối màu có gai đế cao su bám đường ướt và bề mặt chống bám bẩn.';
+    } else if (norm.contains('chan be') || norm.contains('mui chan to')) {
+      directAdviceHeader =
+          '🦶 **Tư vấn cho bàn chân bè ngang:**\n'
+          'Bạn nên chọn các mẫu có thân vải dệt Knit co giãn hoặc lưới Engineered Mesh mềm và **tăng thêm 1 size EU** so với chiều dài chân để phần mũi luôn thoải mái.';
+    }
+
     final size = _extractSize(norm);
     final (minBudgetUsd, maxBudgetUsd) = _extractPriceRangeUsd(norm);
     final wantsSale = norm.contains('sale') ||
@@ -542,56 +966,97 @@ class VeloraAiService {
     final wantsCheapest = norm.contains('re nhat') ||
         norm.contains('gia mem') ||
         norm.contains('tiet kiem') ||
-        norm.contains('affordable') ||
-        norm.contains('cheapest') ||
+        norm.contains('thap nhat') ||
         norm.contains('sinh vien');
     final wantsPremium = norm.contains('cao cap') ||
         norm.contains('dat nhat') ||
         norm.contains('xin nhat') ||
-        norm.contains('flagship') ||
-        norm.contains('premium');
+        norm.contains('flagship');
     final wantsBestSeller = norm.contains('ban chay') ||
         norm.contains('noi bat') ||
         norm.contains('hot nhat') ||
-        norm.contains('dep nhat') ||
-        norm.contains('popular');
+        norm.contains('dep nhat');
 
-    // Context-aware style advice snippets (makes AI feel rich & human!)
-    String? lifestyleTip;
-    if (norm.contains('quan jeans') || norm.contains('phoi do') || norm.contains('outfit')) {
-      lifestyleTip = isEn
-          ? 'Styling tip: Clean low-top silhouettes in white, cream, or forest accents pair effortlessly with slim/straight jeans and chinos.'
-          : 'Gợi ý phối đồ: Form cổ thấp gọn gàng tông Trắng, Kem hoặc nhấn Xanh rêu cực kỳ dễ phối với quần jeans ống đứng, quần kaki hay jogger.';
-    } else if (norm.contains('chan be') || norm.contains('dau mui') || norm.contains('wide')) {
-      lifestyleTip = isEn
-          ? 'Wide-foot tip: Breathable knit uppers with flexible toe-boxes give instant comfort without pinching.'
-          : 'Mẹo cho chân bè: Ưu tiên thân giày dệt knit co giãn hoặc mũi tròn thoáng, chọn tăng 0.5–1 size sẽ cực kỳ êm mũi chân.';
-    } else if (norm.contains('qua tang') || norm.contains('nguoi yeu') || norm.contains('sinh nhat') || norm.contains('gift')) {
-      lifestyleTip = isEn
-          ? 'Gift tip: Neutral lifestyle colorways (white/cream/sage) are the safest crowd-pleasers — and VELORA supports free 7-day size exchange!'
-          : 'Gợi ý chọn quà: Các tông màu trung tính (Trắng, Kem, Xanh rêu) dễ mang nhất cho mọi phong cách — VELORA còn hỗ trợ đổi size trong 7 ngày nếu chưa vừa!';
-    } else if (norm.contains('di mua') || norm.contains('de ve sinh')) {
-      lifestyleTip = isEn
-          ? 'Rain-ready tip: Dark obsidian/slate uppers with rugged outsoles resist splashes and wipe clean in seconds.'
-          : 'Mẹo đi mưa: Các mẫu tông Đen / Xám đậm hoặc dòng địa hình chống trượt giúp ít bám bẩn và cực dễ lau sạch sau khi đi mưa.';
-    } else if (norm.contains('mua he') || norm.contains('thoang khi') || norm.contains('khong bi')) {
-      lifestyleTip = isEn
-          ? 'Summer tip: Engineered mesh running & knit uppers maximize airflow so feet stay cool all day.'
-          : 'Mẹo mùa hè: Các mẫu thân lưới engineered mesh & dệt knit siêu thoáng giúp thoát nhiệt nhanh, đi cả ngày không bị bí chân.';
-    } else if (norm.contains('hack dang') || norm.contains('chieu cao')) {
-      lifestyleTip = isEn
-          ? 'Height-boost tip: Sculpted foam midsoles add a subtle 3–4cm lift while staying featherlight.'
-          : 'Mẹo hack dáng: Đế giữa đúc foam nguyên khối giúp tăng chiều cao tự nhiên 3–4cm mà vẫn cực nhẹ chân.';
+    final hasProductCriteria = matchedCategories.isNotEmpty ||
+        matchedColors.isNotEmpty ||
+        size != null ||
+        minBudgetUsd != null ||
+        maxBudgetUsd != null ||
+        wantsSale ||
+        wantsCheapest ||
+        wantsPremium ||
+        wantsBestSeller ||
+        directAdviceHeader != null ||
+        norm.contains('giay') ||
+        norm.contains('doi nao') ||
+        norm.contains('mau nao') ||
+        norm.contains('goi y') ||
+        norm.contains('tu van');
+
+    // If the user typed a completely general question that doesn't ask for shoes,
+    // answer their message directly and offer helpful actions instead of dumping random shoes!
+    if (!hasProductCriteria) {
+      return VeloraAiReply(
+        text: 'Mình đã nhận câu hỏi của bạn: **"$trimmed"**.\n\n'
+            'Tại VELORA, mình có thể hỗ trợ trực tiếp cho bạn các thông tin chính xác từ hệ thống:\n'
+            '• **Kiểm tra đơn hàng & lộ trình giao từ Tổng Kho Hà Nội** (hoặc quy định hủy đơn khi còn Chờ xác nhận).\n'
+            '• **Tạo yêu cầu Đổi size / Đổi mới 1-1 / Hoàn tiền** (chỉ cần điền Địa chỉ đổi mới).\n'
+            '• **Nhắn tin riêng 1-1 với Quản trị viên VELORA** để được nhân viên hỗ trợ trực tiếp.\n'
+            '• **Tìm giày theo đúng mục đích, màu sắc, size EU và ngân sách**.\n\n'
+            'Bạn muốn mình kiểm tra mục nào ngay bây giờ, hay kết nối khung Chat 1-1 với nhân viên VELORA cho bạn nhé?',
+        showSupportChatShortcut: true,
+        showOrdersShortcut: true,
+        showReturnsShortcut: true,
+        followUpPrompts: const [
+          'Kiểm tra đơn hàng của tôi đến đâu rồi?',
+          'Mình muốn đổi size / đổi trả giày thì làm thế nào?',
+          'Giày chạy bộ dưới 2.5 triệu',
+        ],
+      );
     }
 
-    final tokens = norm
-        .split(RegExp(r'[^a-z0-9]+'))
-        .where((t) => t.length >= 2)
-        .toSet();
+    // Filter strictly by category, color, size, and budget when specified!
+    var pool = List<ProductModel>.from(poolProducts);
 
-    // Filter strictly by budget first if budget was explicitly specified
-    var pool = products.where((p) => p.stock > 0).toList();
-    if (pool.isEmpty) pool = products.toList();
+    if (matchedCategories.isNotEmpty) {
+      final catFiltered = pool
+          .where((p) =>
+              matchedCategories.any((c) => _productMatchesCategory(p, c)))
+          .toList();
+      if (catFiltered.isNotEmpty) {
+        pool = catFiltered;
+      }
+    }
+
+    if (matchedColors.isNotEmpty) {
+      final colorFiltered = pool
+          .where(
+              (p) => matchedColors.any((c) => _productMatchesColor(p, c)))
+          .toList();
+      if (colorFiltered.isNotEmpty) {
+        pool = colorFiltered;
+      }
+    }
+
+    if (size != null) {
+      final sizeFiltered = pool.where((p) {
+        final hasVar = (p.productVariations ?? []).any(
+          (v) =>
+              v.stock > 0 &&
+              v.attributeValues.values.any((val) => val.trim().contains(size)),
+        );
+        final hasAttr = p.productAttributes
+                ?.where((a) => a.name?.toLowerCase() == 'size')
+                .firstOrNull
+                ?.values
+                ?.any((v) => v.contains(size)) ??
+            false;
+        return hasVar || hasAttr;
+      }).toList();
+      if (sizeFiltered.isNotEmpty) {
+        pool = sizeFiltered;
+      }
+    }
 
     bool budgetStrictMatched = true;
     if (minBudgetUsd != null || maxBudgetUsd != null) {
@@ -608,75 +1073,45 @@ class VeloraAiService {
       }
     }
 
-    // Score remaining products accurately
+    final tokens = norm
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((t) => t.length >= 2)
+        .toSet();
+
     final scored = <(ProductModel, int)>[];
     for (final p in pool) {
       var score = 0;
       final titleNorm = _normalize(p.title);
-      final catNorm = _normalize(p.categoryName);
       final descNorm = _normalize(p.description ?? '');
       final pct = _discountPct(p);
 
-      if (matchedCategories.isNotEmpty) {
-        if (matchedCategories.any((c) => catNorm.contains(_normalize(c)))) {
-          score += 14;
-        } else {
-          score -= 4;
-        }
+      if (matchedCategories.isNotEmpty &&
+          matchedCategories.any((c) => _productMatchesCategory(p, c))) {
+        score += 20;
       }
-
-      if (matchedColors.isNotEmpty) {
-        final pColors = (p.productAttributes
-                    ?.where((a) => a.name?.toLowerCase() == 'color')
-                    .firstOrNull
-                    ?.values ??
-                [])
-            .map(_normalize)
-            .join(' ');
-        if (matchedColors.any(
-          (c) => pColors.contains(_normalize(c)) || titleNorm.contains(_normalize(c)),
-        )) {
-          score += 10;
-        }
+      if (matchedColors.isNotEmpty &&
+          matchedColors.any((c) => _productMatchesColor(p, c))) {
+        score += 15;
       }
-
-      if (size != null) {
-        final hasSize = (p.productVariations ?? []).any(
-              (v) => v.stock > 0 && v.attributeValues.values.any((val) => val.trim() == size),
-            ) ||
-            (p.productAttributes
-                    ?.where((a) => a.name?.toLowerCase() == 'size')
-                    .firstOrNull
-                    ?.values
-                    ?.contains(size) ??
-                false);
-        if (hasSize) score += 9;
-      }
-
       if (wantsSale) {
-        score += pct > 0 ? (10 + pct) : -8;
+        score += pct > 0 ? (15 + pct) : -10;
       }
       if (wantsBestSeller && p.isFeatured) {
-        score += 6;
+        score += 10;
       }
-
       for (final token in tokens) {
         if (titleNorm.contains(token)) score += 6;
-        if (descNorm.contains(token)) score += 2;
+        if (descNorm.contains(token)) score += 3;
       }
-
-      if (p.stock > 0) score += 2;
       scored.add((p, score));
     }
 
     scored.sort((a, b) {
       if (wantsCheapest) {
-        final cmp = _effectivePrice(a.$1).compareTo(_effectivePrice(b.$1));
-        if (cmp != 0) return cmp;
+        return _effectivePrice(a.$1).compareTo(_effectivePrice(b.$1));
       }
       if (wantsPremium) {
-        final cmp = _effectivePrice(b.$1).compareTo(_effectivePrice(a.$1));
-        if (cmp != 0) return cmp;
+        return _effectivePrice(b.$1).compareTo(_effectivePrice(a.$1));
       }
       if (wantsSale) {
         final cmp = _discountPct(b.$1).compareTo(_discountPct(a.$1));
@@ -687,9 +1122,8 @@ class VeloraAiService {
       return _effectivePrice(a.$1).compareTo(_effectivePrice(b.$1));
     });
 
-    final picks = scored.take(5).map((e) => e.$1).toList();
+    final picks = scored.take(4).map((e) => e.$1).toList();
 
-    // Record user interest in Firestore for Admin Web insights & restock alerts
     final matchedCategoryIds = picks
         .map((p) => p.categoryId)
         .where((id) => id.isNotEmpty)
@@ -697,7 +1131,12 @@ class VeloraAiService {
         .toList();
     final trackedCats = matchedCategories.isNotEmpty
         ? matchedCategories
-        : picks.map((p) => p.categoryName).where((c) => c.isNotEmpty).toSet().take(2).toList();
+        : picks
+            .map((p) => p.categoryName)
+            .where((c) => c.isNotEmpty)
+            .toSet()
+            .take(2)
+            .toList();
     _recordUserInterest(
       query: trimmed,
       categories: trackedCats,
@@ -706,65 +1145,60 @@ class VeloraAiService {
       maxBudgetUsd: maxBudgetUsd,
     );
 
-    // Build accurate, dynamic, price-verified response!
     final criteria = <String>[];
     if (matchedCategories.isNotEmpty) {
-      criteria.add(matchedCategories.map((c) => isEn ? c : _viCat(c)).join(', '));
+      criteria.add(matchedCategories.map(_viCat).join(', '));
     }
     if (matchedColors.isNotEmpty) {
-      criteria.add(isEn ? matchedColors.join(', ') : 'màu ${matchedColors.map(_viColor).join(', ')}');
+      criteria.add('màu ${matchedColors.map(_viColor).join(', ')}');
     }
     if (size != null) criteria.add('size EU $size');
     if (minBudgetUsd != null && maxBudgetUsd != null) {
       criteria.add(
-        '${formatShopMoney(minBudgetUsd, language: language)} – ${formatShopMoney(maxBudgetUsd, language: language)}',
+        'từ ${formatShopMoney(minBudgetUsd, language: language)} đến ${formatShopMoney(maxBudgetUsd, language: language)}',
       );
     } else if (maxBudgetUsd != null) {
-      criteria.add('${isEn ? 'under' : 'dưới'} ${formatShopMoney(maxBudgetUsd, language: language)}');
+      criteria.add('dưới ${formatShopMoney(maxBudgetUsd, language: language)}');
     } else if (minBudgetUsd != null) {
-      criteria.add('${isEn ? 'over' : 'trên'} ${formatShopMoney(minBudgetUsd, language: language)}');
+      criteria.add('trên ${formatShopMoney(minBudgetUsd, language: language)}');
     }
-    if (wantsSale) criteria.add(isEn ? 'best discounts' : 'giảm giá tốt nhất');
-    if (wantsCheapest) criteria.add(isEn ? 'best value' : 'giá mềm nhất');
-    if (wantsPremium) criteria.add(isEn ? 'flagship tier' : 'dòng cao cấp');
+    if (wantsSale) criteria.add('đang giảm giá sâu nhất');
+    if (wantsCheapest) criteria.add('giá mềm nhất');
+    if (wantsPremium) criteria.add('phân khúc cao cấp nhất');
 
     final buf = StringBuffer();
+    if (directAdviceHeader != null) {
+      buf.writeln(directAdviceHeader);
+      buf.writeln();
+    }
+
     if (!budgetStrictMatched && maxBudgetUsd != null) {
       buf.writeln(
-        isEn
-            ? 'Currently our closest VELORA pairs start slightly above ${formatShopMoney(maxBudgetUsd, language: 'en')} — here are the best-priced matches:'
-            : 'Hiện tại các mẫu VELORA có giá khởi điểm nhỉnh hơn ${formatShopMoney(maxBudgetUsd, language: 'vi')} một chút — mình gợi ý những đôi giá tốt sát ngân sách nhất cho bạn:',
+        'Hiện tại các mẫu đúng dòng bạn chọn có mức giá nhỉnh hơn ${formatShopMoney(maxBudgetUsd, language: 'vi')} một chút — dưới đây là ${picks.length} mẫu có giá sát ngân sách của bạn nhất:',
       );
     } else if (criteria.isNotEmpty) {
       buf.writeln(
-        isEn
-            ? 'Here are the top ${picks.length} VELORA matches for ${criteria.join(' · ')}:'
-            : 'Mình đã lọc ra ${picks.length} mẫu VELORA chuẩn nhất theo tiêu chí ${criteria.join(' · ')}:',
+        'Mình đã lọc chính xác **${picks.length} mẫu VELORA** theo đúng yêu cầu **${criteria.join(' · ')}** của bạn:',
       );
     } else {
       buf.writeln(
-        isEn
-            ? 'Here are ${picks.length} standout VELORA designs ready to ship:'
-            : 'Dưới đây là ${picks.length} mẫu giày VELORA nổi bật đang sẵn hàng:',
+        'Dưới đây là **${picks.length} mẫu giày VELORA** phù hợp nhất với yêu cầu của bạn:',
       );
     }
 
-    for (final p in picks.take(3)) {
+    for (final p in picks) {
       final eff = formatShopMoney(_effectivePrice(p), language: language);
       final pct = _discountPct(p);
-      final saleNote = pct > 0 ? ' (-$pct%)' : '';
-      buf.writeln('• ${p.title} (${isEn ? p.categoryName : _viCat(p.categoryName)}): $eff$saleNote');
-    }
-
-    if (lifestyleTip != null) {
-      buf.writeln('\n$lifestyleTip');
+      final saleNote = pct > 0 ? ' (đang giảm $pct%)' : '';
+      buf.writeln(
+        '• **${p.title}** (${_viCat(p.categoryName)}): **$eff**$saleNote',
+      );
     }
 
     final followUps = <String>[
-      if (size == null) 'Chân dài 26cm đi size mấy?',
-      if (!wantsSale) 'Mẫu nào đang giảm giá sâu nhất?',
       if (picks.length >= 2) 'So sánh ${picks[0].title} và ${picks[1].title}',
-      'Có mã giảm giá / voucher nào hôm nay?',
+      if (size == null) 'Chân dài 26cm đi size mấy?',
+      'Ship về Hà Nội mất mấy ngày?',
     ].take(3).toList();
 
     return VeloraAiReply(
@@ -774,14 +1208,21 @@ class VeloraAiService {
     );
   }
 
-  static String _viCat(String c) => switch (c) {
-        'Running' => 'Chạy bộ',
-        'Basketball' => 'Bóng rổ',
-        'Lifestyle' => 'Hằng ngày',
-        'Training' => 'Tập luyện',
-        'Trail' => 'Địa hình',
-        _ => c,
-      };
+  static String _viCat(String c) {
+    final norm = _normalize(c);
+    if (norm.contains('running') || norm.contains('chay')) return 'Chạy bộ';
+    if (norm.contains('basketball') || norm.contains('bong ro')) {
+      return 'Bóng rổ';
+    }
+    if (norm.contains('lifestyle') || norm.contains('hang ngay')) {
+      return 'Hằng ngày';
+    }
+    if (norm.contains('training') || norm.contains('tap luyen')) {
+      return 'Tập luyện';
+    }
+    if (norm.contains('trail') || norm.contains('dia hinh')) return 'Địa hình';
+    return c;
+  }
 
   static String _viColor(String c) => switch (c) {
         'White' => 'Trắng',
@@ -804,41 +1245,48 @@ class VeloraAiService {
     required List<String> categories,
     required List<String> categoryIds,
     required List<String> colors,
-    double? maxBudgetUsd,
+    required double? maxBudgetUsd,
   }) async {
     try {
-      final authUser = FirebaseAuth.instance.currentUser;
-      if (authUser == null) return;
-      final uid = authUser.uid;
-      final userName = Get.isRegistered<UserController>() &&
-              UserController.instance.user.value.fullName.trim().isNotEmpty
-          ? UserController.instance.user.value.fullName.trim()
-          : (authUser.displayName ?? authUser.email ?? 'Khách hàng');
-      final userEmail = authUser.email ?? '';
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
 
-      final ref = _db.collection('UserInterests').doc(uid);
-      await ref.set({
-        'userId': uid,
+      var userName = user.displayName ?? '';
+      var userEmail = user.email ?? '';
+      if (Get.isRegistered<UserController>()) {
+        final u = UserController.instance.user.value;
+        if (u.fullName.trim().isNotEmpty) userName = u.fullName.trim();
+        if (u.email.trim().isNotEmpty) userEmail = u.email.trim();
+      }
+      if (userName.isEmpty) {
+        userName = userEmail.isNotEmpty
+            ? userEmail.split('@').first
+            : 'Khách hàng';
+      }
+
+      await _db.collection('UserInterests').doc(user.uid).set({
+        'userId': user.uid,
         'userName': userName,
         'userEmail': userEmail,
         'lastQuery': query,
         'recentQueries': FieldValue.arrayUnion([query]),
         'interestedBrands': FieldValue.arrayUnion(['VELORA']),
-        if (categories.isNotEmpty) 'interestedCategories': FieldValue.arrayUnion(categories),
-        if (categoryIds.isNotEmpty) 'interestedCategoryIds': FieldValue.arrayUnion(categoryIds),
-        if (colors.isNotEmpty) 'interestedColors': FieldValue.arrayUnion(colors),
-        if (maxBudgetUsd != null) 'lastBudgetUsd': maxBudgetUsd,
+        if (categories.isNotEmpty)
+          'interestedCategories': FieldValue.arrayUnion(categories),
+        if (categoryIds.isNotEmpty)
+          'interestedCategoryIds': FieldValue.arrayUnion(categoryIds),
+        if (colors.isNotEmpty)
+          'interestedColors': FieldValue.arrayUnion(colors),
+        if (maxBudgetUsd != null) 'lastMaxBudgetUsd': maxBudgetUsd,
         'queryCount': FieldValue.increment(1),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       if (categoryIds.isNotEmpty) {
-        await _db.collection('Users').doc(uid).set({
+        await _db.collection('Users').doc(user.uid).set({
           'FavoriteCategoryIds': FieldValue.arrayUnion(categoryIds),
         }, SetOptions(merge: true));
       }
-    } catch (_) {
-      // Non-blocking analytics write.
-    }
+    } catch (_) {}
   }
 }

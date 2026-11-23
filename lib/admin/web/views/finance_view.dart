@@ -112,16 +112,25 @@ class AdminFinanceView extends StatelessWidget {
                           for (final vat in [0.0, 5.0, 8.0, 10.0])
                             Padding(
                               padding: const EdgeInsets.only(right: 6),
-                              child: ChoiceChip(
-                                label: Text(
-                                  vat == 0 ? 'Cố định (\$2/đơn)' : 'VAT ${vat.toInt()}%',
-                                  style: const TextStyle(fontSize: 11.5),
-                                ),
-                                selected: controller.vatRatePercent.value == vat,
-                                selectedColor: AdminColors.sageSoft,
-                                onSelected: (_) =>
-                                    controller.vatRatePercent.value = vat,
-                              ),
+                              child: Builder(builder: (_) {
+                                final isSel = controller.vatRatePercent.value == vat;
+                                return ChoiceChip(
+                                  label: Text(
+                                    vat == 0 ? 'Cố định (\$2/đơn)' : 'VAT ${vat.toInt()}%',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isSel ? Colors.white : AdminColors.ink,
+                                    ),
+                                  ),
+                                  selected: isSel,
+                                  selectedColor: AdminColors.forest,
+                                  checkmarkColor: Colors.white,
+                                  backgroundColor: AdminColors.surfaceMuted,
+                                  onSelected: (_) =>
+                                      controller.vatRatePercent.value = vat,
+                                );
+                              }),
                             ),
                         ],
                       ),

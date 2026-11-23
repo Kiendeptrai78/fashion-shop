@@ -9,6 +9,7 @@ enum AdminSection {
   finance,
   orders,
   returns,
+  supportChat,
   products,
   featured,
   vouchers,
@@ -133,7 +134,13 @@ class AdminAutomationSettings {
         'Thấy {name} yêu thích video {product} — VELORA gợi ý thêm {similar} cùng dòng {category} đã được mở khóa trên tab Nổi bật Dành cho bạn!',
     this.autoReturnReply = true,
     this.templateReturnReply =
-        'VELORA CSKH đã duyệt yêu cầu {type} cho mẫu {product} ({newSize}) của {name}. Shipper VELORA sẽ liên hệ thu hồi đôi cũ tận nơi miễn phí và gửi ngay đôi mới từ Tổng Kho Hà Nội tới bạn!',
+        'VELORA CSKH đã duyệt yêu cầu {type} cho mẫu {product} ({newSize}) của {name}. VELORA sẽ xử lý và nhắn tin xác nhận lịch gửi đôi mới về địa chỉ đổi mới cho bạn!',
+    this.autoChatOnOrderStatus = true,
+    this.templateChatOrderStatus =
+        'Xin chào {name}, đơn hàng {items} của bạn vừa được cập nhật sang trạng thái "{status}"! {eta}. Nếu có bất kỳ yêu cầu nào về giao hàng hoặc đổi size (trong 7 ngày), bạn cứ nhắn trực tiếp tại đây nhé ❤️',
+    this.autoChatOnNewProduct = true,
+    this.templateChatNewProduct =
+        '🔥 Chào {name}! VELORA vừa lên kệ mẫu giày mới {product} (dòng {category}) giá chỉ {price} — sẵn đủ size EU 38–44 tại Tổng Kho Hà Nội. Bạn xem thử và nhắn VELORA giữ size cho bạn nhé!',
   });
 
   final bool autoWelcomeVoucher;
@@ -155,6 +162,10 @@ class AdminAutomationSettings {
   final String templateVideoSimilarPush;
   final bool autoReturnReply;
   final String templateReturnReply;
+  final bool autoChatOnOrderStatus;
+  final String templateChatOrderStatus;
+  final bool autoChatOnNewProduct;
+  final String templateChatNewProduct;
 
   factory AdminAutomationSettings.defaults() => const AdminAutomationSettings();
 
@@ -237,6 +248,47 @@ class AdminAutomationSettings {
         );
   }
 
+  String renderOrderStatusChat({
+    required String customerName,
+    required String itemsSummary,
+    required String statusLabel,
+    required String etaNote,
+  }) {
+    return templateChatOrderStatus
+        .replaceAll(
+          '{name}',
+          customerName.trim().isEmpty ? 'bạn' : customerName.trim(),
+        )
+        .replaceAll(
+          '{items}',
+          itemsSummary.trim().isEmpty ? 'đơn hàng VELORA' : itemsSummary.trim(),
+        )
+        .replaceAll('{status}', statusLabel.trim())
+        .replaceAll('{eta}', etaNote.trim());
+  }
+
+  String renderNewProductChat({
+    required String customerName,
+    required String productTitle,
+    required String categoryName,
+    required String priceLabel,
+  }) {
+    return templateChatNewProduct
+        .replaceAll(
+          '{name}',
+          customerName.trim().isEmpty ? 'bạn' : customerName.trim(),
+        )
+        .replaceAll(
+          '{product}',
+          productTitle.trim().isEmpty ? 'mẫu giày mới VELORA' : productTitle.trim(),
+        )
+        .replaceAll(
+          '{category}',
+          categoryName.trim().isEmpty ? 'giày thể thao' : categoryName.trim(),
+        )
+        .replaceAll('{price}', priceLabel.trim());
+  }
+
   AdminAutomationSettings copyWith({
     bool? autoWelcomeVoucher,
     int? welcomePercent,
@@ -257,6 +309,10 @@ class AdminAutomationSettings {
     String? templateVideoSimilarPush,
     bool? autoReturnReply,
     String? templateReturnReply,
+    bool? autoChatOnOrderStatus,
+    String? templateChatOrderStatus,
+    bool? autoChatOnNewProduct,
+    String? templateChatNewProduct,
   }) {
     return AdminAutomationSettings(
       autoWelcomeVoucher: autoWelcomeVoucher ?? this.autoWelcomeVoucher,
@@ -280,6 +336,13 @@ class AdminAutomationSettings {
           templateVideoSimilarPush ?? this.templateVideoSimilarPush,
       autoReturnReply: autoReturnReply ?? this.autoReturnReply,
       templateReturnReply: templateReturnReply ?? this.templateReturnReply,
+      autoChatOnOrderStatus:
+          autoChatOnOrderStatus ?? this.autoChatOnOrderStatus,
+      templateChatOrderStatus:
+          templateChatOrderStatus ?? this.templateChatOrderStatus,
+      autoChatOnNewProduct: autoChatOnNewProduct ?? this.autoChatOnNewProduct,
+      templateChatNewProduct:
+          templateChatNewProduct ?? this.templateChatNewProduct,
     );
   }
 
@@ -303,6 +366,10 @@ class AdminAutomationSettings {
         'templateVideoSimilarPush': templateVideoSimilarPush,
         'autoReturnReply': autoReturnReply,
         'templateReturnReply': templateReturnReply,
+        'autoChatOnOrderStatus': autoChatOnOrderStatus,
+        'templateChatOrderStatus': templateChatOrderStatus,
+        'autoChatOnNewProduct': autoChatOnNewProduct,
+        'templateChatNewProduct': templateChatNewProduct,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -346,6 +413,18 @@ class AdminAutomationSettings {
           (data['templateReturnReply'] as String?)?.trim().isNotEmpty == true
               ? data['templateReturnReply'] as String
               : d.templateReturnReply,
+      autoChatOnOrderStatus:
+          data['autoChatOnOrderStatus'] as bool? ?? d.autoChatOnOrderStatus,
+      templateChatOrderStatus:
+          (data['templateChatOrderStatus'] as String?)?.trim().isNotEmpty == true
+              ? data['templateChatOrderStatus'] as String
+              : d.templateChatOrderStatus,
+      autoChatOnNewProduct:
+          data['autoChatOnNewProduct'] as bool? ?? d.autoChatOnNewProduct,
+      templateChatNewProduct:
+          (data['templateChatNewProduct'] as String?)?.trim().isNotEmpty == true
+              ? data['templateChatNewProduct'] as String
+              : d.templateChatNewProduct,
     );
   }
 }

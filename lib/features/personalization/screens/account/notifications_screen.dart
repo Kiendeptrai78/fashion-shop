@@ -12,6 +12,7 @@ import 'package:fashion_business_app/features/shop/screens/order/return_request_
 import 'package:fashion_business_app/features/shop/screens/product_details/product_details.dart';
 import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
 import 'package:fashion_business_app/features/shop/screens/reels/velora_reels_screen.dart';
+import 'package:fashion_business_app/features/shop/screens/support_chat/velora_support_chat_screen.dart';
 import 'package:fashion_business_app/utils/local_storage/local_utility.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
@@ -181,6 +182,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SnackBar(content: ShopText('Product no longer available.')),
           );
         }
+      }
+    } else if (kind == 'support_chat' || docId.startsWith('chat-')) {
+      if (mounted) {
+        Get.to(() => const VeloraSupportChatScreen());
       }
     } else if (kind == 'return' || docId.startsWith('return-')) {
       if (mounted) {
@@ -560,8 +565,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       const SizedBox(height: 6),
                       Text(
                         title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: isRead ? FontWeight.w600 : FontWeight.w700,
@@ -572,8 +576,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           body,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
                           style: theme.textTheme.bodySmall?.copyWith(height: 1.45),
                         ),
                       ],

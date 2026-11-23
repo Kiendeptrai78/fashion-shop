@@ -20,8 +20,7 @@ class TProductPriceText extends StatelessWidget {
   Widget build(BuildContext context) {
     return ShopText(
       formatShopPrice(price, language: Localizations.localeOf(context).languageCode),
-      maxLines: maxLines,
-      overflow: TextOverflow.ellipsis,
+      softWrap: true,
       style: isLarge
           ? Theme.of(context).textTheme.headlineMedium!.apply(
               decoration: lineThrough ? TextDecoration.lineThrough : null)

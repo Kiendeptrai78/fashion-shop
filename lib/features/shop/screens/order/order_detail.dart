@@ -11,6 +11,7 @@ import 'package:fashion_business_app/features/shop/models/return_request_model.d
 import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
 import 'package:fashion_business_app/features/shop/screens/order/return_request_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
+import 'package:fashion_business_app/features/shop/screens/support_chat/velora_support_chat_screen.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -29,11 +30,23 @@ class OrderDetail extends StatefulWidget {
 class _OrderDetailState extends State<OrderDetail> {
   bool _busy = false;
   String? _error;
+  late final Map<int, Future<ProductAvailabilityResult>> _availabilityFutures;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _orderReturnsStream;
   OrderModel get order => widget.order;
 
   @override
   void initState() {
     super.initState();
+    _availabilityFutures = {
+      for (var i = 0; i < order.items.length; i++)
+        i: ProductAvailabilityHelper.checkCartItem(order.items[i]),
+    };
+    if (Firebase.apps.isNotEmpty) {
+      _orderReturnsStream = FirebaseFirestore.instance
+          .collection('ReturnRequests')
+          .where('orderId', isEqualTo: order.id)
+          .snapshots();
+    }
     if (order.status == OrderStatus.cancelled && order.paymentMethod == 'Demo bank') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _refund();
@@ -109,7 +122,7 @@ class _OrderDetailState extends State<OrderDetail> {
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(vertical: 4),
                   leading: TRoundedImage(imageUrl: item.image ?? '', width: 52, height: 52, isNetworkImage: true),
-                  title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  title: Text(item.title, softWrap: true,
                       style: const TextStyle(fontWeight: FontWeight.w600)),
                   trailing: const Icon(Icons.star_rounded, color: Color(0xFFD99A1E)),
                   onTap: () {
@@ -135,17 +148,30 @@ class _OrderDetailState extends State<OrderDetail> {
     final tone = order.statusColor;
     final bgTone = order.statusBgColor;
     final borderTone = order.statusBorderColor;
-    final canCancel = [OrderStatus.pending, OrderStatus.processing].contains(order.status);
+    // Chỉ cho phép hủy đơn hàng khi đơn đang ở trạng thái "Chờ xác nhận" (OrderStatus.pending)
+    final canCancel = order.status == OrderStatus.pending;
     final canReceive = order.status == OrderStatus.shipped;
 
     return Scaffold(
-      appBar: const TAppbar(
+      appBar: TAppbar(
         showBackArrow: true,
-        title: ShopText('Order details', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        title: const ShopText('Order details', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        actions: [
+          IconButton(
+            tooltip: 'Chat trực tiếp với VELORA',
+            onPressed: () => Get.to(
+              () => VeloraSupportChatScreen(initialOrder: order),
+            ),
+            icon: const Icon(Iconsax.message_text_1),
+          ),
+        ],
       ),
-      body: ListView(
+      body: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         padding: const EdgeInsets.all(20),
-        children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -204,7 +230,87 @@ class _OrderDetailState extends State<OrderDetail> {
                 if (!cancelled) ...[
                   const SizedBox(height: 16),
                   _buildOrderTimeline(order.status, locale == 'en'),
+                  if (order.status == OrderStatus.processing ||
+                      order.status == OrderStatus.shipped) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: dark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : Colors.white.withValues(alpha: 0.78),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: borderTone.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Iconsax.info_circle,
+                            size: 15,
+                            color: tone,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              locale == 'en'
+                                  ? 'This order is already confirmed/shipping and can no longer be cancelled. After delivery, you can request a Return or Exchange if needed.'
+                                  : 'Đơn hàng đã chuyển sang đóng gói / giao hàng nên không thể hủy. Sau khi nhận hàng, bạn có thể bấm Yêu cầu Đổi / Trả nếu cần hỗ trợ.',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                height: 1.35,
+                                fontWeight: FontWeight.w600,
+                                color: dark
+                                    ? const Color(0xFFE2E8F0)
+                                    : const Color(0xFF334155),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Get.to(
+                      () => VeloraSupportChatScreen(initialOrder: order),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: dark
+                          ? const Color(0xFFDDEABB)
+                          : const Color(0xFF173E32),
+                      backgroundColor: dark
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.white.withValues(alpha: 0.85),
+                      side: BorderSide(
+                        color: dark
+                            ? const Color(0xFFDDEABB).withValues(alpha: 0.4)
+                            : const Color(0xFF173E32).withValues(alpha: 0.35),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Iconsax.message_text_1, size: 17),
+                    label: Text(
+                      locale == 'en'
+                          ? 'Chat directly with VELORA about this order'
+                          : 'Chat riêng với VELORA về đơn hàng / đổi trả',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -218,10 +324,12 @@ class _OrderDetailState extends State<OrderDetail> {
           const SizedBox(height: 24),
           const ShopText('Your pairs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
-          for (final item in order.items)
-            FutureBuilder<ProductAvailabilityResult>(
-              future: ProductAvailabilityHelper.checkCartItem(item),
-              builder: (context, availSnap) {
+          for (var i = 0; i < order.items.length; i++)
+            Builder(builder: (context) {
+              final item = order.items[i];
+              return FutureBuilder<ProductAvailabilityResult>(
+                future: _availabilityFutures[i],
+                builder: (context, availSnap) {
                 final unavailable = availSnap.data?.isUnavailable == true;
                 final isEn = locale == 'en';
                 return Container(
@@ -267,8 +375,7 @@ class _OrderDetailState extends State<OrderDetail> {
                               children: [
                                 Text(
                                   item.title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: true,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14.5,
@@ -364,44 +471,63 @@ class _OrderDetailState extends State<OrderDetail> {
                                                 ),
                                               ),
                                             ),
-                                          OutlinedButton.icon(
-                                            onPressed: () =>
-                                                openReturnRequestComposer(
-                                              context,
-                                              order: order,
-                                              item: item,
-                                            ),
-                                            icon: const Icon(
-                                              Iconsax.refresh_circle,
-                                              size: 14,
-                                              color: Color(0xFF0284C7),
-                                            ),
-                                            label: Text(
-                                              isEn
-                                                  ? 'Return / Exchange'
-                                                  : 'Đổi / Trả',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                                color: Color(0xFF0284C7),
+                                          Builder(builder: (_) {
+                                            final daysLeft =
+                                                returnWindowDaysLeft(order);
+                                            final eligible = daysLeft >= 0;
+                                            return OutlinedButton.icon(
+                                              onPressed: eligible
+                                                  ? () =>
+                                                      openReturnRequestComposer(
+                                                        context,
+                                                        order: order,
+                                                        item: item,
+                                                      )
+                                                  : null,
+                                              icon: Icon(
+                                                eligible
+                                                    ? Iconsax.refresh_circle
+                                                    : Icons.block_rounded,
+                                                size: 14,
+                                                color: eligible
+                                                    ? const Color(0xFF0284C7)
+                                                    : Colors.grey,
                                               ),
-                                            ),
-                                            style: OutlinedButton.styleFrom(
-                                              side: const BorderSide(
-                                                color: Color(0xFF38BDF8),
+                                              label: Text(
+                                                eligible
+                                                    ? (isEn
+                                                        ? 'Return (${daysLeft}d left)'
+                                                        : 'Đổi / Trả (còn $daysLeft ngày)')
+                                                    : (isEn
+                                                        ? 'Expired (>7 days)'
+                                                        : 'Quá hạn đổi trả 7 ngày'),
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: eligible
+                                                      ? const Color(0xFF0284C7)
+                                                      : Colors.grey,
+                                                ),
                                               ),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 10,
-                                                vertical: 6,
+                                              style: OutlinedButton.styleFrom(
+                                                side: BorderSide(
+                                                  color: eligible
+                                                      ? const Color(0xFF38BDF8)
+                                                      : Colors.grey.shade300,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 6,
+                                                ),
+                                                minimumSize: const Size(0, 32),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
                                               ),
-                                              minimumSize: const Size(0, 32),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                            ),
-                                          ),
+                                            );
+                                          }),
                                           if (!unavailable)
                                             OutlinedButton.icon(
                                               onPressed: () =>
@@ -441,14 +567,12 @@ class _OrderDetailState extends State<OrderDetail> {
                   ),
                 );
               },
-            ),
-          // Live Return / Exchange Tracking section for this order
-          if (Firebase.apps.isNotEmpty)
+              );
+            }),
+          // Live Return / Exchange Tracking section for this order (cached stream, no scroll jump)
+          if (_orderReturnsStream != null)
             StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('ReturnRequests')
-                  .where('orderId', isEqualTo: order.id)
-                  .snapshots(),
+              stream: _orderReturnsStream,
               builder: (context, retSnap) {
                 final reqs = (retSnap.data?.docs ?? const [])
                     .map(ReturnRequestModel.fromSnapshot)
@@ -459,22 +583,38 @@ class _OrderDetailState extends State<OrderDetail> {
                   children: [
                     const Divider(height: 30),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          locale == 'en'
-                              ? 'Return & Exchange Progress (${reqs.length})'
-                              : 'Tiến trình Đổi trả & Bảo hành (${reqs.length})',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
+                        Expanded(
+                          child: Text(
+                            locale == 'en'
+                                ? 'Return & Exchange Progress (${reqs.length})'
+                                : 'Tiến trình Đổi trả & Bảo hành (${reqs.length})',
+                            softWrap: true,
+                            style: const TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
                           onPressed: () =>
                               Get.to(() => const MyReturnRequestsScreen()),
                           child: Text(
-                            locale == 'en' ? 'View all' : 'Xem tất cả',
+                            locale == 'en' ? 'View all →' : 'Xem tất cả →',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ],
@@ -518,7 +658,8 @@ class _OrderDetailState extends State<OrderDetail> {
               padding: const EdgeInsets.only(top: 18),
               child: ShopText(_error!, style: TextStyle(color: theme.colorScheme.error)),
             ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: (!canCancel && !canReceive && !(received && order.items.isNotEmpty))
           ? null
@@ -641,8 +782,7 @@ class _OrderDetailState extends State<OrderDetail> {
               Text(
                 labels[idx],
                 textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                softWrap: true,
                 style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: current ? FontWeight.w800 : FontWeight.w600,

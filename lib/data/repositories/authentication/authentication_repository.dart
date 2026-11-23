@@ -224,7 +224,7 @@ class AuthenticationRepository extends GetxController {
   ///[logout user] -valid for any authentication
   Future<void> logoutAdmin() async {
     try {
-      if (!kIsWeb) {
+      if (!kIsWeb && defaultTargetPlatform != TargetPlatform.iOS) {
         try {
           await GoogleSignIn().signOut();
         } catch (_) {}
@@ -266,20 +266,38 @@ class AuthenticationRepository extends GetxController {
   ///[Google Authentication] -Google
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      //trigger the auth flow
-      final GoogleSignInAccount? userAccount = await GoogleSignIn().signIn();
+      final provider = GoogleAuthProvider()
+        ..addScope('email')
+        ..setCustomParameters({'prompt': 'select_account'});
 
-      //obtain the auth details from the request
-      final GoogleSignInAuthentication? googleAuth = await userAccount?.authentication;
+      if (kIsWeb) {
+        return await _auth.signInWithPopup(provider);
+      }
 
-      //create a new credential
-      final credentials = GoogleAuthProvider.credential(accessToken: googleAuth?.accessToken, idToken: googleAuth?.idToken,);
+      // On iOS, FirebaseAuth.signInWithProvider uses ASWebAuthenticationSession
+      // directly with Firebase Auth OAuth and never crashes when GIDClientID is absent.
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        return await _auth.signInWithProvider(provider);
+      }
 
-      //once signed in, return the UserCredentials
-      return await _auth.signInWithCredential(credentials);
-
-
+      // On Android, try native GoogleSignIn first and fallback to signInWithProvider.
+      try {
+        final GoogleSignInAccount? userAccount = await GoogleSignIn().signIn();
+        if (userAccount == null) return null;
+        final GoogleSignInAuthentication googleAuth =
+            await userAccount.authentication;
+        final credentials = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        return await _auth.signInWithCredential(credentials);
+      } on PlatformException {
+        return await _auth.signInWithProvider(provider);
+      }
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'web-context-canceled' || e.code == 'canceled') {
+        return null;
+      }
       throw TFirebaseAuthException(e.code).message;
     } on FirebaseException catch (e) {
       throw TFirebaseException(e.code).message;
@@ -288,8 +306,8 @@ class AuthenticationRepository extends GetxController {
     } on PlatformException catch (e) {
       throw TPlatformException(e.code).message;
     } catch (e) {
-      if(kDebugMode) print('Something went wrong: $e');
-      return null;
+      if (kDebugMode) print('Google sign-in error: $e');
+      rethrow;
     }
   }
   ///[Facebook Authentication] -Facebook
@@ -299,7 +317,7 @@ class AuthenticationRepository extends GetxController {
   ///[logout user] -valid for any authentication
   Future<void> logout() async {
     try {
-      if (!kIsWeb) {
+      if (!kIsWeb && defaultTargetPlatform != TargetPlatform.iOS) {
         try {
           await GoogleSignIn().signOut();
         } catch (_) {}

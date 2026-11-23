@@ -2,14 +2,13 @@ import 'package:fashion_business_app/features/personalization/services/account_a
 import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_count_badge.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
-import 'package:fashion_business_app/features/shop/controllers/product/favourite_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/features/personalization/screens/settings/setting_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/home/home_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/reels/velora_reels_screen.dart';
-import 'package:fashion_business_app/features/shop/screens/wishlist/wishlish_screen.dart';
+import 'package:fashion_business_app/features/shop/screens/support_chat/velora_support_chat_screen.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
 
 import 'features/shop/screens/cart/cart_screen.dart';
@@ -28,7 +27,7 @@ class NavigationMenu extends StatelessWidget {
     return Scaffold(
       bottomNavigationBar: Obx(() {
         final cartCount = CartController.instance.noOfCartItem.value;
-        final favCount = FavouritesController.instance.favourites.values.where((saved) => saved).length;
+        final chatUnread = AccountActivity.current?.chatUnread.value ?? 0;
         final profileCount = (AccountActivity.current?.activeOrders ?? 0) +
             (AccountActivity.current?.unread ?? 0) +
             (Get.isRegistered<CustomerBenefits>() ? CustomerBenefits.instance.newCouponCount : 0);
@@ -93,9 +92,9 @@ class NavigationMenu extends StatelessWidget {
                   label: 'Cart'.tr,
                 ),
                 NavigationDestination(
-                  icon: ShopCountBadge(count: favCount, child: const Icon(Iconsax.heart)),
-                  selectedIcon: ShopCountBadge(count: favCount, child: const Icon(Iconsax.heart5)),
-                  label: 'Wishlist'.tr,
+                  icon: ShopCountBadge(count: chatUnread, child: const Icon(Iconsax.message_text_1)),
+                  selectedIcon: ShopCountBadge(count: chatUnread, child: const Icon(Iconsax.message_text5)),
+                  label: 'Chat',
                 ),
                 NavigationDestination(
                   icon: ShopCountBadge(count: profileCount, child: const Icon(Iconsax.user)),
@@ -118,7 +117,7 @@ class NavigationController extends GetxController {
     const HomeScreen(),
     const VeloraReelsScreen(),
     const CartScreen(),
-    const WishList(),
+    const VeloraSupportChatScreen(embeddedInNav: true),
     const SettingScreen()
   ];
 }

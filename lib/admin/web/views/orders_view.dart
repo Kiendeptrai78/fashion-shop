@@ -71,6 +71,17 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
 
           Future<void> applyStatus(OrderStatus next) async {
             if (next == currentStatus) return;
+            if (next == OrderStatus.cancelled &&
+                currentStatus != OrderStatus.pending) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Chỉ có thể hủy đơn khi đơn đang ở trạng thái "Chờ xác nhận". Đơn hàng đã đóng gói hoặc đang giao không thể hủy.',
+                  ),
+                ),
+              );
+              return;
+            }
             setModalState(() => saving = true);
             await widget.controller.updateOrderStatus(record, next);
             setModalState(() {
@@ -237,8 +248,7 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                                         loading: saving,
                                         onPressed: () => applyStatus(nextStep),
                                       ),
-                                    if (currentStatus == OrderStatus.pending ||
-                                        currentStatus == OrderStatus.processing)
+                                    if (currentStatus == OrderStatus.pending)
                                       OutlinedButton.icon(
                                         onPressed: saving
                                             ? null
@@ -258,9 +268,14 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                                       child: DropdownButtonFormField<OrderStatus>(
                                         value: currentStatus,
                                         decoration: adminInputDecoration(
-                                          label: 'Chuyển trạng thái bất kỳ',
+                                          label: 'Chuyển trạng thái',
                                         ),
-                                        items: OrderStatus.values.map((status) {
+                                        items: OrderStatus.values
+                                            .where((status) =>
+                                                status != OrderStatus.cancelled ||
+                                                currentStatus == OrderStatus.pending ||
+                                                currentStatus == OrderStatus.cancelled)
+                                            .map((status) {
                                           final sm = AdminOrderStatusMeta.of(status);
                                           return DropdownMenuItem(
                                             value: status,
@@ -735,9 +750,7 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                                                     Text(
                                                       record.order
                                                           .itemsSummary(),
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
+                                                      softWrap: true,
                                                       style: const TextStyle(
                                                         fontWeight:
                                                             FontWeight.w700,
@@ -772,8 +785,7 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                                             children: [
                                               Text(
                                                 record.customerName,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                                softWrap: true,
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w600,
                                                   fontSize: 12.5,
@@ -783,9 +795,7 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                                                   .customerEmail.isNotEmpty)
                                                 Text(
                                                   record.customerEmail,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
+                                                  softWrap: true,
                                                   style: const TextStyle(
                                                     fontSize: 11,
                                                     color: AdminColors.inkMuted,
@@ -804,19 +814,23 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
-                                                  const Icon(
-                                                    Iconsax.routing,
-                                                    size: 13,
-                                                    color: AdminColors.sky,
+                                                  const Padding(
+                                                    padding: EdgeInsets.only(
+                                                        top: 2),
+                                                    child: Icon(
+                                                      Iconsax.routing,
+                                                      size: 13,
+                                                      color: AdminColors.sky,
+                                                    ),
                                                   ),
                                                   const SizedBox(width: 4),
                                                   Expanded(
                                                     child: Text(
                                                       'Kho HN → ${eta.destinationCity}',
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
+                                                      softWrap: true,
                                                       style: const TextStyle(
                                                         fontSize: 12,
                                                         fontWeight:
@@ -830,8 +844,7 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                                               const SizedBox(height: 2),
                                               Text(
                                                 'Ước tính ${eta.minDays}–${eta.maxDays} ngày (~${eta.distanceKm} km)',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                                softWrap: true,
                                                 style: const TextStyle(
                                                   fontSize: 11,
                                                   color: AdminColors.sky,
@@ -860,8 +873,7 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                                               ),
                                               Text(
                                                 record.order.paymentMethod,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                                softWrap: true,
                                                 style: const TextStyle(
                                                   fontSize: 11,
                                                   color:
@@ -943,6 +955,39 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                                                         const Size(0, 30),
                                                   ),
                                                 ),
+                                              IconButton(
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                tooltip:
+                                                    'Nhắn tin riêng cho khách hàng',
+                                                onPressed: () => widget
+                                                    .controller
+                                                    .openSupportChatForCustomer(
+                                                  userId: record.userId,
+                                                  customerName:
+                                                      record.customerName,
+                                                  customerEmail:
+                                                      record.customerEmail,
+                                                  orderId: record.order.id,
+                                                  productTitle: record.order
+                                                      .itemsSummary(),
+                                                  productThumbnail: record
+                                                          .order
+                                                          .items
+                                                          .isNotEmpty
+                                                      ? (record.order.items
+                                                              .first.image ??
+                                                          '')
+                                                      : '',
+                                                  contextSummary:
+                                                      'Đơn hàng • ${meta.label}',
+                                                ),
+                                                icon: const Icon(
+                                                  Iconsax.message_text_1,
+                                                  size: 17,
+                                                  color: AdminColors.sky,
+                                                ),
+                                              ),
                                               IconButton(
                                                 visualDensity:
                                                     VisualDensity.compact,

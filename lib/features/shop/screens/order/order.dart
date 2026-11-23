@@ -205,12 +205,11 @@ class _OrderScreenState extends State<OrderScreen> {
                 const SizedBox(height: 10),
                 Text(
                   order.customerOrderTitle(english: isEn),
+                  softWrap: true,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -221,16 +220,19 @@ class _OrderScreenState extends State<OrderScreen> {
                 Builder(builder: (_) {
                   final eta = ShippingRouteHelper.estimateForAddress(order.address);
                   return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Iconsax.routing, size: 13, color: Color(0xFF0284C7)),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(Iconsax.routing, size: 13, color: Color(0xFF0284C7)),
+                      ),
                       const SizedBox(width: 5),
                       Expanded(
                         child: Text(
                           isEn
                               ? 'Hanoi Warehouse → ${eta.destinationCity} • Est. ${eta.minDays}–${eta.maxDays} days'
                               : 'Kho Hà Nội → ${eta.destinationCity} • Dự kiến ${eta.minDays}–${eta.maxDays} ngày',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
                           style: const TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w700,
@@ -301,8 +303,7 @@ class _OrderScreenState extends State<OrderScreen> {
                               children: [
                                 Text(
                                   item.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: true,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14,

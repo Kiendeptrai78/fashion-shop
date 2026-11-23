@@ -43,7 +43,7 @@ class _WishListState extends State<WishList> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: TAppbar(title: const ShopText('Saved pairs', style: TextStyle(fontSize: 22,
+    appBar: TAppbar(showBackArrow: true, title: const ShopText('Saved pairs', style: TextStyle(fontSize: 22,
         fontWeight: FontWeight.w600, letterSpacing: -0.6)), actions: [
       IconButton(tooltip: 'Explore sneakers'.tr, onPressed: exploreSneakers,
           icon: const Icon(Iconsax.search_normal, size: 22)),

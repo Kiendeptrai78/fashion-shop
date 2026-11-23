@@ -12,6 +12,7 @@ import 'package:fashion_business_app/admin/web/views/orders_view.dart';
 import 'package:fashion_business_app/admin/web/views/products_view.dart';
 import 'package:fashion_business_app/admin/web/views/returns_view.dart';
 import 'package:fashion_business_app/admin/web/views/reviews_view.dart';
+import 'package:fashion_business_app/admin/web/views/support_chat_view.dart';
 import 'package:fashion_business_app/admin/web/views/users_view.dart';
 import 'package:fashion_business_app/admin/web/views/vouchers_view.dart';
 import 'package:fashion_business_app/data/repositories/authentication/authentication_repository.dart';
@@ -60,7 +61,25 @@ class _AdminWebShellState extends State<AdminWebShell> {
           primary: AdminColors.forest,
           brightness: Brightness.light,
         ),
-        chipTheme: TChipTheme.lightChipTheme,
+        chipTheme: ChipThemeData(
+          backgroundColor: AdminColors.surfaceMuted,
+          selectedColor: AdminColors.forest,
+          checkmarkColor: Colors.white,
+          labelStyle: const TextStyle(
+            color: AdminColors.ink,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+          ),
+          secondaryLabelStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+          ),
+          side: const BorderSide(color: AdminColors.border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
         scaffoldBackgroundColor: AdminColors.canvas,
         dividerColor: AdminColors.border,
       ),
@@ -159,6 +178,8 @@ class _AdminWebShellState extends State<AdminWebShell> {
         return AdminOrdersView(controller: _controller);
       case AdminSection.returns:
         return AdminReturnsView(controller: _controller);
+      case AdminSection.supportChat:
+        return AdminSupportChatView(controller: _controller);
       case AdminSection.products:
         return AdminProductsView(controller: _controller);
       case AdminSection.featured:
@@ -203,6 +224,8 @@ class _AdminTopBar extends StatelessWidget {
         return vi ? 'Quản lý Đơn hàng' : 'Order Management';
       case AdminSection.returns:
         return vi ? 'Quản lý Đổi trả & Bảo hành' : 'Returns & Exchanges Center';
+      case AdminSection.supportChat:
+        return vi ? 'Tin nhắn Khách hàng (Chat 1-1)' : 'Customer Support Chat (1-to-1)';
       case AdminSection.products:
         return vi ? 'Quản lý Sản phẩm' : 'Product & Inventory Management';
       case AdminSection.featured:
@@ -502,6 +525,16 @@ class _AdminSidebar extends StatelessWidget {
                       mutedBadge: controller.pendingReturnsCount == 0,
                       selected: active == AdminSection.returns,
                       onTap: () => _go(AdminSection.returns),
+                    ),
+                    _SidebarItem(
+                      icon: Iconsax.message_text_1,
+                      label: vi ? 'Tin nhắn Khách hàng' : 'Customer Chat (1-1)',
+                      badge: controller.unreadSupportChatsCount > 0
+                          ? '${controller.unreadSupportChatsCount}'
+                          : '${controller.supportChats.length}',
+                      mutedBadge: controller.unreadSupportChatsCount == 0,
+                      selected: active == AdminSection.supportChat,
+                      onTap: () => _go(AdminSection.supportChat),
                     ),
                     _SidebarItem(
                       icon: Iconsax.box,

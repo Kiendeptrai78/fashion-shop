@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/dialogs/velora_confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -32,6 +33,21 @@ class _AddressScreenState extends State<AddressScreen> {
     try { await request; } catch (_) { /* Rendered by FutureBuilder. */ }
   }
 
+  Future<void> _confirmDelete(AddressModel address) async {
+    final confirmed = await showVeloraConfirmDialog(
+      context,
+      title: 'Xóa địa chỉ này?',
+      message: 'Địa chỉ của ${address.name} (${address.city}) sẽ bị xóa khỏi sổ địa chỉ nhận hàng của bạn.',
+      confirmLabel: 'Xóa địa chỉ',
+      cancelLabel: 'Hủy',
+      destructive: true,
+      icon: Iconsax.trash,
+    );
+    if (confirmed == true) {
+      await _controller.deleteAddress(address);
+    }
+  }
+
   @override
   void dispose() { _changes.dispose(); super.dispose(); }
 
@@ -49,21 +65,25 @@ class _AddressScreenState extends State<AddressScreen> {
       ]));
       final addresses = snapshot.data ?? [];
       return RefreshIndicator(onRefresh: _reload, child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(24), children: [
-          const ShopText('A place for every delivery.', style: TextStyle(fontSize: 27,
-              height: 1.2, fontWeight: FontWeight.w600, letterSpacing: -0.8)),
-          const SizedBox(height: 12),
+        physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(20), children: [
+          const ShopText('A place for every delivery.', style: TextStyle(fontSize: 25,
+              height: 1.2, fontWeight: FontWeight.w700, letterSpacing: -0.6)),
+          const SizedBox(height: 8),
           ShopText(addresses.isEmpty ? 'Add your first address to make checkout easier.'
               : 'Choose where your next pair arrives.', style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           if (addresses.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 60),
             child: Icon(Iconsax.location, size: 64, color: Theme.of(context).colorScheme.primary)),
-          for (final address in addresses) TSingleAddress(address: address,
-              onTap: () => _controller.selectAddress(address)),
+          for (final address in addresses) TSingleAddress(
+            address: address,
+            onTap: () => _controller.selectAddress(address),
+            onEdit: () => Get.to(() => AddNewAddressScreen(editingAddress: address)),
+            onDelete: () => _confirmDelete(address),
+          ),
         ],
       ));
     }),
-    bottomNavigationBar: SafeArea(top: false, minimum: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+    bottomNavigationBar: SafeArea(top: false, minimum: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: ElevatedButton(onPressed: () => Get.to(() => const AddNewAddressScreen()),
         child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.add, size: 18), SizedBox(width: 10), ShopText('Add new address'),

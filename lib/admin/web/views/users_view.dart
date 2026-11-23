@@ -427,12 +427,15 @@ class _AdminUsersViewState extends State<AdminUsersView> {
                       onSelected: (_) => setState(() => _segmentFilter = 'newMember'),
                     ),
                     ChoiceChip(
-                      selectedColor: AdminColors.roseBg,
+                      selectedColor: AdminColors.rose,
+                      checkmarkColor: Colors.white,
                       label: Text(
                         'Cảnh báo bom hàng (${countOf(CustomerSegment.bomHang)})',
                         style: TextStyle(
-                          color: _segmentFilter == 'bomHang' ? AdminColors.rose : null,
-                          fontWeight: FontWeight.w600,
+                          color: _segmentFilter == 'bomHang'
+                              ? Colors.white
+                              : AdminColors.rose,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       selected: _segmentFilter == 'bomHang',

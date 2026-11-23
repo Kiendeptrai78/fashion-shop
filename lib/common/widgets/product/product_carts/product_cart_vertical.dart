@@ -134,8 +134,6 @@ class TProductCartVertical extends StatelessWidget {
                   children: [
                     ShopText(
                       'VELORA',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelSmall?.copyWith(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -146,8 +144,7 @@ class TProductCartVertical extends StatelessWidget {
                     const SizedBox(height: 3),
                     ShopText(
                       product.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      softWrap: true,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         height: 1.28,
@@ -156,8 +153,7 @@ class TProductCartVertical extends StatelessWidget {
                     const SizedBox(height: 3),
                     ShopText(
                       colors == null ? product.categoryName : '${colors.length} colors · ${product.categoryName}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      softWrap: true,
                       style: theme.textTheme.labelMedium?.copyWith(fontSize: 11),
                     ),
                     const SizedBox(height: 8),

@@ -675,6 +675,7 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide>
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       backgroundColor: const Color(0xFF10221C),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -835,13 +836,16 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide>
           // 6. Bottom caption & interactive Product Card overlay
           Positioned(
             left: 16,
-            right: 80,
-            bottom: 20,
+            right: 78,
+            bottom: 18,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -858,8 +862,7 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide>
                         ),
                       ),
                     ),
-                    if (widget.reel.totalProductVideos > 1) ...[
-                      const SizedBox(width: 8),
+                    if (widget.reel.totalProductVideos > 1)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -875,9 +878,7 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide>
                           ),
                         ),
                       ),
-                    ],
-                    if (widget.reel.isPersonalizedRecommendation) ...[
-                      const SizedBox(width: 8),
+                    if (widget.reel.isPersonalizedRecommendation)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -896,7 +897,6 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide>
                           ),
                         ),
                       ),
-                    ],
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -908,20 +908,21 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide>
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  p.description ?? '',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12.5,
-                    height: 1.4,
+                if ((p.description ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    p.description!,
+                    softWrap: true,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 12),
 
-                // Product card CTA
+                // Product card CTA (full title & full price without ellipsis)
                 InkWell(
                   onTap: () {
                     _videoController?.pause();
@@ -931,17 +932,18 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide>
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF14352B).withValues(alpha: 0.92),
+                      color: const Color(0xFF14352B).withValues(alpha: 0.94),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: const Color(0xFFDDEABB).withValues(alpha: 0.35),
                       ),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Container(
-                          width: 52,
-                          height: 52,
+                          width: 50,
+                          height: 50,
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.1),
@@ -961,49 +963,43 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide>
                             children: [
                               Text(
                                 p.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                softWrap: true,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13.5,
+                                  height: 1.25,
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Row(
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 2,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  Flexible(
-                                    child: Text(
-                                      formatShopMoney(effectivePrice, language: lang),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Color(0xFFDDEABB),
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 13.5,
-                                      ),
+                                  Text(
+                                    formatShopMoney(effectivePrice, language: lang),
+                                    style: const TextStyle(
+                                      color: Color(0xFFDDEABB),
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13.5,
                                     ),
                                   ),
-                                  if (p.salePrice > 0 && p.salePrice < p.price) ...[
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        formatShopMoney(p.price, language: lang),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Colors.white54,
-                                          fontSize: 10.5,
-                                          decoration: TextDecoration.lineThrough,
-                                        ),
+                                  if (p.salePrice > 0 && p.salePrice < p.price)
+                                    Text(
+                                      formatShopMoney(p.price, language: lang),
+                                      style: const TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 11,
+                                        decoration: TextDecoration.lineThrough,
                                       ),
                                     ),
-                                  ],
                                 ],
                               ),
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
@@ -1240,8 +1236,7 @@ class _ReelCommentsSheetState extends State<_ReelCommentsSheet> {
                   Expanded(
                     child: Text(
                       'Bình luận • ${widget.product.title}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      softWrap: true,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15.5,

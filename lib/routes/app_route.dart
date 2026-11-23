@@ -60,6 +60,10 @@ class AppRoutes {
       page: () => const AdminWebShell(initialSection: AdminSection.returns),
     ),
     GetPage(
+      name: TRoutes.adminSupportChat,
+      page: () => const AdminWebShell(initialSection: AdminSection.supportChat),
+    ),
+    GetPage(
       name: TRoutes.adminProducts,
       page: () => const AdminWebShell(initialSection: AdminSection.products),
     ),

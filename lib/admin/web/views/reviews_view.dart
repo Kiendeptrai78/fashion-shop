@@ -494,8 +494,15 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                       ),
                       FilterChip(
                         selected: _onlyUnreplied,
-                        selectedColor: AdminColors.amberBg,
-                        label: Text('Chưa trả lời ($unrepliedCount)'),
+                        selectedColor: AdminColors.amber,
+                        checkmarkColor: Colors.white,
+                        label: Text(
+                          'Chưa trả lời ($unrepliedCount)',
+                          style: TextStyle(
+                            color: _onlyUnreplied ? Colors.white : AdminColors.ink,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         onSelected: (v) => setState(() => _onlyUnreplied = v),
                       ),
                       Wrap(

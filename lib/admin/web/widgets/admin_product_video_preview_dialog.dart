@@ -314,26 +314,25 @@ class _AdminProductVideoPreviewDialogState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Flexible(
-                              child: Text(
-                                p.title,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: AdminColors.ink,
-                                ),
+                            Text(
+                              p.title,
+                              softWrap: true,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: AdminColors.ink,
                               ),
                             ),
-                            const SizedBox(width: 10),
                             AdminBadge(
                               label: c.localizeCategory(p.categoryName),
                               color: AdminColors.forest,
                               bgColor: AdminColors.sageSoft,
                             ),
-                            const SizedBox(width: 6),
                             AdminBadge(
                               label: p.isFeatured == true
                                   ? '★ Đang ghim trên Nổi bật'

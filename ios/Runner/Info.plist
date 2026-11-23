@@ -51,5 +51,24 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>VELORA cần quyền Camera để bạn chụp ảnh và quay video thực tế đôi giày khi đánh giá, đổi trả hoặc nhắn tin hỗ trợ.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>VELORA cần quyền Thư viện ảnh để bạn chọn ảnh và video đôi giày khi đánh giá, đổi trả hoặc nhắn tin với VELORA.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>VELORA cần quyền lưu hình ảnh vào Thư viện ảnh của bạn.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VELORA cần quyền Micro để quay video có âm thanh khi gửi đánh giá, đổi trả hoặc nhắn tin hỗ trợ.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-823625169651-ios-51f520e2658e4652559586</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

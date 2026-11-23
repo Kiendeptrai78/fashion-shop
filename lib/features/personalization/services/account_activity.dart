@@ -14,6 +14,7 @@ class AccountActivity extends GetxController {
   static AccountActivity? get current => Get.isRegistered<AccountActivity>() ? Get.find<AccountActivity>() : null;
   final counts = <String, int>{}.obs;
   final addressCount = 0.obs;
+  final chatUnread = 0.obs;
   final inbox = <Map<String, dynamic>>[].obs;
   final pushEnabled = false.obs;
   final pushError = ''.obs;
@@ -40,6 +41,10 @@ class AccountActivity extends GetxController {
     }, onError: (_) {}));
     _subscriptions.add(user.collection('Addresses').snapshots().listen((snapshot) {
       addressCount.value = snapshot.size;
+    }, onError: (_) {}));
+    _subscriptions.add(_db.collection('SupportChats').doc(uid).snapshots().listen((snapshot) {
+      final data = snapshot.data();
+      chatUnread.value = (data?['unreadByCustomer'] as num? ?? 0).toInt();
     }, onError: (_) {}));
     _subscriptions.add(user.collection('Notifications').orderBy('createdAt', descending: true).limit(100)
         .snapshots().listen((snapshot) {

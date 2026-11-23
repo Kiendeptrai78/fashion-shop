@@ -10,6 +10,8 @@ import 'package:fashion_business_app/features/shop/models/brand_model.dart';
 import 'package:fashion_business_app/features/shop/models/category_model.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/features/shop/models/return_request_model.dart';
+import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
+import 'package:fashion_business_app/features/shop/models/support_chat_model.dart';
 import 'package:fashion_business_app/routes/routes.dart';
 import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
@@ -64,6 +66,7 @@ class AdminWebController extends GetxController {
   final users = <UserModel>[].obs;
   final orders = <AdminOrderRecord>[].obs;
   final returnRequests = <ReturnRequestModel>[].obs;
+  final supportChats = <SupportChatThreadModel>[].obs;
   final reviews = <AdminReviewRecord>[].obs;
   final videoComments = <AdminVideoCommentRecord>[].obs;
   final campaigns = <AdminNotificationCampaign>[].obs;
@@ -72,9 +75,18 @@ class AdminWebController extends GetxController {
   final automation = AdminAutomationSettings.defaults().obs;
   final pushDeviceCount = 0.obs;
 
-  /// Optional preselected user when jumping from Users -> Notifications or Vouchers
+  /// Optional preselected user when jumping from Users -> Notifications, Vouchers or Support Chat
   final preselectedNotificationUserId = RxnString();
   final preselectedVoucherUserId = RxnString();
+  final preselectedChatUserId = RxnString();
+  final preselectedChatCustomerName = ''.obs;
+  final preselectedChatCustomerEmail = ''.obs;
+  final preselectedChatDraft = ''.obs;
+  final preselectedChatOrderId = ''.obs;
+  final preselectedChatReturnId = ''.obs;
+  final preselectedChatProductTitle = ''.obs;
+  final preselectedChatProductThumb = ''.obs;
+  final preselectedChatContextSummary = ''.obs;
 
   @override
   void onInit() {
@@ -96,6 +108,8 @@ class AdminWebController extends GetxController {
         return TRoutes.adminOrders;
       case AdminSection.returns:
         return TRoutes.adminReturns;
+      case AdminSection.supportChat:
+        return TRoutes.adminSupportChat;
       case AdminSection.products:
         return TRoutes.adminProducts;
       case AdminSection.featured:
@@ -132,6 +146,29 @@ class AdminWebController extends GetxController {
   void openVoucherComposerForUser(String userId) {
     preselectedVoucherUserId.value = userId;
     selectSection(AdminSection.vouchers);
+  }
+
+  void openSupportChatForCustomer({
+    required String userId,
+    required String customerName,
+    String customerEmail = '',
+    String draftMessage = '',
+    String orderId = '',
+    String returnRequestId = '',
+    String productTitle = '',
+    String productThumbnail = '',
+    String contextSummary = '',
+  }) {
+    preselectedChatUserId.value = userId;
+    preselectedChatCustomerName.value = customerName;
+    preselectedChatCustomerEmail.value = customerEmail;
+    preselectedChatDraft.value = draftMessage;
+    preselectedChatOrderId.value = orderId;
+    preselectedChatReturnId.value = returnRequestId;
+    preselectedChatProductTitle.value = productTitle;
+    preselectedChatProductThumb.value = productThumbnail;
+    preselectedChatContextSummary.value = contextSummary;
+    selectSection(AdminSection.supportChat);
   }
 
   Future<void> loadAll({bool silent = false}) async {
@@ -227,6 +264,11 @@ class AdminWebController extends GetxController {
       try {
         final loadedReturns = await repository.fetchReturnRequests();
         returnRequests.assignAll(loadedReturns);
+      } catch (_) {}
+
+      try {
+        final loadedChats = await repository.fetchSupportChatThreads();
+        supportChats.assignAll(loadedChats);
       } catch (_) {}
     } catch (e) {
       errorMessage.value = 'Không thể tải dữ liệu quản trị: $e';
@@ -372,6 +414,130 @@ class AdminWebController extends GetxController {
           r.status == ReturnRequestStatus.inspecting)
       .length;
 
+  int get unreadSupportChatsCount =>
+      supportChats.fold<int>(0, (sum, c) => sum + c.unreadByAdmin);
+
+  Future<bool> sendAdminSupportMessage({
+    required String userId,
+    required String customerName,
+    String customerEmail = '',
+    required String text,
+    String imageUrl = '',
+    String videoUrl = '',
+    String orderId = '',
+    String returnRequestId = '',
+    String productId = '',
+    String productTitle = '',
+    String productThumbnail = '',
+    String contextSummary = '',
+  }) async {
+    try {
+      await repository.sendAdminSupportMessage(
+        userId: userId,
+        customerName: customerName,
+        customerEmail: customerEmail,
+        text: text,
+        imageUrl: imageUrl,
+        videoUrl: videoUrl,
+        orderId: orderId,
+        returnRequestId: returnRequestId,
+        productId: productId,
+        productTitle: productTitle,
+        productThumbnail: productThumbnail,
+        contextSummary: contextSummary,
+      );
+      final refreshed = await repository.fetchSupportChatThreads();
+      supportChats.assignAll(refreshed);
+      return true;
+    } catch (e) {
+      _toastError('Lỗi gửi tin nhắn cho khách', e.toString());
+      return false;
+    }
+  }
+
+  /// Sends a 1-1 New Product introduction message via Support Chat to either:
+  /// - a specific customer (`singleUserId`),
+  /// - customers interested in the same category (`onlyMatchingCategory: true`), or
+  /// - all client customers (`clientUsers`).
+  Future<int> broadcastNewProductChat({
+    required ProductModel product,
+    String? customTemplate,
+    String? singleUserId,
+    bool onlyMatchingCategory = false,
+    bool silentToast = false,
+  }) async {
+    try {
+      List<UserModel> targets;
+      if (singleUserId != null && singleUserId.trim().isNotEmpty) {
+        targets = clientUsers.where((u) => u.id == singleUserId).toList();
+      } else if (onlyMatchingCategory && product.categoryId.isNotEmpty) {
+        final interestedIds = userInterests
+            .where((i) =>
+                i.interestedCategoryIds.contains(product.categoryId) ||
+                i.interestedCategories.any((c) =>
+                    c.toLowerCase() == product.categoryName.toLowerCase()))
+            .map((i) => i.userId)
+            .toSet();
+        targets = clientUsers.where((u) => interestedIds.contains(u.id)).toList();
+        if (targets.isEmpty) targets = clientUsers;
+      } else {
+        targets = clientUsers;
+      }
+
+      if (targets.isEmpty) return 0;
+
+      final effPrice = (product.salePrice > 0 && product.salePrice < product.price)
+          ? product.salePrice
+          : product.price;
+      final priceStr = formatMoney(effPrice);
+      final catLabel = localizeCategory(product.categoryName);
+
+      var sent = 0;
+      for (final u in targets) {
+        final name = u.fullName.trim().isNotEmpty
+            ? u.fullName.trim()
+            : (u.email.split('@').first);
+        final tpl = (customTemplate != null && customTemplate.trim().isNotEmpty)
+            ? customTemplate.trim()
+            : automation.value.templateChatNewProduct;
+        final text = tpl
+            .replaceAll('{name}', name)
+            .replaceAll('{product}', product.title)
+            .replaceAll('{category}', catLabel)
+            .replaceAll('{price}', priceStr);
+
+        await repository.sendAdminSupportMessage(
+          userId: u.id,
+          customerName: name,
+          customerEmail: u.email,
+          text: text,
+          imageUrl: product.thumbnail,
+          productId: product.id,
+          productTitle: product.title,
+          productThumbnail: product.thumbnail,
+          contextSummary: 'Sản phẩm mới • $catLabel • $priceStr',
+          sendPushNotification: true,
+        );
+        sent++;
+      }
+
+      final refreshed = await repository.fetchSupportChatThreads();
+      supportChats.assignAll(refreshed);
+      if (!silentToast) {
+        _toastSuccess(
+          'Đã nhắn tin giới thiệu sản phẩm mới',
+          'Đã gửi tin nhắn 1-1 giới thiệu "${product.title}" tới $sent khách hàng!',
+        );
+      }
+      return sent;
+    } catch (e) {
+      if (!silentToast) {
+        _toastError('Lỗi gửi tin nhắn sản phẩm mới', e.toString());
+      }
+      return 0;
+    }
+  }
+
   List<ProductModel> get lowStockProducts =>
       products.where((p) => p.stock <= 10).toList()
         ..sort((a, b) => a.stock.compareTo(b.stock));
@@ -471,11 +637,20 @@ class AdminWebController extends GetxController {
         isNew: isNew,
         sendNotification: sendNotification,
       );
+      if (isNew && automation.value.autoChatOnNewProduct) {
+        await broadcastNewProductChat(
+          product: product,
+          onlyMatchingCategory: false,
+          silentToast: true,
+        );
+      }
       await loadAll(silent: true);
       _toastSuccess(
         'Đã lưu sản phẩm',
         isNew
-            ? 'Đã thêm "${product.title}" vào cửa hàng.'
+            ? (automation.value.autoChatOnNewProduct
+                ? 'Đã thêm "${product.title}" và tự động nhắn tin giới thiệu tới khách hàng.'
+                : 'Đã thêm "${product.title}" vào cửa hàng.')
             : 'Đã cập nhật "${product.title}".',
       );
       return true;
@@ -739,12 +914,63 @@ class AdminWebController extends GetxController {
     AdminOrderRecord record,
     OrderStatus nextStatus,
   ) async {
+    if (nextStatus == OrderStatus.cancelled &&
+        record.order.status != OrderStatus.pending) {
+      _toastError(
+        'Không thể hủy đơn hàng',
+        'Chỉ có thể hủy đơn khi đang ở trạng thái "Chờ xác nhận". Đơn hàng đã sang bước chuẩn bị/vận chuyển không thể hủy.',
+      );
+      return;
+    }
     try {
       await repository.updateOrderStatus(record, nextStatus);
+
+      // Auto 1-1 Support Chat message when an order status changes
+      if (automation.value.autoChatOnOrderStatus && record.userId.isNotEmpty) {
+        final eta = ShippingRouteHelper.estimateForAddress(record.order.address);
+        final statusLabel = switch (nextStatus) {
+          OrderStatus.pending => 'Chờ xác nhận',
+          OrderStatus.processing => 'Đang đóng gói',
+          OrderStatus.shipped => 'Đang vận chuyển',
+          OrderStatus.received => 'Giao thành công',
+          OrderStatus.cancelled => 'Đã hủy đơn',
+        };
+        final etaNote = nextStatus == OrderStatus.received
+            ? 'Cảm ơn bạn đã tin chọn VELORA — nhớ đánh giá đôi giày để nhận ưu đãi nhé!'
+            : (nextStatus == OrderStatus.cancelled
+                ? 'Nếu bạn cần đặt lại mẫu khác, cứ nhắn VELORA hỗ trợ ngay.'
+                : 'Lộ trình từ Kho Hà Nội → ${eta.destinationCity} (dự kiến ${eta.minDays}–${eta.maxDays} ngày)');
+        final autoMsg = automation.value.renderOrderStatusChat(
+          customerName: record.customerName,
+          itemsSummary: record.order.itemsSummary(),
+          statusLabel: statusLabel,
+          etaNote: etaNote,
+        );
+        final thumb = record.order.items.isNotEmpty
+            ? (record.order.items.first.image ?? '')
+            : '';
+        await repository.sendAdminSupportMessage(
+          userId: record.userId,
+          customerName: record.customerName,
+          customerEmail: record.customerEmail,
+          text: autoMsg,
+          orderId: record.order.id,
+          productId: record.order.items.isNotEmpty
+              ? record.order.items.first.productId
+              : '',
+          productTitle: record.order.itemsSummary(),
+          productThumbnail: thumb,
+          contextSummary: 'Cập nhật tự động • $statusLabel',
+          sendPushNotification: false,
+        );
+      }
+
       await loadAll(silent: true);
       _toastSuccess(
         'Đã cập nhật đơn hàng',
-        'Đơn #${record.order.id} đã chuyển trạng thái và gửi thông báo tới khách hàng.',
+        automation.value.autoChatOnOrderStatus
+            ? 'Đã chuyển trạng thái đơn hàng, gửi thông báo & tự động nhắn tin 1-1 tới ${record.customerName}.'
+            : 'Đơn hàng đã chuyển trạng thái và gửi thông báo tới khách hàng.',
       );
     } catch (e) {
       _toastError('Lỗi cập nhật đơn hàng', e.toString());

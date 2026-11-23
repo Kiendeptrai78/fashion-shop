@@ -1,7 +1,11 @@
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 import 'package:fashion_business_app/features/personalization/screens/account/coupons_screen.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
+import 'package:fashion_business_app/features/shop/screens/cart/cart_screen.dart';
+import 'package:fashion_business_app/features/shop/screens/order/order.dart';
+import 'package:fashion_business_app/features/shop/screens/order/return_request_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/product_details/product_details.dart';
+import 'package:fashion_business_app/features/shop/screens/support_chat/velora_support_chat_screen.dart';
 import 'package:fashion_business_app/features/shop/services/velora_ai_service.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
@@ -11,17 +15,27 @@ import 'package:iconsax/iconsax.dart';
 
 class _ChatMessage {
   const _ChatMessage({
+    required this.id,
     required this.isUser,
     required this.text,
     this.products = const [],
     this.showVoucherShortcut = false,
+    this.showOrdersShortcut = false,
+    this.showReturnsShortcut = false,
+    this.showSupportChatShortcut = false,
+    this.showCartShortcut = false,
     this.followUpPrompts = const [],
   });
 
+  final String id;
   final bool isUser;
   final String text;
   final List<ProductModel> products;
   final bool showVoucherShortcut;
+  final bool showOrdersShortcut;
+  final bool showReturnsShortcut;
+  final bool showSupportChatShortcut;
+  final bool showCartShortcut;
   final List<String> followUpPrompts;
 }
 
@@ -39,22 +53,35 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
   final _messages = <_ChatMessage>[];
   bool _thinking = false;
   int _promptPage = 0;
+  int _msgSeq = 0;
 
   @override
   void initState() {
     super.initState();
     final isEn = (Get.locale?.languageCode ?? 'vi') == 'en';
     _messages.add(_ChatMessage(
+      id: 'welcome_0',
       isUser: false,
       text: isEn
-          ? 'Hi! I’m VELORA AI Stylist. Ask me about running, gym, daily sneakers, exact budgets, outfit pairing, shoe care, or your foot length in cm — I’ll match you with the exact VELORA pairs in stock!'
-          : 'Xin chào! Mình là Trợ lý AI của VELORA. Bạn có thể hỏi mình bất cứ điều gì:\n'
-              '• Tìm giày VELORA theo mục đích (chạy bộ, đi học/đi làm, gym, bóng rổ, địa hình) & đúng tầm giá\n'
-              '• Tính size EU chuẩn từ chiều dài bàn chân (cm)\n'
-              '• Tư vấn phối đồ, chọn quà tặng, cách vệ sinh giày & săn mã giảm giá',
+          ? 'Hi! I’m VELORA AI Assistant. Ask me anything — check your live orders, request size exchange/returns, calculate your EU size from cm or height/weight, check shipping time to your city, or find sneakers by exact budget!'
+          : 'Xin chào! Mình là Trợ lý AI thông minh của VELORA. Bạn hỏi gì mình sẽ trả lời đúng trọng tâm vấn đề đó:\n'
+              '• Kiểm tra trực tiếp đơn hàng của bạn đang ở đâu, bao giờ giao & quy định hủy đơn\n'
+              '• Hướng dẫn Đổi size / Đổi mới 1-1 / Hoàn tiền & kết nối Chat 1-1 với VELORA\n'
+              '• Tính size EU chuẩn từ chiều dài chân (cm) hoặc chiều cao + cân nặng\n'
+              '• Lọc giày chuẩn theo mục đích (Chạy bộ, Hằng ngày, Tập gym, Bóng rổ, Địa hình), màu sắc & tầm giá',
+      showOrdersShortcut: true,
+      showSupportChatShortcut: true,
       followUpPrompts: isEn
-          ? const ['Running shoes under \$100', '26cm foot length — what EU size?', 'Biggest discounts right now?']
-          : const ['Giày chạy bộ dưới 2.5 triệu', 'Chân dài 26cm đi size mấy?', 'Mẫu nào đang giảm giá sâu nhất?'],
+          ? const [
+              'Where is my current order?',
+              'Running shoes under \$100',
+              '26cm foot length — what EU size?',
+            ]
+          : const [
+              'Kiểm tra đơn hàng của tôi đến đâu rồi?',
+              'Giày chạy bộ dưới 2.5 triệu',
+              'Mình muốn đổi size / đổi trả giày thì làm thế nào?',
+            ],
     ));
   }
 
@@ -66,7 +93,9 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
   }
 
   List<String> _visiblePrompts(String lang) {
-    final bank = lang == 'en' ? VeloraAiService.promptIdeasEn : VeloraAiService.promptIdeasVi;
+    final bank = lang == 'en'
+        ? VeloraAiService.promptIdeasEn
+        : VeloraAiService.promptIdeasVi;
     const perPage = 6;
     final start = (_promptPage * perPage) % bank.length;
     return [
@@ -77,39 +106,50 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
   Future<void> _send([String? preset]) async {
     final text = (preset ?? _input.text).trim();
     if (text.isEmpty || _thinking) return;
-    _input.clear();
-    FocusScope.of(context).unfocus();
+    if (preset == null) {
+      _input.clear();
+      FocusScope.of(context).unfocus();
+    }
+
+    final userMsgId = 'u_${++_msgSeq}';
     setState(() {
-      _messages.add(_ChatMessage(isUser: true, text: text));
+      _messages.add(_ChatMessage(id: userMsgId, isUser: true, text: text));
       _thinking = true;
     });
-    _scrollToBottom();
 
     final lang = Localizations.localeOf(context).languageCode;
     final reply = await _service.ask(text, language: lang);
     if (!mounted) return;
+
+    final aiMsgId = 'a_${++_msgSeq}';
     setState(() {
       _thinking = false;
       _messages.add(_ChatMessage(
+        id: aiMsgId,
         isUser: false,
         text: reply.text,
         products: reply.products,
         showVoucherShortcut: reply.showVoucherShortcut,
+        showOrdersShortcut: reply.showOrdersShortcut,
+        showReturnsShortcut: reply.showReturnsShortcut,
+        showSupportChatShortcut: reply.showSupportChatShortcut,
+        showCartShortcut: reply.showCartShortcut,
         followUpPrompts: reply.followUpPrompts,
       ));
     });
-    _scrollToBottom();
+    _scrollToBottomSmoothly();
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottomSmoothly() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) {
-        _scroll.animateTo(
-          _scroll.position.maxScrollExtent + 160,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOut,
-        );
-      }
+      if (!mounted || !_scroll.hasClients) return;
+      final target = _scroll.position.maxScrollExtent;
+      if ((target - _scroll.offset).abs() < 4) return;
+      _scroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+      );
     });
   }
 
@@ -123,10 +163,12 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: dark ? const Color(0xFF101915) : const Color(0xFFFAFBF9),
+        backgroundColor:
+            dark ? const Color(0xFF101915) : const Color(0xFFFAFBF9),
         appBar: AppBar(
           systemOverlayStyle: SystemUiOverlayStyle.light,
-          backgroundColor: dark ? const Color(0xFF13221B) : const Color(0xFF173E32),
+          backgroundColor:
+              dark ? const Color(0xFF13221B) : const Color(0xFF173E32),
           foregroundColor: Colors.white,
           iconTheme: const IconThemeData(color: Colors.white),
           actionsIconTheme: const IconThemeData(color: Colors.white),
@@ -134,7 +176,11 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
           titleSpacing: 0,
           leading: IconButton(
             tooltip: 'Back'.tr,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
             onPressed: () => Navigator.of(context).pop(),
           ),
           title: Row(
@@ -145,9 +191,15 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFDDEABB).withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(11),
-                  border: Border.all(color: const Color(0xFFDDEABB).withValues(alpha: 0.35)),
+                  border: Border.all(
+                    color: const Color(0xFFDDEABB).withValues(alpha: 0.35),
+                  ),
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFDDEABB), size: 19),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Color(0xFFDDEABB),
+                  size: 19,
+                ),
               ),
               const SizedBox(width: 11),
               const Expanded(
@@ -157,11 +209,18 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                   children: [
                     ShopText(
                       'VELORA AI Stylist',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
                     ShopText(
                       'Smart sneaker finder',
-                      style: TextStyle(fontSize: 11, color: Color(0xFFDDEABB)),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFDDEABB),
+                      ),
                     ),
                   ],
                 ),
@@ -169,36 +228,62 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
             ],
           ),
           actions: [
+            TextButton.icon(
+              onPressed: () =>
+                  Get.to(() => const VeloraSupportChatScreen()),
+              icon: const Icon(
+                Iconsax.message_text_1,
+                size: 16,
+                color: Color(0xFFDDEABB),
+              ),
+              label: const Text(
+                'Chat CSKH',
+                style: TextStyle(
+                  color: Color(0xFFDDEABB),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
             IconButton(
               tooltip: lang == 'en' ? 'More ideas' : 'Đổi gợi ý khác',
-              icon: const Icon(Iconsax.refresh, color: Color(0xFFDDEABB), size: 20),
+              icon: const Icon(
+                Iconsax.refresh,
+                color: Color(0xFFDDEABB),
+                size: 19,
+              ),
               onPressed: () => setState(() => _promptPage++),
             ),
-            const SizedBox(width: 4),
           ],
         ),
         body: Column(
           children: [
-            // Perfectly centered horizontal prompt strip
+            // Horizontal prompt strip
             Container(
               height: 52,
               decoration: BoxDecoration(
-                color: dark ? const Color(0xFF15241D) : const Color(0xFFF2F6F2),
+                color:
+                    dark ? const Color(0xFF15241D) : const Color(0xFFF2F6F2),
                 border: Border(
                   bottom: BorderSide(
-                    color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE3EAE3),
+                    color: dark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : const Color(0xFFE3EAE3),
                   ),
                 ),
               ),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 itemCount: prompts.length + 1,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (_, index) {
                   if (index == prompts.length) {
                     return Material(
-                      color: dark ? const Color(0xFF21372D) : const Color(0xFFE6EFEA),
+                      color: dark
+                          ? const Color(0xFF21372D)
+                          : const Color(0xFFE6EFEA),
                       borderRadius: BorderRadius.circular(999),
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
@@ -211,7 +296,9 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                               Icon(
                                 Iconsax.refresh,
                                 size: 14,
-                                color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                                color: dark
+                                    ? const Color(0xFFDDEABB)
+                                    : const Color(0xFF173E32),
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -219,7 +306,9 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                                  color: dark
+                                      ? const Color(0xFFDDEABB)
+                                      : const Color(0xFF173E32),
                                 ),
                               ),
                             ],
@@ -234,7 +323,9 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(999),
                       side: BorderSide(
-                        color: dark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFFD7E2DA),
+                        color: dark
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : const Color(0xFFD7E2DA),
                       ),
                     ),
                     clipBehavior: Clip.antiAlias,
@@ -248,7 +339,9 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                             style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
-                              color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                              color: dark
+                                  ? const Color(0xFFDDEABB)
+                                  : const Color(0xFF173E32),
                               height: 1.1,
                             ),
                           ),
@@ -260,63 +353,29 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
               ),
             ),
 
-            // Chat thread
+            // Chat thread (Smooth ClampingScrollPhysics & stable ValueKeys — no jumping)
             Expanded(
               child: ListView.builder(
                 controller: _scroll,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                itemCount: _messages.length + (_thinking ? 1 : 0),
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                itemCount: _messages.length,
                 itemBuilder: (context, index) {
-                  if (_thinking && index == _messages.length) {
-                    return Row(
-                      children: [
-                        Container(
-                          width: 30,
-                          height: 30,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF173E32),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.auto_awesome_rounded,
-                              color: Color(0xFFDDEABB), size: 15),
-                        ),
-                        const SizedBox(width: 9),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
-                          decoration: BoxDecoration(
-                            color: dark ? const Color(0xFF1C2C24) : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: dark
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : const Color(0xFFE3EAE3),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Color(0xFF173E32)),
-                              ),
-                              const SizedBox(width: 10),
-                              ShopText(
-                                'Finding matching pairs...',
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return _buildBubble(context, _messages[index], dark, lang);
+                  final msg = _messages[index];
+                  return KeyedSubtree(
+                    key: ValueKey(msg.id),
+                    child: _buildBubble(context, msg, dark, lang, theme),
+                  );
                 },
               ),
             ),
+
+            if (_thinking)
+              const LinearProgressIndicator(
+                minHeight: 2.5,
+                color: Color(0xFF173E32),
+                backgroundColor: Color(0xFFDDEABB),
+              ),
 
             // Bottom Composer
             Container(
@@ -324,7 +383,9 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                 color: dark ? const Color(0xFF14211B) : Colors.white,
                 border: Border(
                   top: BorderSide(
-                    color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE5EAE3),
+                    color: dark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : const Color(0xFFE5EAE3),
                   ),
                 ),
               ),
@@ -341,12 +402,16 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                           onSubmitted: (_) => _send(),
                           decoration: InputDecoration(
                             hintText: lang == 'en'
-                                ? 'Ask for style, price, cm size, care...'
-                                : 'Hỏi tìm giày VELORA theo giá, size, phối đồ...',
+                                ? 'Ask about orders, returns, size, shoes...'
+                                : 'Hỏi bất cứ điều gì: đơn hàng, đổi trả, tính size, tìm giày...',
                             filled: true,
-                            fillColor: dark ? const Color(0xFF1E3028) : const Color(0xFFF3F5F0),
-                            contentPadding:
-                                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            fillColor: dark
+                                ? const Color(0xFF1E3028)
+                                : const Color(0xFFF3F5F0),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(24),
                               borderSide: BorderSide.none,
@@ -368,7 +433,9 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                             backgroundColor: const Color(0xFF173E32),
                             foregroundColor: const Color(0xFFDDEABB),
                             padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
                           child: const Icon(Iconsax.send_1, size: 20),
                         ),
@@ -384,13 +451,20 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
     );
   }
 
-  Widget _buildBubble(BuildContext context, _ChatMessage msg, bool dark, String lang) {
-    final theme = Theme.of(context);
+  Widget _buildBubble(
+    BuildContext context,
+    _ChatMessage msg,
+    bool dark,
+    String lang,
+    ThemeData theme,
+  ) {
     if (msg.isUser) {
       return Align(
         alignment: Alignment.centerRight,
         child: Container(
-          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+          ),
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
           decoration: const BoxDecoration(
@@ -404,11 +478,21 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
           ),
           child: Text(
             msg.text,
-            style: const TextStyle(color: Colors.white, fontSize: 13.5, height: 1.45),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13.5,
+              height: 1.45,
+            ),
           ),
         ),
       );
     }
+
+    final hasAnyShortcut = msg.showVoucherShortcut ||
+        msg.showOrdersShortcut ||
+        msg.showReturnsShortcut ||
+        msg.showSupportChatShortcut ||
+        msg.showCartShortcut;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -426,12 +510,17 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                   color: const Color(0xFF173E32),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFDDEABB), size: 15),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Color(0xFFDDEABB),
+                  size: 15,
+                ),
               ),
               const SizedBox(width: 9),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: dark ? const Color(0xFF1A2821) : Colors.white,
                     borderRadius: const BorderRadius.only(
@@ -441,7 +530,9 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                       bottomRight: Radius.circular(18),
                     ),
                     border: Border.all(
-                      color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE3EAE3),
+                      color: dark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFFE3EAE3),
                     ),
                   ),
                   child: Column(
@@ -449,20 +540,150 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                     children: [
                       Text(
                         msg.text.replaceAll('**', ''),
-                        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13.5, height: 1.52),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 13.5,
+                          height: 1.52,
+                        ),
                       ),
-                      if (msg.showVoucherShortcut) ...[
-                        const SizedBox(height: 10),
-                        FilledButton.icon(
-                          onPressed: () => Get.to(() => const CouponsScreen()),
-                          icon: const Icon(Iconsax.ticket_discount, size: 16),
-                          label: const ShopText('My Coupons', style: TextStyle(fontSize: 12.5)),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF173E32),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
+                      if (hasAnyShortcut) ...[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (msg.showSupportChatShortcut)
+                              FilledButton.icon(
+                                onPressed: () => Get.to(
+                                  () => const VeloraSupportChatScreen(),
+                                ),
+                                icon: const Icon(
+                                  Iconsax.message_text_1,
+                                  size: 15,
+                                ),
+                                label: const Text(
+                                  'Chat riêng 1-1 với VELORA',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF173E32),
+                                  foregroundColor: const Color(0xFFDDEABB),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            if (msg.showOrdersShortcut)
+                              OutlinedButton.icon(
+                                onPressed: () =>
+                                    Get.to(() => const OrderScreen()),
+                                icon: const Icon(Iconsax.bag_tick, size: 15),
+                                label: const Text(
+                                  'Xem Đơn hàng của tôi',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF173E32),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            if (msg.showReturnsShortcut)
+                              OutlinedButton.icon(
+                                onPressed: () => Get.to(
+                                  () => const MyReturnRequestsScreen(),
+                                ),
+                                icon: const Icon(
+                                  Iconsax.refresh_circle,
+                                  size: 15,
+                                  color: Color(0xFF0284C7),
+                                ),
+                                label: const Text(
+                                  'Đổi trả & Bảo hành',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0284C7),
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                    color: Color(0xFF38BDF8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            if (msg.showCartShortcut)
+                              OutlinedButton.icon(
+                                onPressed: () =>
+                                    Get.to(() => const CartScreen()),
+                                icon: const Icon(
+                                  Iconsax.shopping_cart,
+                                  size: 15,
+                                ),
+                                label: const Text(
+                                  'Mở Giỏ hàng',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF173E32),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            if (msg.showVoucherShortcut)
+                              FilledButton.icon(
+                                onPressed: () =>
+                                    Get.to(() => const CouponsScreen()),
+                                icon: const Icon(
+                                  Iconsax.ticket_discount,
+                                  size: 15,
+                                ),
+                                label: const ShopText(
+                                  'My Coupons',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF173E32),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ],
@@ -474,7 +695,7 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
           if (msg.products.isNotEmpty) ...[
             const SizedBox(height: 10),
             SizedBox(
-              height: 224,
+              height: 248,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.only(left: 39),
@@ -485,13 +706,15 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                   final sale = p.salePrice > 0 && p.salePrice < p.price;
                   final displayPrice = sale ? p.salePrice : p.price;
                   return SizedBox(
-                    width: 164,
+                    width: 178,
                     child: Material(
                       color: dark ? const Color(0xFF1A2721) : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                         side: BorderSide(
-                          color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE4E9E1),
+                          color: dark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : const Color(0xFFE4E9E1),
                         ),
                       ),
                       clipBehavior: Clip.antiAlias,
@@ -505,7 +728,10 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                                 fit: StackFit.expand,
                                 children: [
                                   ColoredBox(
-                                      color: dark ? const Color(0xFF22342B) : const Color(0xFFF3F4EF)),
+                                    color: dark
+                                        ? const Color(0xFF22342B)
+                                        : const Color(0xFFF3F4EF),
+                                  ),
                                   TRoundedImage(
                                     imageUrl: p.thumbnail,
                                     isNetworkImage: true,
@@ -519,10 +745,14 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                                       top: 6,
                                       left: 6,
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF173E32),
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
                                         ),
                                         child: Text(
                                           '-${(((p.price - p.salePrice) / p.price) * 100).round()}%',
@@ -538,47 +768,59 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                              padding:
+                                  const EdgeInsets.fromLTRB(10, 8, 10, 10),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   ShopText(
                                     'VELORA · ${p.categoryName}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                    softWrap: true,
                                     style: TextStyle(
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.6,
-                                      color: dark ? const Color(0xFFB6CEB4) : const Color(0xFF4F6B5D),
+                                      letterSpacing: 0.4,
+                                      color: dark
+                                          ? const Color(0xFFB6CEB4)
+                                          : const Color(0xFF4F6B5D),
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
+                                  const SizedBox(height: 3),
                                   Text(
                                     p.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                                    softWrap: true,
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.22,
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   Wrap(
                                     spacing: 5,
-                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    runSpacing: 2,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
                                       Text(
-                                        formatShopMoney(displayPrice, language: lang),
+                                        formatShopMoney(displayPrice,
+                                            language: lang),
                                         style: TextStyle(
-                                          fontSize: 13.5,
+                                          fontSize: 13,
                                           fontWeight: FontWeight.w800,
-                                          color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                                          color: dark
+                                              ? const Color(0xFFDDEABB)
+                                              : const Color(0xFF173E32),
                                         ),
                                       ),
                                       if (sale)
                                         Text(
-                                          formatShopMoney(p.price, language: lang),
+                                          formatShopMoney(p.price,
+                                              language: lang),
                                           style: TextStyle(
                                             fontSize: 10.5,
-                                            decoration: TextDecoration.lineThrough,
+                                            decoration:
+                                                TextDecoration.lineThrough,
                                             color: theme.hintColor,
                                           ),
                                         ),
@@ -605,19 +847,26 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                 runSpacing: 6,
                 children: msg.followUpPrompts.map((idea) {
                   return Material(
-                    color: dark ? const Color(0xFF1E3229) : const Color(0xFFEAF2EE),
+                    color: dark
+                        ? const Color(0xFF1E3229)
+                        : const Color(0xFFEAF2EE),
                     borderRadius: BorderRadius.circular(999),
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
                       onTap: () => _send(idea),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 6,
+                        ),
                         child: Text(
                           idea,
                           style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w600,
-                            color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                            color: dark
+                                ? const Color(0xFFDDEABB)
+                                : const Color(0xFF173E32),
                           ),
                         ),
                       ),

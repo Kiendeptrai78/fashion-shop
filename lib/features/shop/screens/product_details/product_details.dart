@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/product/cart/cart_menu_icon.dart';
 import 'package:fashion_business_app/common/widgets/product/favourite_icon/favourite_icon.dart';
@@ -6,14 +7,18 @@ import 'package:fashion_business_app/features/shop/controllers/product/cart_cont
 import 'package:fashion_business_app/features/shop/controllers/product/images_controller.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/variation_controller.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
+import 'package:fashion_business_app/features/shop/models/product_review_model.dart';
 import 'package:fashion_business_app/features/shop/screens/product_details/widgets/product_attributes.dart';
 import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
 import 'package:fashion_business_app/features/shop/screens/reels/velora_reels_screen.dart';
+import 'package:fashion_business_app/features/shop/screens/support_chat/velora_support_chat_screen.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:intl/intl.dart';
 import 'package:video_player/video_player.dart';
 
 import 'widgets/bottom_add_to_cart_widget.dart';
@@ -110,6 +115,13 @@ class _ProductDetailState extends State<ProductDetail> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Chat trực tiếp với VELORA về đôi giày này',
+            onPressed: () => Get.to(
+              () => VeloraSupportChatScreen(initialProduct: product),
+            ),
+            icon: const Icon(Iconsax.message_text_1, size: 22),
+          ),
           TFavouriteIcon(productId: product.id),
           const TCartCounterIcon(),
         ],
@@ -243,52 +255,13 @@ class _ProductDetailState extends State<ProductDetail> {
                     ],
                   ),
                   const SizedBox(height: 22),
-                  Material(
-                    color: surface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(color: border),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      leading: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: dark
-                              ? const Color(0xFF283A2E)
-                              : const Color(0xFFE7F0EA),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.star_rounded,
-                          color: Color(0xFFD99A1E),
-                          size: 22,
-                        ),
-                      ),
-                      title: const ShopText(
-                        'Customer reviews',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
-                      ),
-                      subtitle: const ShopText(
-                        'See how this pair feels in everyday life.',
-                        style: TextStyle(fontSize: 12.5),
-                      ),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => Get.to(
-                        () => ProductReview(
-                          productId: product.id,
-                          productTitle: product.title,
-                        ),
-                      ),
-                    ),
+                  _ProductReviewsPreviewSection(
+                    key: ValueKey('reviews_preview_${product.id}'),
+                    productId: product.id,
+                    productTitle: product.title,
+                    surface: surface,
+                    border: border,
+                    dark: dark,
                   ),
                   const SizedBox(height: 28),
                   SimilarProducts(
@@ -318,8 +291,7 @@ class _ProductDetailState extends State<ProductDetail> {
         const SizedBox(height: 5),
         ShopText(
           label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          softWrap: true,
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600),
         ),
@@ -708,8 +680,7 @@ class _InlinePromoVideoCardState extends State<_InlinePromoVideoCard> {
                     Expanded(
                       child: ShopText(
                         'Like & Comment',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -729,6 +700,460 @@ class _InlinePromoVideoCardState extends State<_InlinePromoVideoCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Live Customer Reviews Preview shown directly inside ProductDetail
+/// (shows total review count, average rating, top 3 recent reviews, and "Xem tất cả" button).
+class _ProductReviewsPreviewSection extends StatefulWidget {
+  const _ProductReviewsPreviewSection({
+    super.key,
+    required this.productId,
+    required this.productTitle,
+    required this.surface,
+    required this.border,
+    required this.dark,
+  });
+
+  final String productId;
+  final String productTitle;
+  final Color surface;
+  final Color border;
+  final bool dark;
+
+  @override
+  State<_ProductReviewsPreviewSection> createState() =>
+      _ProductReviewsPreviewSectionState();
+}
+
+class _ProductReviewsPreviewSectionState
+    extends State<_ProductReviewsPreviewSection> {
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _reviewsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    if (Firebase.apps.isNotEmpty && widget.productId.isNotEmpty) {
+      _reviewsStream = FirebaseFirestore.instance
+          .collection('Products')
+          .doc(widget.productId)
+          .collection('Reviews')
+          .snapshots();
+    }
+  }
+
+  void _openAllReviews() {
+    Get.to(
+      () => ProductReview(
+        productId: widget.productId,
+        productTitle: widget.productTitle,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context).languageCode;
+    final isEn = locale == 'en';
+    final theme = Theme.of(context);
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _reviewsStream,
+      builder: (context, snapshot) {
+        final reviews = (snapshot.data?.docs ?? const []).map((doc) {
+          final data = doc.data();
+          final rawCreated = data['createdAt'];
+          final createdAt = rawCreated is Timestamp
+              ? rawCreated.toDate()
+              : (rawCreated is String ? DateTime.tryParse(rawCreated) : null);
+          final rawReplyAt = data['adminReplyAt'];
+          final adminReplyAt = rawReplyAt is Timestamp
+              ? rawReplyAt.toDate()
+              : (rawReplyAt is String ? DateTime.tryParse(rawReplyAt) : null);
+          return ProductReviewEntry(
+            id: doc.id,
+            userId: (data['userId'] as String?) ?? '',
+            authorName: (data['authorName'] as String?)?.trim().isNotEmpty == true
+                ? (data['authorName'] as String).trim()
+                : 'Khách hàng VELORA',
+            rating: ((data['rating'] as num?) ?? 5).toInt().clamp(1, 5),
+            text: (data['text'] as String?) ?? '',
+            createdAt: createdAt,
+            adminReply: data['adminReply'] as String?,
+            adminReplyAt: adminReplyAt,
+            imageUrls: List<String>.from(data['imageUrls'] as List? ?? const []),
+            videoUrls: List<String>.from(data['videoUrls'] as List? ?? const []),
+            verifiedPurchase: data['verifiedPurchase'] == true,
+          );
+        }).toList()
+          ..sort((a, b) => (b.createdAt ?? DateTime(2000))
+              .compareTo(a.createdAt ?? DateTime(2000)));
+
+        final totalCount = reviews.length;
+        final avgRating = totalCount == 0
+            ? 0.0
+            : reviews.fold<double>(0.0, (s, r) => s + r.rating) / totalCount;
+        final previewList = reviews.take(3).toList();
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: widget.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: widget.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header: Title + Average Rating + Total Count + "Xem tất cả"
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: widget.dark
+                          ? const Color(0xFF283A2E)
+                          : const Color(0xFFE7F0EA),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: const Icon(
+                      Icons.star_rounded,
+                      color: Color(0xFFD99A1E),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isEn
+                              ? 'Customer Reviews ($totalCount)'
+                              : 'Đánh giá từ khách hàng ($totalCount)',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          totalCount > 0
+                              ? (isEn
+                                  ? '${avgRating.toStringAsFixed(1)} ★ average · $totalCount verified shoppers reviewed'
+                                  : '${avgRating.toStringAsFixed(1)} ★ trung bình • $totalCount người đã đánh giá đôi giày này')
+                              : (isEn
+                                  ? 'No reviews yet — be the first to review!'
+                                  : 'Chưa có đánh giá nào — hãy chia sẻ trải nghiệm đầu tiên!'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 12,
+                            color: widget.dark
+                                ? const Color(0xFFB6CEB4)
+                                : const Color(0xFF475569),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _openAllReviews,
+                    style: TextButton.styleFrom(
+                      foregroundColor: widget.dark
+                          ? const Color(0xFFDDEABB)
+                          : const Color(0xFF173E32),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                    ),
+                    child: Text(
+                      isEn ? 'See all →' : 'Xem tất cả →',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              if (previewList.isNotEmpty) ...[
+                const Divider(height: 22),
+                for (var i = 0; i < previewList.length; i++) ...[
+                  _buildPreviewItem(
+                    context,
+                    previewList[i],
+                    locale: locale,
+                    isEn: isEn,
+                  ),
+                  if (i < previewList.length - 1) const Divider(height: 20),
+                ],
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _openAllReviews,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: widget.dark
+                          ? const Color(0xFFDDEABB)
+                          : const Color(0xFF173E32),
+                      side: BorderSide(
+                        color: widget.dark
+                            ? const Color(0xFFDDEABB).withValues(alpha: 0.4)
+                            : const Color(0xFF173E32).withValues(alpha: 0.35),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.rate_review_outlined, size: 17),
+                    label: Text(
+                      isEn
+                          ? 'View all $totalCount reviews & write yours'
+                          : 'Xem tất cả $totalCount đánh giá chi tiết',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _openAllReviews,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: widget.dark
+                          ? const Color(0xFFDDEABB)
+                          : const Color(0xFF173E32),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.star_outline_rounded, size: 17),
+                    label: Text(
+                      isEn
+                          ? 'Open reviews & share feedback'
+                          : 'Xem trang đánh giá & viết cảm nhận',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPreviewItem(
+    BuildContext context,
+    ProductReviewEntry r, {
+    required String locale,
+    required bool isEn,
+  }) {
+    final starColor = r.rating <= 2
+        ? const Color(0xFFDC2626)
+        : (r.rating == 3 ? const Color(0xFFD97706) : const Color(0xFF16A34A));
+    final reply = ProductReviewEntry.sanitizeAdminReplyForRating(
+      rawReply: r.adminReply,
+      rating: r.rating,
+      authorName: r.authorName,
+      productTitle: widget.productTitle,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            CircleAvatar(
+              radius: 15,
+              backgroundColor: widget.dark
+                  ? const Color(0xFF283A2E)
+                  : const Color(0xFFE7F0EA),
+              child: Text(
+                r.authorName.isNotEmpty
+                    ? r.authorName.characters.first.toUpperCase()
+                    : 'K',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: widget.dark
+                      ? const Color(0xFFDDEABB)
+                      : const Color(0xFF173E32),
+                ),
+              ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 3,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        r.authorName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (r.verifiedPurchase)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            isEn ? 'Verified' : 'Đã mua hàng',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF166534),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (r.createdAt != null)
+                    Text(
+                      DateFormat.yMMMd(locale).format(r.createdAt!),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(
+                5,
+                (idx) => Icon(
+                  idx < r.rating
+                      ? Icons.star_rounded
+                      : Icons.star_outline_rounded,
+                  size: 14,
+                  color: idx < r.rating ? starColor : Colors.grey.shade400,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (r.text.trim().isNotEmpty) ...[
+          const SizedBox(height: 7),
+          Text(
+            r.text.trim(),
+            softWrap: true,
+            style: const TextStyle(fontSize: 13, height: 1.45),
+          ),
+        ],
+        if (r.imageUrls.isNotEmpty || r.videoUrls.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 54,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final img in r.imageUrls.take(4))
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: img,
+                        width: 54,
+                        height: 54,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                for (var v = 0; v < r.videoUrls.length; v++)
+                  Container(
+                    width: 54,
+                    height: 54,
+                    margin: const EdgeInsets.only(right: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF14352B),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.play_circle_fill_rounded,
+                      color: Color(0xFFDDEABB),
+                      size: 24,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if (reply != null && reply.trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: widget.dark
+                  ? const Color(0xFF1D3128)
+                  : const Color(0xFFF3F8F5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border(
+                left: BorderSide(
+                  color: r.rating <= 2
+                      ? const Color(0xFFE11D48)
+                      : const Color(0xFF173E32),
+                  width: 3,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  r.rating <= 2
+                      ? 'VELORA CSKH • Hỗ trợ đổi trả'
+                      : 'Phản hồi từ VELORA Official',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: r.rating <= 2
+                        ? const Color(0xFFBE123C)
+                        : (widget.dark
+                            ? const Color(0xFFDDEABB)
+                            : const Color(0xFF173E32)),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  reply.trim(),
+                  softWrap: true,
+                  style: const TextStyle(fontSize: 12, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

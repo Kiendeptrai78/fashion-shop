@@ -306,13 +306,23 @@ class _AdminReturnsViewState extends State<AdminReturnsView> {
                                         loading: saving,
                                         onPressed: () => applyStatus(nextStep),
                                       ),
-                                    if (currentStatus ==
-                                        ReturnRequestStatus.pending)
+                                    if (currentStatus !=
+                                            ReturnRequestStatus.completed &&
+                                        currentStatus !=
+                                            ReturnRequestStatus.rejected)
                                       OutlinedButton.icon(
                                         onPressed: saving
                                             ? null
-                                            : () => applyStatus(
-                                                ReturnRequestStatus.rejected),
+                                            : () async {
+                                                final reason =
+                                                    await _promptRejectReason(
+                                                        request);
+                                                if (reason == null) return;
+                                                responseCtrl.text = reason;
+                                                await applyStatus(
+                                                  ReturnRequestStatus.rejected,
+                                                );
+                                              },
                                         icon: const Icon(
                                           Iconsax.close_circle,
                                           size: 16,
@@ -321,9 +331,100 @@ class _AdminReturnsViewState extends State<AdminReturnsView> {
                                         label: const Text(
                                           'Từ chối yêu cầu',
                                           style: TextStyle(
-                                              color: AdminColors.rose),
+                                            color: AdminColors.rose,
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                         ),
                                       ),
+                                    OutlinedButton.icon(
+                                      onPressed: () {
+                                        Navigator.of(dialogCtx).pop();
+                                        c.openSupportChatForCustomer(
+                                          userId: request.userId,
+                                          customerName: request.customerName,
+                                          customerEmail: request.customerEmail,
+                                          orderId: request.orderId,
+                                          returnRequestId: request.id,
+                                          productTitle: request.productTitle,
+                                          productThumbnail:
+                                              request.productThumbnail,
+                                          contextSummary:
+                                              '${request.typeLabel()} • ${request.requestedSizeOrColor}'
+                                              '${request.pickupAddress.isNotEmpty ? ' • Địa chỉ đổi mới: ${request.pickupAddress}' : ''}',
+                                          draftMessage:
+                                              'Chào ${request.customerName}, VELORA đã tiếp nhận yêu cầu ${request.typeLabel()} cho đôi ${request.productTitle} và sẽ gửi về địa chỉ đổi mới: ${request.pickupAddress}. ',
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Iconsax.message_text_1,
+                                        size: 16,
+                                        color: AdminColors.forest,
+                                      ),
+                                      label: const Text(
+                                        'Nhắn tin riêng cho khách',
+                                        style: TextStyle(
+                                          color: AdminColors.forest,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    FilledButton.tonalIcon(
+                                      onPressed: saving
+                                          ? null
+                                          : () async {
+                                              setModalState(
+                                                  () => saving = true);
+                                              final msg =
+                                                  'Chào ${request.customerName}, VELORA xác nhận địa chỉ đổi trả cho mẫu ${request.productTitle} (${request.typeLabel()}) là: ${request.pickupAddress}. Bạn kiểm tra xem địa chỉ đổi mới này đã chính xác chưa để Tổng Kho Hà Nội xử lý gửi hàng ngay nhé!';
+                                              final ok = await c
+                                                  .sendAdminSupportMessage(
+                                                userId: request.userId,
+                                                customerName:
+                                                    request.customerName,
+                                                customerEmail:
+                                                    request.customerEmail,
+                                                text: msg,
+                                                orderId: request.orderId,
+                                                returnRequestId: request.id,
+                                                productId: request.productId,
+                                                productTitle:
+                                                    request.productTitle,
+                                                productThumbnail:
+                                                    request.productThumbnail,
+                                                contextSummary:
+                                                    'Xác nhận địa chỉ đổi trả • ${request.pickupAddress}',
+                                              );
+                                              if (ctx.mounted) {
+                                                setModalState(
+                                                    () => saving = false);
+                                                if (ok) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Đã gửi tin nhắn xác nhận địa chỉ đổi trả tới khung Chat 1-1 của khách!',
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                      icon: const Icon(
+                                        Iconsax.location,
+                                        size: 16,
+                                        color: AdminColors.sky,
+                                      ),
+                                      label: const Text(
+                                        'Gửi xác nhận địa chỉ đổi trả',
+                                        style: TextStyle(
+                                          color: AdminColors.sky,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: AdminColors.skyBg,
+                                      ),
+                                    ),
                                     SizedBox(
                                       width: 240,
                                       child: DropdownButtonFormField<
@@ -470,7 +571,7 @@ class _AdminReturnsViewState extends State<AdminReturnsView> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '• Địa chỉ Shipper thu hồi & giao đổi (về Tổng Kho Hà Nội): ${request.pickupAddress} • SĐT: ${request.customerPhone}',
+                                  '• Địa chỉ đổi mới (nhận sản phẩm đổi mới): ${request.pickupAddress}',
                                   style: const TextStyle(
                                     fontSize: 12.5,
                                     color: AdminColors.sky,
@@ -734,6 +835,144 @@ class _AdminReturnsViewState extends State<AdminReturnsView> {
         ),
       ),
     );
+  }
+
+  Future<String?> _promptRejectReason(ReturnRequestModel req) async {
+    const presetReasons = [
+      'Rất tiếc VELORA không thể duyệt yêu cầu do đơn hàng đã quá thời hạn hỗ trợ đổi trả 7 ngày kể từ ngày nhận hàng.',
+      'Sản phẩm đã có dấu hiệu qua sử dụng ngoài trời / bị bẩn đế hoặc không còn nguyên tem mác & hộp giày VELORA.',
+      'Hình ảnh / video đính kèm chưa thể hiện rõ tình trạng lỗi sản phẩm. Bạn vui lòng nhắn tin trực tiếp với VELORA để bổ sung nhé.',
+      'Mẫu sản phẩm gửi yêu cầu không khớp với thông tin đơn hàng đã mua tại hệ thống VELORA.',
+    ];
+    final reasonCtrl = TextEditingController(text: presetReasons.first);
+    final res = await showDialog<String>(
+      context: context,
+      builder: (dialogCtx) => Dialog(
+        backgroundColor: AdminColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: AdminColors.roseBg,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Iconsax.close_circle,
+                        color: AdminColors.rose,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Từ chối yêu cầu Đổi / Trả',
+                            style: TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w800,
+                              color: AdminColors.ink,
+                            ),
+                          ),
+                          Text(
+                            '${req.customerName} • ${req.productTitle}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AdminColors.inkSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Chọn nhanh lý do từ chối (tự động gửi thông báo & nhắn tin 1-1 cho khách):',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AdminColors.inkSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (var i = 0; i < presetReasons.length; i++)
+                      ActionChip(
+                        onPressed: () => reasonCtrl.text = presetReasons[i],
+                        backgroundColor: AdminColors.surfaceMuted,
+                        label: Text(
+                          i == 0
+                              ? 'Quá hạn 7 ngày'
+                              : i == 1
+                                  ? 'Đã qua sử dụng / mất tem'
+                                  : i == 2
+                                      ? 'Thiếu ảnh/video lỗi'
+                                      : 'Không khớp đơn hàng',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AdminColors.rose,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonCtrl,
+                  maxLines: 4,
+                  decoration: adminInputDecoration(
+                    label: 'Nội dung phản hồi từ chối gửi tới khách hàng',
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogCtx).pop(),
+                      child: const Text('Hủy bỏ'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: () {
+                        final text = reasonCtrl.text.trim();
+                        Navigator.of(dialogCtx).pop(
+                          text.isNotEmpty ? text : presetReasons.first,
+                        );
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AdminColors.rose,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Iconsax.close_circle, size: 16),
+                      label: const Text('Xác nhận Từ chối'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    reasonCtrl.dispose();
+    return res;
   }
 
   @override
@@ -1106,8 +1345,7 @@ class _AdminReturnsViewState extends State<AdminReturnsView> {
                                             children: [
                                               Text(
                                                 req.reasonCategory,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                                softWrap: true,
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w700,
                                                   fontSize: 12,
@@ -1116,6 +1354,8 @@ class _AdminReturnsViewState extends State<AdminReturnsView> {
                                               ),
                                               const SizedBox(height: 2),
                                               Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   if (req.hasMedia) ...[
                                                     const Icon(
@@ -1139,9 +1379,7 @@ class _AdminReturnsViewState extends State<AdminReturnsView> {
                                                   Expanded(
                                                     child: Text(
                                                       '"${req.description}"',
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
+                                                      softWrap: true,
                                                       style: const TextStyle(
                                                         fontSize: 11.5,
                                                         color: AdminColors
@@ -1226,6 +1464,67 @@ class _AdminReturnsViewState extends State<AdminReturnsView> {
                                                         const Size(0, 30),
                                                   ),
                                                 ),
+                                              if (req.status !=
+                                                      ReturnRequestStatus
+                                                          .completed &&
+                                                  req.status !=
+                                                      ReturnRequestStatus
+                                                          .rejected)
+                                                IconButton(
+                                                  visualDensity:
+                                                      VisualDensity.compact,
+                                                  tooltip:
+                                                      'Từ chối yêu cầu đổi trả (kèm lý do)',
+                                                  onPressed: () async {
+                                                    final reason =
+                                                        await _promptRejectReason(
+                                                            req);
+                                                    if (reason == null) return;
+                                                    await c.updateReturnRequest(
+                                                      request: req,
+                                                      nextStatus:
+                                                          ReturnRequestStatus
+                                                              .rejected,
+                                                      customAdminResponse:
+                                                          reason,
+                                                    );
+                                                  },
+                                                  icon: const Icon(
+                                                    Iconsax.close_circle,
+                                                    size: 17,
+                                                    color: AdminColors.rose,
+                                                  ),
+                                                ),
+                                              IconButton(
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                tooltip:
+                                                    'Nhắn tin riêng cho khách hàng',
+                                                onPressed: () =>
+                                                    c.openSupportChatForCustomer(
+                                                  userId: req.userId,
+                                                  customerName:
+                                                      req.customerName,
+                                                  customerEmail:
+                                                      req.customerEmail,
+                                                  orderId: req.orderId,
+                                                  returnRequestId: req.id,
+                                                  productTitle:
+                                                      req.productTitle,
+                                                  productThumbnail:
+                                                      req.productThumbnail,
+                                                  contextSummary:
+                                                      '${req.typeLabel()} • ${req.requestedSizeOrColor}'
+                                                      '${req.pickupAddress.isNotEmpty ? ' • Địa chỉ đổi mới: ${req.pickupAddress}' : ''}',
+                                                  draftMessage:
+                                                      'Chào ${req.customerName}, VELORA cập nhật yêu cầu ${req.typeLabel()} cho đôi ${req.productTitle} (Địa chỉ đổi mới: ${req.pickupAddress}): ',
+                                                ),
+                                                icon: const Icon(
+                                                  Iconsax.message_text_1,
+                                                  size: 17,
+                                                  color: AdminColors.sky,
+                                                ),
+                                              ),
                                               IconButton(
                                                 visualDensity:
                                                     VisualDensity.compact,

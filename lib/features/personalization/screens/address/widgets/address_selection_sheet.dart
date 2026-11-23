@@ -53,9 +53,17 @@ class _AddressSelectionSheetState extends State<AddressSelectionSheet> {
           if (addresses.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 48),
             child: Column(children: [Icon(Iconsax.location, size: 48), SizedBox(height: 20),
               ShopText('Add your first address to make checkout easier.', textAlign: TextAlign.center)])),
-          for (final address in addresses) TSingleAddress(address: address, onTap: () async {
-            if (await AddressController.instance.selectAddress(address) && context.mounted) Navigator.pop(context);
-          }),
+          for (final address in addresses) TSingleAddress(
+            address: address,
+            onTap: () async {
+              if (await AddressController.instance.selectAddress(address) && context.mounted) Navigator.pop(context);
+            },
+            onEdit: () async {
+              await Get.to(() => AddNewAddressScreen(editingAddress: address));
+              if (!mounted) return;
+              setState(() { _addresses = _load(); });
+            },
+          ),
         ]);
       })),
       Padding(padding: const EdgeInsets.all(24), child: SizedBox(width: double.infinity,

@@ -15,7 +15,9 @@ import 'package:fashion_business_app/admin/web/views/orders_view.dart';
 import 'package:fashion_business_app/admin/web/views/products_view.dart';
 import 'package:fashion_business_app/admin/web/views/returns_view.dart';
 import 'package:fashion_business_app/admin/web/views/reviews_view.dart';
+import 'package:fashion_business_app/admin/web/views/support_chat_view.dart';
 import 'package:fashion_business_app/features/shop/models/return_request_model.dart';
+import 'package:fashion_business_app/features/shop/models/support_chat_model.dart';
 import 'package:fashion_business_app/admin/web/views/users_view.dart';
 import 'package:fashion_business_app/admin/web/views/vouchers_view.dart';
 import 'package:fashion_business_app/features/authentication/models/user_model.dart';
@@ -243,6 +245,25 @@ class _FakeAdminWebRepository implements AdminWebRepository {
       ];
 
   @override
+  Future<List<SupportChatThreadModel>> fetchSupportChatThreads() async => [
+        SupportChatThreadModel(
+          userId: 'user-1',
+          customerName: 'Lan Nguyen',
+          customerEmail: 'customer@example.com',
+          lastMessage: 'Mình muốn đổi sang size EU 42 về địa chỉ Cầu Giấy nhé',
+          lastSender: 'customer',
+          unreadByAdmin: 1,
+          unreadByCustomer: 0,
+          activeReturnId: 'RET-1001',
+          activeProductTitle: 'Air Force 1',
+          updatedAt: DateTime(2026, 11, 23),
+        ),
+      ];
+
+  @override
+  Future<void> markSupportChatReadByAdmin(String userId) async {}
+
+  @override
   Future<List<AdminVideoCommentRecord>> fetchAllVideoComments(
           List<ProductModel> products) async =>
       [
@@ -322,6 +343,7 @@ void main() {
       AdminFinanceView(controller: controller),
       AdminOrdersView(controller: controller),
       AdminReturnsView(controller: controller),
+      AdminSupportChatView(controller: controller),
       AdminProductsView(controller: controller),
       AdminFeaturedReelsView(controller: controller),
       AdminVouchersView(controller: controller),

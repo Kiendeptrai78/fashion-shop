@@ -135,6 +135,10 @@ class LoginController extends GetxController{
 
       //googleSigning
       final userCredentials = await AuthenticationRepository.instance.signInWithGoogle();
+      if (userCredentials == null) {
+        TFullScreenLoader.stopLoading();
+        return;
+      }
 
       //save user record
       await userController.saveUserRecord(userCredentials);
