@@ -1,7 +1,6 @@
 import 'package:fashion_business_app/features/personalization/services/account_activity.dart';
 import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_count_badge.dart';
-import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -10,8 +9,6 @@ import 'package:fashion_business_app/features/shop/screens/home/home_screen.dart
 import 'package:fashion_business_app/features/shop/screens/reels/velora_reels_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/support_chat/velora_support_chat_screen.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
-
-import 'features/shop/screens/cart/cart_screen.dart';
 
 class NavigationMenu extends StatelessWidget {
   const NavigationMenu({super.key});
@@ -24,9 +21,14 @@ class NavigationMenu extends StatelessWidget {
     final activeColor = darkMode ? const Color(0xFFDDEABB) : const Color(0xFF173E32);
     final inactiveColor = darkMode ? Colors.white60 : const Color(0xFF6B7770);
 
+    final mq = MediaQuery.of(context);
+    final navOccupiedHeight = 74.0 + mq.viewPadding.bottom;
+    final adjustedBottomInset =
+        (mq.viewInsets.bottom - navOccupiedHeight).clamp(0.0, double.infinity);
+
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       bottomNavigationBar: Obx(() {
-        final cartCount = CartController.instance.noOfCartItem.value;
         final chatUnread = AccountActivity.current?.chatUnread.value ?? 0;
         final profileCount = (AccountActivity.current?.activeOrders ?? 0) +
             (AccountActivity.current?.unread ?? 0) +
@@ -69,7 +71,7 @@ class NavigationMenu extends StatelessWidget {
             child: NavigationBar(
               height: 74,
               elevation: 0,
-              selectedIndex: controller.selectedIndex.value,
+              selectedIndex: controller.selectedIndex.value.clamp(0, 3),
               onDestinationSelected: (index) => controller.selectedIndex.value = index,
               backgroundColor: Colors.transparent,
               surfaceTintColor: Colors.transparent,
@@ -82,14 +84,9 @@ class NavigationMenu extends StatelessWidget {
                   label: 'Home'.tr,
                 ),
                 NavigationDestination(
-                  icon: const Icon(Iconsax.magic_star),
-                  selectedIcon: const Icon(Icons.auto_awesome_rounded),
+                  icon: const Icon(Icons.play_circle_outline_rounded),
+                  selectedIcon: const Icon(Icons.play_circle_filled_rounded),
                   label: 'Featured'.tr,
-                ),
-                NavigationDestination(
-                  icon: ShopCountBadge(count: cartCount, child: const Icon(Iconsax.shopping_bag)),
-                  selectedIcon: ShopCountBadge(count: cartCount, child: const Icon(Iconsax.shopping_bag5)),
-                  label: 'Cart'.tr,
                 ),
                 NavigationDestination(
                   icon: ShopCountBadge(count: chatUnread, child: const Icon(Iconsax.message_text_1)),
@@ -106,7 +103,12 @@ class NavigationMenu extends StatelessWidget {
           ),
         );
       }),
-      body: Obx(() => controller.screens[controller.selectedIndex.value]),
+      body: MediaQuery(
+        data: mq.copyWith(
+          viewInsets: mq.viewInsets.copyWith(bottom: adjustedBottomInset),
+        ),
+        child: Obx(() => controller.screens[controller.selectedIndex.value.clamp(0, 3)]),
+      ),
     );
   }
 }
@@ -116,7 +118,6 @@ class NavigationController extends GetxController {
   final screens = [
     const HomeScreen(),
     const VeloraReelsScreen(),
-    const CartScreen(),
     const VeloraSupportChatScreen(embeddedInNav: true),
     const SettingScreen()
   ];

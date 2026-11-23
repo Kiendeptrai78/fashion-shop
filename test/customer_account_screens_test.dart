@@ -6,7 +6,9 @@ import 'package:fashion_business_app/features/personalization/models/address_mod
 import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
 import 'package:fashion_business_app/features/personalization/screens/account/demo_bank_screen.dart';
 import 'package:fashion_business_app/features/personalization/screens/account/coupons_screen.dart';
+import 'package:fashion_business_app/features/personalization/screens/settings/setting_screen.dart';
 import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
+import 'package:fashion_business_app/features/shop/services/vnpay_sandbox_service.dart';
 import 'package:fashion_business_app/utils/localization/shop_translations.dart';
 
 void main() {
@@ -29,6 +31,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(app(const DemoBankScreen()));
+    await tester.pumpAndSettle();
+    expect(find.text('•••••••• ₫'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('toggle-wallet-balance-visibility')));
     await tester.pumpAndSettle();
     expect(find.text('10.000.000 ₫'), findsOneWidget);
     await tester.tap(find.byType(ElevatedButton));
@@ -118,5 +123,38 @@ void main() {
     expect(dnToHcm, inInclusiveRange(860, 1020));
     final hcmToCanTho = ShippingRouteHelper.distanceBetweenProvinces('TP. Hồ Chí Minh', 'Cần Thơ');
     expect(hcmToCanTho, inInclusiveRange(145, 195));
+  });
+
+  test('VNPay Sandbox v2.1.0 signs payment URL with HMAC-SHA512 and verifies return params', () {
+    final req = VnPaySandboxService.buildSignedPaymentRequest(
+      txnRef: 'VELORA123456',
+      amountVnd: 2500000,
+      orderInfo: 'Thanh toán đơn giày VELORA',
+      bankCode: 'NCB',
+      now: DateTime(2026, 11, 23, 14, 30, 0),
+    );
+    expect(req.paymentUrl, startsWith(VnPaySandboxService.sandboxEndpoint));
+    expect(req.params['vnp_Version'], '2.1.0');
+    expect(req.params['vnp_Amount'], '250000000');
+    expect(req.params['vnp_OrderInfo'], 'Thanh toan don giay VELORA');
+    expect(req.secureHash.length, 128); // SHA-512 hex length
+
+    final parsedUri = Uri.parse(req.paymentUrl);
+    expect(VnPaySandboxService.verifyReturnParams(parsedUri.queryParameters), isTrue);
+
+    final tampered = Map<String, String>.from(parsedUri.queryParameters);
+    tampered['vnp_Amount'] = '100';
+    expect(VnPaySandboxService.verifyReturnParams(tampered), isFalse);
+    expect(VnPaySandboxService.describeResponseCode('00'), contains('thành công'));
+    expect(VnPaySandboxService.describeResponseCode('24'), contains('hủy'));
+  });
+
+  testWidgets('SettingScreen renders without GetX Obx errors', (tester) async {
+    await tester.pumpWidget(app(const SettingScreen()));
+    await tester.pumpAndSettle();
+    expect(find.text('Đơn hàng'), findsOneWidget);
+    expect(find.text('Yêu thích'), findsWidgets);
+    expect(find.text('Voucher'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

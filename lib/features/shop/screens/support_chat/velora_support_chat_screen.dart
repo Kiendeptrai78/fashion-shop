@@ -55,6 +55,7 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
   bool _uploadingMedia = false;
   String _uploadingLabel = '';
   bool _contextAttached = true;
+  bool _showScrollToLatest = false;
 
   OrderModel? get _order => widget.initialOrder;
   ReturnRequestModel? get _returnReq => widget.initialReturnRequest;
@@ -148,11 +149,21 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
           .orderBy('createdAt', descending: false)
           .snapshots();
     }
+    _scroll.addListener(_onScrollChanged);
     _markCustomerRead();
+  }
+
+  void _onScrollChanged() {
+    if (!_scroll.hasClients) return;
+    final shouldShow = _scroll.offset > 60;
+    if (shouldShow != _showScrollToLatest) {
+      setState(() => _showScrollToLatest = shouldShow);
+    }
   }
 
   @override
   void dispose() {
+    _scroll.removeListener(_onScrollChanged);
     _input.dispose();
     _scroll.dispose();
     super.dispose();
@@ -510,8 +521,8 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
         _scroll.animateTo(
-          _scroll.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 220),
+          0.0,
+          duration: const Duration(milliseconds: 240),
           curve: Curves.easeOutCubic,
         );
       }
@@ -527,7 +538,10 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
-      child: Scaffold(
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Scaffold(
         backgroundColor:
             dark ? const Color(0xFF101915) : const Color(0xFFF6F8F6),
         appBar: AppBar(
@@ -676,29 +690,85 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
                     ),
 
                   Expanded(
-                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _messagesStream,
-                      builder: (context, snapshot) {
-                        final docs = snapshot.data?.docs ?? const [];
-                        final messages = docs
-                            .map(SupportChatMessageModel.fromSnapshot)
-                            .toList();
+                    child: Stack(
+                      children: [
+                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: _messagesStream,
+                          builder: (context, snapshot) {
+                            final docs = snapshot.data?.docs ?? const [];
+                            final messages = docs
+                                .map(SupportChatMessageModel.fromSnapshot)
+                                .toList();
 
-                        if (messages.isNotEmpty && messages.last.isAdmin) {
-                          _markCustomerRead();
-                        }
+                            if (messages.isNotEmpty && messages.last.isAdmin) {
+                              _markCustomerRead();
+                            }
 
-                        return ListView(
-                          controller: _scroll,
-                          physics: const ClampingScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                          children: [
-                            _buildAdminWelcomeCard(dark),
-                            for (final m in messages)
-                              _buildMessageBubble(m, dark),
-                          ],
-                        );
-                      },
+                            final reversed = messages.reversed.toList();
+                            return ListView.builder(
+                              controller: _scroll,
+                              reverse: true,
+                              physics: const ClampingScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+                              itemCount: reversed.length + 1,
+                              itemBuilder: (_, index) {
+                                if (index == reversed.length) {
+                                  return _buildAdminWelcomeCard(dark);
+                                }
+                                return _buildMessageBubble(
+                                  reversed[index],
+                                  dark,
+                                );
+                              },
+                            );
+                          },
+                        ),
+                        // Floating Scroll-to-Latest Button at bottom-right
+                        Positioned(
+                          right: 14,
+                          bottom: 14,
+                          child: AnimatedScale(
+                            scale: _showScrollToLatest ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOutBack,
+                            child: AnimatedOpacity(
+                              opacity: _showScrollToLatest ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 160),
+                              child: Material(
+                                color: dark
+                                    ? const Color(0xFF1F3B30)
+                                    : const Color(0xFF173E32),
+                                elevation: 5,
+                                shadowColor:
+                                    Colors.black.withValues(alpha: 0.28),
+                                shape: const CircleBorder(),
+                                child: InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: _scrollToBottom,
+                                  child: Container(
+                                    width: 42,
+                                    height: 42,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFFDDEABB)
+                                            .withValues(alpha: 0.45),
+                                        width: 1.2,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      color: Color(0xFFDDEABB),
+                                      size: 26,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -777,6 +847,7 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
                     ),
                     child: SafeArea(
                       top: false,
+                      bottom: !widget.embeddedInNav,
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(8, 8, 12, 10),
                         child: Row(
@@ -811,7 +882,7 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
                                 minLines: 1,
                                 decoration: InputDecoration(
                                   hintText:
-                                      'Nhắn tin, gửi ảnh/video cho VELORA...',
+                                      'Nhắn tin cho VELORA',
                                   hintStyle: const TextStyle(fontSize: 12.5),
                                   filled: true,
                                   fillColor: dark
@@ -853,6 +924,7 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
                   ),
                 ],
               ),
+      ),
       ),
     );
   }

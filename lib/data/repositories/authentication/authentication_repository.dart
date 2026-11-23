@@ -280,18 +280,24 @@ class AuthenticationRepository extends GetxController {
         return await _auth.signInWithProvider(provider);
       }
 
-      // On Android, try native GoogleSignIn first and fallback to signInWithProvider.
+      // On Android, try native GoogleSignIn first and fall back cleanly to
+      // FirebaseAuth.signInWithProvider if SHA-1 / OAuth client isn't configured yet.
       try {
         final GoogleSignInAccount? userAccount = await GoogleSignIn().signIn();
         if (userAccount == null) return null;
         final GoogleSignInAuthentication googleAuth =
             await userAccount.authentication;
+        if (googleAuth.idToken == null && googleAuth.accessToken == null) {
+          return await _auth.signInWithProvider(provider);
+        }
         final credentials = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
         return await _auth.signInWithCredential(credentials);
-      } on PlatformException {
+      } on FirebaseAuthException {
+        rethrow;
+      } catch (_) {
         return await _auth.signInWithProvider(provider);
       }
     } on FirebaseAuthException catch (e) {

@@ -11,6 +11,7 @@ import 'package:fashion_business_app/features/shop/models/product_review_model.d
 import 'package:fashion_business_app/features/shop/screens/product_details/widgets/product_attributes.dart';
 import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
 import 'package:fashion_business_app/features/shop/screens/reels/velora_reels_screen.dart';
+import 'package:fashion_business_app/features/shop/screens/reels/velora_review_video_catalog.dart';
 import 'package:fashion_business_app/features/shop/screens/support_chat/velora_support_chat_screen.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
@@ -342,37 +343,8 @@ class _ProductInlineVideosStrip extends StatelessWidget {
 
   final ProductModel product;
 
-  static const Map<String, List<String>> _fallbackVideos = {
-    'running-category': [
-      'https://res.cloudinary.com/lbbgn51d/video/upload/v1795247608/velora-reels-v2/velora_reel_running_v2.mp4',
-      'https://res.cloudinary.com/lbbgn51d/video/upload/v1795247611/velora-reels-v2/velora_reel_stride_v2.mp4',
-    ],
-    'lifestyle-category': [
-      'https://res.cloudinary.com/lbbgn51d/video/upload/v1795247614/velora-reels-v2/velora_reel_lifestyle_v2.mp4',
-      'https://res.cloudinary.com/lbbgn51d/video/upload/v1795247608/velora-reels-v2/velora_reel_running_v2.mp4',
-    ],
-    'training-category': [
-      'https://res.cloudinary.com/lbbgn51d/video/upload/v1795247616/velora-reels-v2/velora_reel_training_v2.mp4',
-      'https://res.cloudinary.com/lbbgn51d/video/upload/v1795247608/velora-reels-v2/velora_reel_running_v2.mp4',
-    ],
-    'basketball-category': [
-      'https://res.cloudinary.com/lbbgn51d/video/upload/v1795247618/velora-reels-v2/velora_reel_basketball_v2.mp4',
-      'https://res.cloudinary.com/lbbgn51d/video/upload/v1795247616/velora-reels-v2/velora_reel_training_v2.mp4',
-    ],
-    'trail-category': [
-      'https://res.cloudinary.com/lbbgn51d/video/upload/v1795247621/velora-reels-v2/velora_reel_trail_v2.mp4',
-      'https://res.cloudinary.com/lbbgn51d/video/upload/v1795247608/velora-reels-v2/velora_reel_running_v2.mp4',
-    ],
-  };
-
   List<String> _resolveVideos() {
-    final explicit = (product.videos ?? const <String>[])
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-    if (explicit.isNotEmpty) return explicit;
-    return _fallbackVideos[product.categoryId] ??
-        _fallbackVideos['running-category']!;
+    return VeloraReviewVideoCatalog.videosForProduct(product, fallbackCount: 2);
   }
 
   @override
@@ -395,8 +367,8 @@ class _ProductInlineVideosStrip extends StatelessWidget {
             Expanded(
               child: Text(
                 isVi
-                    ? 'Video thực tế sản phẩm (${videos.length} video)'
-                    : 'Product lookbook videos (${videos.length})',
+                    ? 'Video review trên chân (${videos.length} clip)'
+                    : 'On-feet review videos (${videos.length})',
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,

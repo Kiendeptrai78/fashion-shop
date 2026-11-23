@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>823625169651-aabh11qmkgpa6fffjud9md0fmjnsbmah.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.823625169651-aabh11qmkgpa6fffjud9md0fmjnsbmah</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>823625169651-1r06u62u5lt2rgefroitklresjfsbaok.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyDFLZ8Q0oS5KO8Vs82FfGjEgoJl6c0ZQPQ</string>
 	<key>GCM_SENDER_ID</key>
@@ -9,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.fashionBusinessApp</string>
+	<string>com.phx.velora.shop</string>
 	<key>PROJECT_ID</key>
 	<string>fashion-business-app</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:823625169651:ios:51f520e2658e4652559586</string>
+	<string>1:823625169651:ios:272e6fecc8f10700559586</string>
 </dict>
 </plist>

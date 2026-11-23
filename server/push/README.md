@@ -25,15 +25,17 @@ export GOOGLE_APPLICATION_CREDENTIALS=/absolute/private/path/service-account.jso
 npm start
 ```
 
-4. iOS: enable Push Notifications on the real app's Apple App ID/provisioning,
-   add the Push Notifications capability/aps-environment entitlement in Xcode,
-   and upload the owner's APNs authentication key in Firebase Messaging settings.
-   No APNs key has been created or uploaded by this change. Verify on a supported
-   device; a simulator without an APNs token cannot finish FCM registration.
-5. Only after rules, worker and APNs (for iOS) are ready, build with
-   `--dart-define=PUSH_BACKEND_READY=true`. In Notifications, tap Enable
-   notifications. The app asks OS permission and registers only that account's
-   device token, selected category IDs and language; age is never uploaded.
+4. iOS: `com.phx.velora.shop` is registered under the PHX team. The Firebase
+   Development APNs key is configured for this bundle ID. Production is still
+   separate and must be configured before using a production-signed app. Check
+   the signed app's `aps-environment`, rather than inferring it from a build folder
+   name. Verify receipt on the actual device.
+5. Run this worker with credentials before testing order/Admin push delivery.
+   Firestore inbox documents and `pushPending` flags do not send FCM by themselves.
+   The current app registers for messaging after login; Notifications offers a
+   retry when registration fails. No `PUSH_BACKEND_READY` build flag is used by
+   the current client. Device registration stores the token, platform, selected
+   category IDs and language; age is never uploaded.
 
 ## Private Firestore paths
 
@@ -43,7 +45,7 @@ Integrate inside the existing database `match /databases/{database}/documents`:
 match /Users/{uid}/Devices/{device} {
   allow read, delete: if request.auth != null && request.auth.uid == uid;
   allow create, update: if request.auth != null && request.auth.uid == uid
-    && request.resource.data.keys().hasOnly(['token','categoryIds','language','enabled','updatedAt'])
+    && request.resource.data.keys().hasOnly(['token','platform','categoryIds','language','enabled','updatedAt'])
     && request.resource.data.token is string
     && request.resource.data.categoryIds is list
     && request.resource.data.categoryIds.size() <= 20
@@ -88,9 +90,15 @@ Run `npm test` for pure message/routing tests. This repo does not contain live
 server credentials, deployed rules or APNs credentials; live delivery has not
 been claimed or tested until these setup steps are completed.
 
-If Firestore requests collection-group indexes, enable a collection-group single
-field index for `Orders.notificationPending` (ascending) and
-`Devices.categoryIds` (array contains). The project's existing collection-scope
+The root `firestore.indexes.json` defines collection-group single-field indexes
+for `Orders.notificationPending` and `Notifications.pushPending` (ascending),
+and `Devices.categoryIds` (array contains). Deploy only these indexes with
+`firebase deploy --only firestore:indexes --project fashion-business-app`. The project's existing collection-scope
 indexes alone do not replace collection-group indexes. Enable the Firebase Cloud
 Messaging HTTP v1 API for the server project if it is not already enabled.
 Official client/APNs setup: https://firebase.google.com/docs/cloud-messaging/flutter/get-started
+
+For the first local activation of an existing store, use `npm start -- --new-only`
+to leave already-queued historical notifications untouched and watch new events.
+Later changes to an existing queued order/inbox entry are still processed. Normal
+`npm start` also processes the backlog. Keep the worker running for delivery.

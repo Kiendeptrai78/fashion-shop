@@ -61,77 +61,67 @@ class AddressController extends GetxController{
     }
   }
 
-  ///
-  Future addNewAddresses() async{
-    try{
-    //start loading
+  /// Add a new delivery address and return the saved model (or null if failed/invalid)
+  Future<AddressModel?> addNewAddresses() async {
+    try {
       TFullScreenLoader.openLoadingDialog('Storing Address...', TImages.loading);
 
-      //check internet connectivity
       final isConnected = await NetworkManager.instance.isConnected();
-      if(!isConnected){
+      if (!isConnected) {
         TFullScreenLoader.stopLoading();
-        return;
+        return null;
       }
 
-      //form validation
-      if(!addressFormKey.currentState!.validate()){
+      if (!addressFormKey.currentState!.validate()) {
         TFullScreenLoader.stopLoading();
-        return;
+        return null;
       }
 
-      //save address data
       final address = AddressModel(
-          id: '',
-          name: name.text.trim(),
-          phoneNumber: phoneNumber.text.trim(),
-          street: street.text.trim(),
-          city: city.text.trim(),
-          state: state.text.trim(),
-          country: country.text.trim().isNotEmpty ? country.text.trim() : 'Việt Nam',
-          selectedAddress: true,
-          latitude: location.value?.latitude, longitude: location.value?.longitude,
+        id: '',
+        name: name.text.trim(),
+        phoneNumber: phoneNumber.text.trim(),
+        street: street.text.trim(),
+        city: city.text.trim(),
+        state: state.text.trim(),
+        country: country.text.trim().isNotEmpty ? country.text.trim() : 'Việt Nam',
+        selectedAddress: true,
+        latitude: location.value?.latitude,
+        longitude: location.value?.longitude,
       );
       final id = await addressRepository.addAddress(address);
 
-      //update selected address status
+      // Set newly added address as default directly (without nested dialog)
       address.id = id;
-      await selectAddress(address);
+      await addressRepository.selectAddress(id);
+      address.selectedAddress = true;
+      selectedAddress.value = address;
 
-      //remove loader
       TFullScreenLoader.stopLoading();
-
-      //show success
-      TLoaders.successSnackBar(title: 'Congratulations', message: 'Your address has been saved successfully');
-
-      //refresh addresses
       refreshData.toggle();
-
-      //reset field
       resetFormFields();
-
-      //redirect
-      Get.back(result: address);
-    }catch(e){
+      return address;
+    } catch (e) {
       TFullScreenLoader.stopLoading();
-      TLoaders.errorSnackBar(title: 'Address not found!',message: e.toString());
+      TLoaders.errorSnackBar(title: 'Address not found!', message: e.toString());
+      return null;
     }
   }
 
-  /// Update an existing saved address
-  Future<void> updateAddress(AddressModel existing) async {
+  /// Update an existing saved address and return the updated model (or null if failed/invalid)
+  Future<AddressModel?> updateAddress(AddressModel existing) async {
     try {
       TFullScreenLoader.openLoadingDialog('Đang cập nhật địa chỉ...', TImages.loading);
 
       final isConnected = await NetworkManager.instance.isConnected();
       if (!isConnected) {
         TFullScreenLoader.stopLoading();
-        return;
+        return null;
       }
 
       if (!addressFormKey.currentState!.validate()) {
         TFullScreenLoader.stopLoading();
-        return;
+        return null;
       }
 
       final updated = AddressModel(
@@ -154,19 +144,16 @@ class AddressController extends GetxController{
       }
 
       TFullScreenLoader.stopLoading();
-      TLoaders.successSnackBar(
-        title: 'Thành công',
-        message: 'Đã cập nhật địa chỉ giao hàng của bạn',
-      );
       refreshData.toggle();
       resetFormFields();
-      Get.back(result: updated);
+      return updated;
     } catch (e) {
       TFullScreenLoader.stopLoading();
       TLoaders.errorSnackBar(
         title: 'Không thể cập nhật địa chỉ',
         message: e.toString(),
       );
+      return null;
     }
   }
 

@@ -6,8 +6,15 @@ import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 
-class DemoBankScreen extends StatelessWidget {
+class DemoBankScreen extends StatefulWidget {
   const DemoBankScreen({super.key});
+
+  @override
+  State<DemoBankScreen> createState() => _DemoBankScreenState();
+}
+
+class _DemoBankScreenState extends State<DemoBankScreen> {
+  bool _showBalance = false;
 
   Future<void> _topUp(BuildContext context) async {
     var amount = 10000000;
@@ -45,6 +52,7 @@ class DemoBankScreen extends StatelessWidget {
     final benefits = CustomerBenefits.instance;
     final theme = Theme.of(context);
     final language = Localizations.localeOf(context).languageCode;
+    final isEn = language == 'en';
     return Scaffold(
       appBar: TAppbar(showBackArrow: true, title: const ShopText('Payment account',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)), actions: [
@@ -115,21 +123,72 @@ class DemoBankScreen extends StatelessWidget {
         ),
       ]),
       body: Obx(() => ListView(padding: const EdgeInsets.all(24), children: [
-        Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(
-          color: theme.colorScheme.primary, borderRadius: BorderRadius.circular(22)),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0E2A22), Color(0xFF173E32), Color(0xFF215243)],
+            ),
+            borderRadius: BorderRadius.circular(22),
+          ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Row(children: [Expanded(child: ShopText('SHOPPING WALLET',
-                style: TextStyle(color: Colors.white70, letterSpacing: 2, fontSize: 10))),
-              Icon(Iconsax.wallet_2, color: Colors.white, size: 26)]),
-            const SizedBox(height: 34),
+            Row(children: [
+              const Expanded(
+                child: ShopText(
+                  'SHOPPING WALLET',
+                  style: TextStyle(color: Color(0xFFDDEABB), letterSpacing: 1.8, fontSize: 10.5, fontWeight: FontWeight.w700),
+                ),
+              ),
+              IconButton(
+                key: const ValueKey('toggle-wallet-balance-visibility'),
+                tooltip: _showBalance
+                    ? (isEn ? 'Hide balance' : 'Ẩn số dư')
+                    : (isEn ? 'Show balance' : 'Hiện số dư'),
+                onPressed: () => setState(() => _showBalance = !_showBalance),
+                icon: Icon(
+                  _showBalance ? Iconsax.eye : Iconsax.eye_slash,
+                  color: const Color(0xFFDDEABB),
+                  size: 22,
+                ),
+              ),
+            ]),
+            const SizedBox(height: 18),
             const ShopText('Available balance', style: TextStyle(color: Colors.white70, fontSize: 13)),
-            const SizedBox(height: 10),
-            Text(formatShopMoney(benefits.balanceVnd / usdToVnd, language: language),
-                style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w600, color: Colors.white)),
-            const SizedBox(height: 26),
-            const Row(children: [Icon(Icons.check_circle_outline, size: 16, color: Colors.white70),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => setState(() => _showBalance = !_showBalance),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _showBalance
+                          ? formatShopMoney(benefits.balanceVnd / usdToVnd, language: language)
+                          : (isEn ? '••••••••' : '•••••••• ₫'),
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _showBalance
+                  ? (isEn ? 'Tap eye icon to hide balance' : 'Chạm biểu tượng mắt để ẩn số dư')
+                  : (isEn ? 'Tap balance or eye icon to reveal' : 'Chạm để hiện số dư tài khoản'),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 11.5),
+            ),
+            const SizedBox(height: 20),
+            const Row(children: [Icon(Icons.check_circle_outline, size: 16, color: Color(0xFFDDEABB)),
               SizedBox(width: 8), Expanded(child: ShopText('Ready for checkout', style: TextStyle(color: Colors.white70, fontSize: 12)))]),
-          ])),
+          ]),
+        ),
         const SizedBox(height: 20),
         ElevatedButton(onPressed: benefits.busy.value ? null : () => _topUp(context),
           child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -155,8 +214,12 @@ class DemoBankScreen extends StatelessWidget {
                 style: theme.textTheme.labelSmall),
           ])),
           const SizedBox(width: 8),
-          Text('${(entry['amount'] as num) > 0 ? '+' : '−'}${formatShopMoney((entry['amount'] as num).abs() / usdToVnd, language: language)}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(
+            _showBalance
+                ? '${(entry['amount'] as num) > 0 ? '+' : '−'}${formatShopMoney((entry['amount'] as num).abs() / usdToVnd, language: language)}'
+                : '•••••• ₫',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
         ])),
       ])),
     );

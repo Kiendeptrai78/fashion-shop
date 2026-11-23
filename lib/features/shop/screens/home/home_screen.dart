@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/layouts/grid_layout.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_count_badge.dart';
@@ -10,7 +9,6 @@ import 'package:fashion_business_app/common/widgets/shimmer/vertical_product_shi
 import 'package:fashion_business_app/data/repositories/banners/banner_repository.dart';
 import 'package:fashion_business_app/data/repositories/products/product_reposotory.dart';
 import 'package:fashion_business_app/features/personalization/screens/account/coupons_screen.dart';
-import 'package:fashion_business_app/features/personalization/screens/account/demo_bank_screen.dart';
 import 'package:fashion_business_app/features/personalization/screens/account/notifications_screen.dart';
 import 'package:fashion_business_app/features/personalization/services/account_activity.dart';
 import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
@@ -22,11 +20,8 @@ import 'package:fashion_business_app/features/shop/screens/all_product/all_produ
 import 'package:fashion_business_app/features/shop/screens/assistant/velora_ai_chat_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/home/widgets/campaign_carousel.dart';
 import 'package:fashion_business_app/features/shop/screens/order/order.dart';
-import 'package:fashion_business_app/features/shop/screens/support_chat/velora_support_chat_screen.dart';
 import 'package:fashion_business_app/routes/app_route.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -286,7 +281,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               )
             : Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
                     width: 34,
@@ -311,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Flexible(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -325,14 +319,18 @@ class _HomeScreenState extends State<HomeScreen> {
                             height: 1.05,
                           ),
                         ),
-                        ShopText(
-                          'SNEAKER CULTURE, EVERY DAY',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontSize: 8,
-                            letterSpacing: 1.1,
-                            color: theme.hintColor,
+                        const SizedBox(height: 1),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: ShopText(
+                            'SNEAKER CULTURE, EVERY DAY',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.7,
+                              color: theme.hintColor,
+                            ),
                           ),
                         ),
                       ],
@@ -341,38 +339,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
         actions: [
-          if (!widget.showBackArrow && Get.isRegistered<ShopLocale>())
-            Builder(builder: (context) {
-              final currentLang = Localizations.localeOf(context).languageCode;
-              final isVi = currentLang != 'en';
-              return Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(999),
-                  onTap: () => Get.find<ShopLocale>().change(isVi ? 'en' : 'vi'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: dark ? const Color(0xFF1E352B) : const Color(0xFFE7F0EA),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: const Color(0xFF173E32).withValues(alpha: 0.22),
-                      ),
-                    ),
-                    child: Text(
-                      isVi ? 'VI 🇻🇳' : 'EN 🇬🇧',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          if (!widget.showBackArrow)
-            const _HomeSupportChatIconButton(),
           if (!widget.showBackArrow)
             activity != null
                 ? Obx(() => IconButton(
@@ -393,46 +359,17 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: widget.showBackArrow
           ? null
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                FloatingActionButton.extended(
-                  heroTag: 'velora-support-chat-fab',
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF173E32),
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    side: BorderSide(
-                      color: const Color(0xFF173E32).withValues(alpha: 0.25),
-                    ),
-                  ),
-                  onPressed: () =>
-                      Get.to(() => const VeloraSupportChatScreen()),
-                  icon: const Icon(Iconsax.message_text_1, size: 18),
-                  label: const Text(
-                    'Chat VELORA',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                FloatingActionButton.small(
-                  heroTag: 'velora-ai-fab',
-                  tooltip: 'AI Stylist'.tr,
-                  backgroundColor: const Color(0xFF173E32),
-                  foregroundColor: const Color(0xFFDDEABB),
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  onPressed: () => Get.to(() => const VeloraAiChatScreen()),
-                  child: const Icon(Icons.auto_awesome_rounded, size: 20),
-                ),
-              ],
+          : FloatingActionButton.small(
+              heroTag: 'velora-ai-fab',
+              tooltip: 'AI Stylist'.tr,
+              backgroundColor: const Color(0xFF173E32),
+              foregroundColor: const Color(0xFFDDEABB),
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              onPressed: () => Get.to(() => const VeloraAiChatScreen()),
+              child: const Icon(Icons.auto_awesome_rounded, size: 20),
             ),
       body: RefreshIndicator(
         onRefresh: _refreshHome,
@@ -576,14 +513,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 label: 'Orders',
                                 badge: activeOrders,
                                 onTap: () => Get.to(() => const OrderScreen()),
-                              ),
-                              const SizedBox(width: 8),
-                              _quickShortcut(
-                                context: context,
-                                icon: Iconsax.wallet_3,
-                                label: 'Wallet',
-                                badge: 0,
-                                onTap: () => Get.to(() => const DemoBankScreen()),
                               ),
                             ],
                           ),
@@ -809,58 +738,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _HomeSupportChatIconButton extends StatefulWidget {
-  const _HomeSupportChatIconButton();
-
-  @override
-  State<_HomeSupportChatIconButton> createState() =>
-      _HomeSupportChatIconButtonState();
-}
-
-class _HomeSupportChatIconButtonState
-    extends State<_HomeSupportChatIconButton> {
-  Stream<DocumentSnapshot<Map<String, dynamic>>>? _threadStream;
-
-  @override
-  void initState() {
-    super.initState();
-    final user =
-        Firebase.apps.isNotEmpty ? FirebaseAuth.instance.currentUser : null;
-    if (user != null) {
-      _threadStream = FirebaseFirestore.instance
-          .collection('SupportChats')
-          .doc(user.uid)
-          .snapshots();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_threadStream == null) {
-      return IconButton(
-        tooltip: 'Chat trực tiếp với VELORA',
-        onPressed: () => Get.to(() => const VeloraSupportChatScreen()),
-        icon: const Icon(Iconsax.message_text_1, size: 22),
-      );
-    }
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: _threadStream,
-      builder: (context, snapshot) {
-        final unread =
-            (snapshot.data?.data()?['unreadByCustomer'] as num?)?.toInt() ?? 0;
-        return IconButton(
-          tooltip: 'Chat trực tiếp với VELORA',
-          onPressed: () => Get.to(() => const VeloraSupportChatScreen()),
-          icon: ShopCountBadge(
-            count: unread,
-            child: const Icon(Iconsax.message_text_1, size: 22),
-          ),
-        );
-      },
     );
   }
 }

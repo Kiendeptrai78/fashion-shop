@@ -329,6 +329,7 @@ class _ReturnRequestComposerSheetState
         'bodyEn':
             'VELORA Return & Exchange Center is processing your request.',
         'read': false,
+        'pushPending': true,
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 

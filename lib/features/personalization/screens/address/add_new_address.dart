@@ -1,4 +1,5 @@
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
+import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
 import 'package:fashion_business_app/features/personalization/controllers/address_controller.dart';
 import 'package:fashion_business_app/features/personalization/models/address_model.dart';
 import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
@@ -440,14 +441,27 @@ class _AddNewAddressScreenState extends State<AddNewAddressScreen> {
         top: false,
         minimum: const EdgeInsets.fromLTRB(24, 12, 24, 20),
         child: ElevatedButton(
-          onPressed: () {
+          onPressed: () async {
             controller.city.text = _selectedProvince;
             controller.state.text = _selectedDistrict;
             controller.country.text = 'Việt Nam';
-            if (_isEditing) {
-              controller.updateAddress(widget.editingAddress!);
-            } else {
-              controller.addNewAddresses();
+            final AddressModel? saved = _isEditing
+                ? await controller.updateAddress(widget.editingAddress!)
+                : await controller.addNewAddresses();
+            if (saved != null && context.mounted) {
+              Navigator.of(context).pop(saved);
+              Future.delayed(const Duration(milliseconds: 120), () {
+                TLoaders.successSnackBar(
+                  title: isEn ? 'Success' : 'Thành công',
+                  message: _isEditing
+                      ? (isEn
+                          ? 'Address updated successfully!'
+                          : 'Đã cập nhật địa chỉ giao hàng thành công!')
+                      : (isEn
+                          ? 'New address added successfully!'
+                          : 'Đã thêm địa chỉ giao hàng mới thành công!'),
+                );
+              });
             }
           },
           child: Text(

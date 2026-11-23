@@ -23,9 +23,21 @@ class App extends StatelessWidget {
       supportedLocales: const [Locale('vi'), Locale('en')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       translations: ShopTranslations(),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       theme: TAppTheme.lightTheme,
-      darkTheme: TAppTheme.darkTheme,
+      darkTheme: TAppTheme.lightTheme,
+      builder: (context, child) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          final currentFocus = FocusManager.instance.primaryFocus;
+          if (currentFocus != null && !currentFocus.hasPrimaryFocus) {
+            currentFocus.unfocus();
+          } else {
+            currentFocus?.unfocus();
+          }
+        },
+        child: child ?? const SizedBox.shrink(),
+      ),
       initialBinding: GeneralBinding(),
       getPages: AppRoutes.pages,
       unknownRoute: kIsWeb

@@ -3,6 +3,7 @@ import 'package:fashion_business_app/admin/web/controllers/admin_web_controller.
 import 'package:fashion_business_app/admin/web/data/admin_web_models.dart';
 import 'package:fashion_business_app/admin/web/theme/admin_theme.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
+import 'package:fashion_business_app/features/shop/screens/reels/velora_review_video_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
@@ -170,15 +171,16 @@ class _AdminProductVideoPreviewDialogState
       }
     }
 
-    // 3. Product promotional videos
-    final prodVideos = p.videos ?? const <String>[];
+    // 3. Real-human product review videos
+    final prodVideos = VeloraReviewVideoCatalog.videosForProduct(p, fallbackCount: 2);
     for (var i = 0; i < prodVideos.length; i++) {
       final u = prodVideos[i].trim();
       if (u.isEmpty || seenUrls.contains(u)) continue;
       seenUrls.add(u);
+      final meta = VeloraReviewVideoCatalog.metadataForUrl(u, p);
       _mediaSlots.add(
         _MediaSlot(
-          label: '🎬 Video Quảng cáo #${i + 1}',
+          label: '🎬 Review #${i + 1} · ${meta.creatorHandle}',
           url: u,
           isVideo: true,
         ),

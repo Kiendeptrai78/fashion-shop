@@ -69,9 +69,43 @@ export function inboxNotice(data, documentId) {
 export function messageFor(notice, language, tokens) {
   const vi = language !== 'en';
   const collapse = createHash('sha256').update(notice.id).digest('hex').slice(0, 32);
-  return {tokens, notification: {title: vi ? notice.titleVi : notice.titleEn,
-    body: vi ? notice.bodyVi : notice.bodyEn},
-    data: {notificationId: notice.id, kind: notice.kind, targetId: notice.targetId},
-    android: {collapseKey: collapse, notification: {tag: collapse}},
-    apns: {headers: {'apns-collapse-id': collapse}, payload: {aps: {sound: 'default'}}}};
+  return {
+    tokens,
+    notification: {
+      title: vi ? notice.titleVi : notice.titleEn,
+      body: vi ? notice.bodyVi : notice.bodyEn,
+    },
+    data: {
+      notificationId: notice.id,
+      kind: notice.kind,
+      targetId: notice.targetId,
+    },
+    android: {
+      priority: 'high',
+      collapseKey: collapse,
+      notification: {
+        channelId: 'velora_firebase_push',
+        tag: collapse,
+        sound: 'default',
+      },
+    },
+    apns: {
+      headers: {
+        'apns-collapse-id': collapse,
+        'apns-priority': '10',
+      },
+      payload: {
+        aps: {
+          sound: 'default',
+          'mutable-content': 1,
+        },
+      },
+    },
+  };
+}
+
+export function topicMessageFor(notice, language, topic) {
+  const base = messageFor(notice, language, []);
+  delete base.tokens;
+  return {...base, topic};
 }

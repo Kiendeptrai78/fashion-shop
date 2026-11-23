@@ -197,8 +197,7 @@ class HomeCollections extends StatelessWidget {
                             Expanded(
                               child: ShopText(
                                 category.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                softWrap: true,
                                 style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
                               ),
                             ),

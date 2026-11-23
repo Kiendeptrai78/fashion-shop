@@ -1,7 +1,10 @@
 package com.zalopay.demo
 
 import android.app.AlertDialog
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -19,7 +22,23 @@ class MainActivity: FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        createPushNotificationChannel()
         ZaloPaySDK.init(2554, Environment.SANDBOX); // Merchant AppID
+    }
+
+    private fun createPushNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "velora_firebase_push",
+                "Thông báo VELORA",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Cập nhật đơn hàng, ưu đãi và tin nhắn VELORA"
+                enableVibration(true)
+            }
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -1011,7 +1011,7 @@ class _WriteReviewState extends State<_WriteReview> {
                   ),
                   const SizedBox(width: 10),
                   const Text(
-                    'Đang tải ảnh / video lên Cloudinary...',
+                    'Đang tải ảnh / video lên...',
                     style: TextStyle(fontSize: 12.5),
                   ),
                 ],

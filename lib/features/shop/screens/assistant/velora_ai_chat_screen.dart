@@ -162,7 +162,10 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
-      child: Scaffold(
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Scaffold(
         backgroundColor:
             dark ? const Color(0xFF101915) : const Color(0xFFFAFBF9),
         appBar: AppBar(
@@ -447,6 +450,7 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -72,10 +72,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDFLZ8Q0oS5KO8Vs82FfGjEgoJl6c0ZQPQ',
-    appId: '1:823625169651:ios:51f520e2658e4652559586',
+    appId: '1:823625169651:ios:272e6fecc8f10700559586',
     messagingSenderId: '823625169651',
     projectId: 'fashion-business-app',
     storageBucket: 'fashion-business-app.appspot.com',
-    iosBundleId: 'com.example.fashionBusinessApp',
+    iosBundleId: 'com.phx.velora.shop',
+    iosClientId: '823625169651-aabh11qmkgpa6fffjud9md0fmjnsbmah.apps.googleusercontent.com',
   );
 }

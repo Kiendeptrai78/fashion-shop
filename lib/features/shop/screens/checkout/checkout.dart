@@ -1,5 +1,4 @@
 import 'package:fashion_business_app/features/personalization/models/address_model.dart';
-import 'package:fashion_business_app/features/personalization/screens/account/demo_bank_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import 'package:fashion_business_app/data/repositories/authentication/authentication_repository.dart';
@@ -8,11 +7,14 @@ import 'package:fashion_business_app/features/personalization/screens/account/co
 import 'package:fashion_business_app/features/shop/models/order_model.dart';
 import 'package:fashion_business_app/features/shop/models/product_availability_helper.dart';
 import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
+import 'package:fashion_business_app/features/shop/screens/checkout/vnpay_sandbox_screen.dart';
+import 'package:fashion_business_app/features/shop/services/vnpay_sandbox_service.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'widgets/checkout_complete_screen.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
 import 'package:fashion_business_app/features/shop/screens/checkout/widgets/billing_amount_section.dart';
@@ -53,42 +55,113 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
     final cart = CartController.instance;
-    final bank = _checkoutController.selectedPaymentMethod.value.name == 'Demo bank';
+    final isVnPay = _checkoutController.isVnPaySelected;
     setState(() => _error = null);
+
+    VnPayTransactionResult? vnpayResult;
+    if (isVnPay) {
+      final quote = _benefits.quote(cart.totalCartPrice.value, _coupon);
+      final summaryInfo = cart.cartItems.isNotEmpty
+          ? 'Thanh toan ${cart.cartItems.first.title} VELORA'
+          : 'Thanh toan don hang VELORA';
+      vnpayResult = await Get.to<VnPayTransactionResult>(
+        () => VnPaySandboxScreen(
+          orderId: _orderId,
+          amountVnd: quote.totalVnd,
+          orderInfo: summaryInfo,
+        ),
+      );
+      if (!mounted) return;
+      if (vnpayResult == null || !vnpayResult.isSuccess) {
+        setState(() {
+          _error = vnpayResult?.statusDescription ??
+              'Bạn đã hủy giao dịch thanh toán VNPay. Bạn có thể thử lại hoặc chọn Thanh toán khi nhận hàng.';
+        });
+        return;
+      }
+    }
+
     try {
-      await _benefits.purchase(orderId: _orderId, subtotal: cart.totalCartPrice.value,
-        bank: bank, coupon: _coupon, saveOrder: (quote) async {
+      await _benefits.purchase(
+        orderId: _orderId,
+        subtotal: cart.totalCartPrice.value,
+        bank: false,
+        coupon: _coupon,
+        saveOrder: (quote) async {
           final uid = AuthenticationRepository.instance.authUser.uid;
           final date = DateTime.now();
           final eta = ShippingRouteHelper.estimateForAddress(address);
-          final order = OrderModel(id: _orderId, userId: uid, status: OrderStatus.pending,
-            totalAmount: quote.total, orderDate: date, searchDate: date,
-            paymentMethod: bank ? 'Demo bank' : 'Cash on delivery', address: address,
-            deliveryDate: eta.latestDeliveryDate(date), items: cart.cartItems.toList());
+          final methodLabel = vnpayResult != null
+              ? 'VNPay (${vnpayResult.bankCode})'
+              : CheckoutController.codMethodName;
+          final order = OrderModel(
+            id: _orderId,
+            userId: uid,
+            status: OrderStatus.pending,
+            totalAmount: quote.total,
+            orderDate: date,
+            searchDate: date,
+            paymentMethod: methodLabel,
+            address: address,
+            deliveryDate: eta.latestDeliveryDate(date),
+            items: cart.cartItems.toList(),
+          );
           final db = FirebaseFirestore.instance;
           final user = db.collection('Users').doc(uid);
           final batch = db.batch();
-          batch.set(user.collection('Orders').doc(_orderId), {...order.toJson(),
-            'discountAmount': quote.discount, 'couponCode': _coupon?.id ?? '',
-            'paymentStatus': bank ? 'demo_paid' : 'pay_on_delivery', 'notificationPending': true});
+          batch.set(user.collection('Orders').doc(_orderId), {
+            ...order.toJson(),
+            'discountAmount': quote.discount,
+            'couponCode': _coupon?.id ?? '',
+            'paymentStatus':
+                vnpayResult != null ? 'vnpay_paid' : 'pay_on_delivery',
+            if (vnpayResult != null) ...{
+              'vnpayTxnRef': vnpayResult.txnRef,
+              'vnpayTransactionNo': vnpayResult.transactionNo,
+              'vnpayBankCode': vnpayResult.bankCode,
+              'vnpayResponseCode': vnpayResult.responseCode,
+              'vnpayPayDate': vnpayResult.payDate,
+            },
+            'notificationPending': true,
+          });
           final summaryVi = order.itemsSummary(english: false);
           final summaryEn = order.itemsSummary(english: true);
-          batch.set(user.collection('Notifications').doc('order-$_orderId-pending'), {
-            'kind': 'order', 'targetId': _orderId, 'read': false, 'pushPending': true,
-            'titleVi': 'Đơn hàng $summaryVi của bạn đã được tiếp nhận',
-            'titleEn': 'Your order for $summaryEn has been received',
-            'bodyVi': 'Cửa hàng đang xác nhận đơn hàng. Bạn có thể theo dõi tiến trình trong Đơn hàng của tôi.',
-            'bodyEn': 'We are confirming your order. Track its progress in My Orders.',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+          batch.set(
+            user.collection('Notifications').doc('order-$_orderId-pending'),
+            {
+              'kind': 'order',
+              'targetId': _orderId,
+              'read': false,
+              'pushPending': true,
+              'titleVi': vnpayResult != null
+                  ? 'Đã thanh toán VNPay cho đơn $summaryVi'
+                  : 'Đơn hàng $summaryVi của bạn đã được tiếp nhận',
+              'titleEn': vnpayResult != null
+                  ? 'VNPay payment confirmed for $summaryEn'
+                  : 'Your order for $summaryEn has been received',
+              'bodyVi': vnpayResult != null
+                  ? 'Giao dịch VNPay #${vnpayResult.transactionNo} (${vnpayResult.bankCode}) thành công. Tổng Kho Hà Nội đang xác nhận gửi hàng.'
+                  : 'Cửa hàng đang xác nhận đơn hàng. Bạn có thể theo dõi tiến trình trong Đơn hàng của tôi.',
+              'bodyEn': vnpayResult != null
+                  ? 'VNPay transaction #${vnpayResult.transactionNo} (${vnpayResult.bankCode}) succeeded. VELORA is confirming your order.'
+                  : 'We are confirming your order. Track its progress in My Orders.',
+              'createdAt': FieldValue.serverTimestamp(),
+            },
+          );
           await batch.commit();
-        });
+        },
+      );
       cart.clearCart();
       if (!mounted) return;
-      await Get.off(() => const CheckoutCompleteScreen());
+      await Get.off(() => CheckoutCompleteScreen(vnpayResult: vnpayResult));
     } catch (error) {
-      if (mounted) setState(() => _error = error is StateError ? error.message.toString()
-          : 'Couldn’t place the order. Please try again.');
+      if (mounted) {
+        setState(
+          () => _error = error is StateError
+              ? error.message.toString()
+              : 'Couldn’t place the order. Please try again.',
+        );
+      }
     }
   }
 
@@ -142,15 +215,51 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           }),
           const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(height: 1)),
           const TBillingPaymentSection(),
-          Obx(() => _checkoutController.selectedPaymentMethod.value.name != 'Demo bank'
-              ? const SizedBox.shrink() : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const SizedBox(height: 16),
-                const ShopText('Balance is debited after your order is saved.', style: TextStyle(fontSize: 12, height: 1.6)),
-                const SizedBox(height: 10),
-                Text(formatShopMoney(_benefits.balanceVnd / usdToVnd,
-                    language: Localizations.localeOf(context).languageCode), style: const TextStyle(fontWeight: FontWeight.w600)),
-                TextButton(onPressed: () => Get.to(() => const DemoBankScreen()), child: const ShopText('Top up balance')),
-              ])),
+          Obx(() {
+            if (!_checkoutController.isVnPaySelected) {
+              return const SizedBox.shrink();
+            }
+            final isEn = Localizations.localeOf(context).languageCode == 'en';
+            return Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF005BAA).withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Iconsax.shield_tick,
+                      size: 18,
+                      color: Color(0xFF005BAA),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        isEn
+                            ? 'VNPay Sandbox Test Gateway: supports VNPAY-QR, NCB test card (9704198526191432198, OTP 123456) and Visa/Mastercard with HMAC-SHA512 signing.'
+                            : 'Cổng thanh toán VNPay Sandbox Test: hỗ trợ quét VNPAY-QR, thẻ ATM NCB (9704198526191432198, OTP 123456) hoặc Visa/Mastercard ký số HMAC-SHA512.',
+                        softWrap: true,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF003E78),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
           const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(height: 1)),
           Row(children: [
             const Expanded(child: ShopText('Your pairs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
@@ -269,23 +378,68 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       bottomNavigationBar: Obx(() {
         final subtotal = cart.totalCartPrice.value;
         final total = _benefits.quote(subtotal, _coupon).total;
-        final bank = _checkoutController.selectedPaymentMethod.value.name == 'Demo bank';
+        final isVnPay = _checkoutController.isVnPaySelected;
         final busy = _benefits.busy.value;
-        return SafeArea(top: false, child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 18),
-          decoration: BoxDecoration(border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.15)))),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const ShopText('Total to pay'),
-              ShopText(formatShopMoney(total, language: Localizations.localeOf(context).languageCode), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
-            ]),
-            const SizedBox(height: 14),
-            SizedBox(width: double.infinity, child: ElevatedButton(
-              onPressed: subtotal <= 0 || busy ? null : _submit,
-              child: ShopText(busy ? 'Placing your order...' : bank ? 'Pay now' : 'Place order · Pay on delivery'),
-            )),
-          ]),
-        ));
+        final isEn = Localizations.localeOf(context).languageCode == 'en';
+        return SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 18),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.15),
+                ),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const ShopText('Total to pay'),
+                    ShopText(
+                      formatShopMoney(
+                        total,
+                        language: Localizations.localeOf(context).languageCode,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: isVnPay
+                        ? ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF005BAA),
+                            foregroundColor: Colors.white,
+                          )
+                        : null,
+                    onPressed: subtotal <= 0 || busy ? null : _submit,
+                    child: busy
+                        ? const ShopText('Placing your order...')
+                        : (isVnPay
+                            ? Text(
+                                isEn
+                                    ? 'Pay online via VNPay (Sandbox)'
+                                    : 'Thanh toán trực tuyến qua VNPay',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              )
+                            : const ShopText('Place order · Pay on delivery')),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       }),
     ));
   }

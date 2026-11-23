@@ -12,8 +12,6 @@ import 'package:fashion_business_app/features/shop/screens/order/return_request_
 import 'package:fashion_business_app/features/shop/screens/product_details/product_details.dart';
 import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
 import 'package:fashion_business_app/features/shop/screens/reels/velora_reels_screen.dart';
-import 'package:fashion_business_app/features/shop/screens/support_chat/velora_support_chat_screen.dart';
-import 'package:fashion_business_app/utils/local_storage/local_utility.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -28,8 +26,7 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   late Future<List<OrderModel>> _orders;
-  late Set<String> _read;
-  String _selectedTab = 'all'; // 'all' | 'order' | 'voucher' | 'review' | 'product' | 'promo'
+  String _selectedTab = 'all';
 
   static const _tabs = [
     ('all', 'All'),
@@ -44,23 +41,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void initState() {
     super.initState();
     _orders = OrderRepository().fetchUserOrders();
-    _read = Set<String>.from(TLocalStorage.instance().readData<List>('read_order_updates_v1') ?? []);
-  }
-
-  String _key(OrderModel order) => '${order.id}:${order.status.name}';
-
-  Future<void> _mark(Iterable<OrderModel> orders) async {
-    final updated = {..._read, ...orders.map(_key)};
-    try {
-      await TLocalStorage.instance().saveData('read_order_updates_v1', updated.toList());
-      if (mounted) setState(() => _read = updated);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: ShopText('Couldn’t save. Please try again.')),
-        );
-      }
-    }
   }
 
   Future<void> _reload() async {
@@ -68,11 +48,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     setState(() {
       _orders = request;
     });
+    await AccountActivity.current?.syncPush();
     try {
       await request;
-    } catch (_) {
-      // Rendered below.
-    }
+    } catch (_) {}
   }
 
   DateTime? _parseTimestamp(dynamic raw) {
@@ -82,7 +61,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return null;
   }
 
-  ({IconData icon, Color color, Color bg, String label}) _metaForKind(String kind, bool dark) {
+  ({IconData icon, Color color, Color bg, String label}) _metaForKind(
+    String kind,
+    bool dark,
+  ) {
     switch (kind) {
       case 'order':
         return (
@@ -110,7 +92,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           icon: Iconsax.refresh_circle,
           color: const Color(0xFF0284C7),
           bg: dark ? const Color(0xFF142D3C) : const Color(0xFFE0F2FE),
-          label: 'Returns',
+          label: 'Đổi trả',
         );
       case 'product':
         return (
@@ -152,7 +134,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (kind == 'order') {
       final matches = orders.where((order) => order.id == targetId);
       if (matches.isNotEmpty) Get.to(() => OrderDetail(order: matches.first));
-    } else if ((isVideoCommentReply || isVideoReelPush) && targetId.isNotEmpty) {
+    } else if ((isVideoCommentReply || isVideoReelPush) &&
+        targetId.isNotEmpty) {
       try {
         final product =
             await ProductRepository.instance.fetchProductById(targetId);
@@ -168,7 +151,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       } catch (_) {}
     } else if (kind == 'product' && targetId.isNotEmpty) {
       try {
-        final product = await ProductRepository.instance.fetchProductById(targetId);
+        final product =
+            await ProductRepository.instance.fetchProductById(targetId);
         if (mounted && product != null) {
           Get.to(() => ProductDetail(product: product));
         } else if (mounted) {
@@ -182,10 +166,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SnackBar(content: ShopText('Product no longer available.')),
           );
         }
-      }
-    } else if (kind == 'support_chat' || docId.startsWith('chat-')) {
-      if (mounted) {
-        Get.to(() => const VeloraSupportChatScreen());
       }
     } else if (kind == 'return' || docId.startsWith('return-')) {
       if (mounted) {
@@ -210,6 +190,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final lang = Localizations.localeOf(context).languageCode;
+    final isEn = lang == 'en';
 
     return Scaffold(
       appBar: TAppbar(
@@ -225,11 +206,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             if (!hasUnread) return const SizedBox.shrink();
             return TextButton(
               onPressed: () async {
-                final orders = await _orders.catchError((_) => <OrderModel>[]);
-                await _mark(orders);
                 await activity?.markAllRead();
               },
-              child: const ShopText('Mark all as read', style: TextStyle(fontSize: 12.5)),
+              child: const ShopText(
+                'Mark all as read',
+                style: TextStyle(fontSize: 12.5),
+              ),
             );
           }),
         ],
@@ -237,16 +219,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: FutureBuilder<List<OrderModel>>(
         future: _orders,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: TextButton(onPressed: _reload, child: const ShopText('Try again')),
-            );
-          }
-          final orders = (snapshot.data ?? []).toList()
-            ..sort((a, b) => b.orderDate.compareTo(a.orderDate));
+          final orders = snapshot.data ?? const <OrderModel>[];
           final orderMap = {for (final o in orders) o.id: o};
 
           return RefreshIndicator(
@@ -258,7 +231,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               children: [
                 const ShopText(
                   'Stay in the loop.',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: -0.6),
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.6,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 ShopText(
@@ -279,29 +256,42 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       final selected = _selectedTab == id;
                       return Material(
                         color: selected
-                            ? (dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32))
-                            : (dark ? const Color(0xFF1D2D26) : const Color(0xFFF3F5F0)),
+                            ? (dark
+                                ? const Color(0xFFDDEABB)
+                                : const Color(0xFF173E32))
+                            : (dark
+                                ? const Color(0xFF1D2D26)
+                                : const Color(0xFFF3F5F0)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(999),
                           side: BorderSide(
                             color: selected
                                 ? Colors.transparent
-                                : (dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E7E0)),
+                                : (dark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : const Color(0xFFE2E7E0)),
                           ),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: InkWell(
                           onTap: () => setState(() => _selectedTab = id),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
                             child: Center(
                               child: ShopText(
                                 label,
                                 style: TextStyle(
                                   fontSize: 12.5,
-                                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
                                   color: selected
-                                      ? (dark ? const Color(0xFF102B23) : Colors.white)
+                                      ? (dark
+                                          ? const Color(0xFF102B23)
+                                          : Colors.white)
                                       : theme.colorScheme.onSurface,
                                 ),
                               ),
@@ -314,39 +304,66 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Pure Firebase Notifications Stream (ZERO local fallback notifications)
                 Obx(() {
                   final activity = AccountActivity.current;
                   final allNotices = activity?.inbox.toList() ?? [];
                   final filteredNotices = _selectedTab == 'all'
                       ? allNotices
-                      : allNotices.where((n) => (n['kind'] ?? 'promo').toString() == _selectedTab).toList();
-
-                  final fallbackOrders = (_selectedTab == 'all' || _selectedTab == 'order')
-                      ? orders.where((order) => !allNotices.any((n) =>
-                          n['kind'] == 'order' && n['targetId'] == order.id)).toList()
-                      : <OrderModel>[];
+                      : allNotices
+                          .where(
+                            (n) =>
+                                (n['kind'] ?? 'promo').toString() ==
+                                _selectedTab,
+                          )
+                          .toList();
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (activity != null && !activity.pushEnabled.value)
+                      if (activity != null && !activity.pushEnabled.value) ...[
                         Padding(
                           padding: const EdgeInsets.only(bottom: 14),
-                          child: OutlinedButton.icon(
-                            onPressed: activity.enablePush,
-                            icon: const Icon(Icons.notifications_active_outlined, size: 18),
-                            label: const ShopText('Enable notifications'),
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: activity.enablePush,
+                              icon: const Icon(
+                                Icons.notifications_active_outlined,
+                                size: 18,
+                              ),
+                              label: Text(
+                                isEn
+                                    ? 'Turn on notifications'
+                                    : 'Bật thông báo',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      if (activity != null && activity.pushError.value.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: ShopText(activity.pushError.value, style: theme.textTheme.bodySmall),
-                        ),
-                      if (filteredNotices.isEmpty && fallbackOrders.isEmpty)
+                        if (activity.pushError.value.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              activity.pushError.value,
+                              softWrap: true,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: const Color(0xFFC62828),
+                              ),
+                            ),
+                          ),
+                      ],
+                      if (filteredNotices.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 72),
                           child: Center(
@@ -356,7 +373,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 SizedBox(height: 18),
                                 ShopText(
                                   'You’re all caught up.',
-                                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                                  style: TextStyle(
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                                 SizedBox(height: 8),
                                 ShopText(
@@ -370,21 +390,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       for (final notice in filteredNotices) ...[
                         Builder(builder: (context) {
                           final kind = (notice['kind'] ?? 'promo').toString();
-                          final targetId = (notice['targetId'] ?? '').toString();
+                          final targetId =
+                              (notice['targetId'] ?? '').toString();
                           final isRead = notice['read'] == true;
                           final meta = _metaForKind(kind, dark);
-                          final rawImage = (notice['imageUrl'] ?? '').toString().trim();
-                          final matchedOrder = kind == 'order' ? orderMap[targetId] : null;
+                          final rawImage =
+                              (notice['imageUrl'] ?? '').toString().trim();
+                          final matchedOrder =
+                              kind == 'order' ? orderMap[targetId] : null;
                           final imageUrl = rawImage.isNotEmpty
                               ? rawImage
-                              : (matchedOrder != null && matchedOrder.items.isNotEmpty
+                              : (matchedOrder != null &&
+                                      matchedOrder.items.isNotEmpty
                                   ? (matchedOrder.items.first.image ?? '')
                                   : '');
-                          final title =
-                              (lang == 'en' ? notice['titleEn'] : notice['titleVi'])?.toString() ?? '';
-                          final body =
-                              (lang == 'en' ? notice['bodyEn'] : notice['bodyVi'])?.toString() ?? '';
-                          final createdAt = _parseTimestamp(notice['createdAt']);
+                          final title = (lang == 'en'
+                                      ? notice['titleEn']
+                                      : notice['titleVi'])
+                                  ?.toString() ??
+                              '';
+                          final body = (lang == 'en'
+                                      ? notice['bodyEn']
+                                      : notice['bodyVi'])
+                                  ?.toString() ??
+                              '';
+                          final createdAt =
+                              _parseTimestamp(notice['createdAt']);
 
                           return _notificationCard(
                             context: context,
@@ -401,37 +432,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 ? DateFormat('dd/MM HH:mm').format(createdAt)
                                 : '',
                             onTap: () => _openNotice(notice, orders, activity!),
-                          );
-                        }),
-                      ],
-                      for (final order in fallbackOrders) ...[
-                        Builder(builder: (context) {
-                          final isRead = _read.contains(_key(order));
-                          final meta = _metaForKind('order', dark);
-                          final thumb = order.items.isNotEmpty ? (order.items.first.image ?? '') : '';
-                          final title = lang == 'en'
-                              ? 'Your order for ${order.itemsSummary(english: true)}'
-                              : 'Đơn hàng ${order.itemsSummary()} của bạn';
-                          final statusLabel = order.orderStatusText == 'Shipping'
-                              ? 'On the way'
-                              : order.orderStatusText;
-
-                          return _notificationCard(
-                            context: context,
-                            dark: dark,
-                            isRead: isRead,
-                            imageUrl: thumb,
-                            icon: meta.icon,
-                            iconColor: meta.color,
-                            iconBg: meta.bg,
-                            tagLabel: statusLabel,
-                            title: title,
-                            body: '${formatShopMoney(order.totalAmount, language: lang)} · ${DateFormat.yMMMd(lang).format(order.orderDate)}',
-                            timestamp: DateFormat('dd/MM').format(order.orderDate),
-                            onTap: () async {
-                              await _mark([order]);
-                              if (mounted) Get.to(() => OrderDetail(order: order));
-                            },
                           );
                         }),
                       ],
@@ -466,7 +466,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         : (dark ? const Color(0xFF1F332A) : const Color(0xFFF3F8F5));
     final borderColor = isRead
         ? (dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE7EBE5))
-        : (dark ? const Color(0xFFDDEABB).withValues(alpha: 0.25) : const Color(0xFF173E32).withValues(alpha: 0.2));
+        : (dark
+            ? const Color(0xFFDDEABB).withValues(alpha: 0.25)
+            : const Color(0xFF173E32).withValues(alpha: 0.2));
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -490,7 +492,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: dark ? const Color(0xFF22342B) : const Color(0xFFF3F4EF),
+                          color: dark
+                              ? const Color(0xFF22342B)
+                              : const Color(0xFFF3F4EF),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: TRoundedImage(
@@ -536,7 +540,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2.5,
+                            ),
                             decoration: BoxDecoration(
                               color: iconBg,
                               borderRadius: BorderRadius.circular(6),
@@ -554,11 +561,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           if (timestamp.isNotEmpty)
                             Text(
                               timestamp,
-                              style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.hintColor,
+                              ),
                             ),
                           if (!isRead) ...[
                             const SizedBox(width: 6),
-                            const CircleAvatar(radius: 4, backgroundColor: Color(0xFFD92D3E)),
+                            const CircleAvatar(
+                              radius: 4,
+                              backgroundColor: Color(0xFFD92D3E),
+                            ),
                           ],
                         ],
                       ),
@@ -568,7 +580,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         softWrap: true,
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: isRead ? FontWeight.w600 : FontWeight.w700,
+                          fontWeight:
+                              isRead ? FontWeight.w600 : FontWeight.w700,
                           height: 1.3,
                         ),
                       ),
@@ -577,7 +590,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         Text(
                           body,
                           softWrap: true,
-                          style: theme.textTheme.bodySmall?.copyWith(height: 1.45),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            height: 1.45,
+                          ),
                         ),
                       ],
                     ],

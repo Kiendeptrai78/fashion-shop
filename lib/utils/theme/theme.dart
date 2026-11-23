@@ -50,7 +50,7 @@ class TAppTheme {
 
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
-    fontFamily: 'Poppins',
+    fontFamily: 'BeVietnamPro',
     brightness: Brightness.light,
     primaryColor: TColors.primaryColor,
     colorScheme: ColorScheme.fromSeed(
@@ -73,7 +73,7 @@ class TAppTheme {
 
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
-    fontFamily: 'Poppins',
+    fontFamily: 'BeVietnamPro',
     brightness: Brightness.dark,
     primaryColor: TColors.primaryColor,
     colorScheme: ColorScheme.fromSeed(

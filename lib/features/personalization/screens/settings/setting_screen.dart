@@ -6,7 +6,6 @@ import 'package:fashion_business_app/data/repositories/authentication/authentica
 import 'package:fashion_business_app/features/personalization/controllers/address_controller.dart';
 import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
 import 'package:fashion_business_app/features/personalization/screens/account/coupons_screen.dart';
-import 'package:fashion_business_app/features/personalization/screens/account/demo_bank_screen.dart';
 import 'package:fashion_business_app/features/personalization/screens/account/notifications_screen.dart';
 import 'package:fashion_business_app/features/personalization/screens/account/privacy_screen.dart';
 import 'package:fashion_business_app/features/personalization/screens/address/address_screen.dart';
@@ -28,40 +27,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:intl/intl.dart';
 
 class SettingScreen extends StatelessWidget {
   const SettingScreen({super.key});
 
-  String _compactVnd(int vnd, {required bool isEn}) {
-    if (isEn) {
-      final usd = vnd / usdToVnd;
-      return '\$${usd.toStringAsFixed(0)}';
-    }
-    if (vnd >= 1000000) {
-      final millions = vnd / 1000000;
-      final label = millions % 1 == 0
-          ? millions.toStringAsFixed(0)
-          : millions.toStringAsFixed(1);
-      return '$label Tr ₫';
-    }
-    if (vnd >= 1000) {
-      return '${(vnd / 1000).round()}K ₫';
-    }
-    return '$vnd ₫';
-  }
-
-  String _fullVnd(int vnd, {required bool isEn}) {
-    if (isEn) {
-      return '\$${(vnd / usdToVnd).toStringAsFixed(2)}';
-    }
-    final formatted = NumberFormat('#,###', 'vi_VN').format(vnd);
-    return '$formatted ₫';
-  }
-
   void _openSupportChat() {
     if (Get.isRegistered<NavigationController>()) {
-      Get.find<NavigationController>().selectedIndex.value = 3;
+      Get.find<NavigationController>().selectedIndex.value = 2;
     } else {
       Get.to(() => const VeloraSupportChatScreen());
     }
@@ -99,14 +71,13 @@ class SettingScreen extends StatelessWidget {
           physics: const BouncingScrollPhysics(),
           child: Column(
             children: [
-              // 1. Flagship Member Hero Card
+              // 1. Flagship Member Hero Card (3-metric live bar: Đơn hàng · Yêu thích · Voucher)
               _MemberHeroHeader(
                 isEn: isEn,
                 userController: userController,
                 activity: activity,
                 benefits: benefits,
                 favController: favController,
-                compactVnd: (v) => _compactVnd(v, isEn: isEn),
               ),
 
               Padding(
@@ -124,7 +95,7 @@ class SettingScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
 
-                    // 3. 2-Column Bento Highlights: Yêu thích & Ví thanh toán
+                    // 3. 2-Column Bento Highlights: Yêu thích & Ví Voucher
                     Row(
                       children: [
                         Expanded(
@@ -182,16 +153,16 @@ class SettingScreen extends StatelessWidget {
                             dark: dark,
                             cardColor: cardColor,
                             borderColor: borderColor,
-                            icon: Iconsax.wallet_3,
-                            iconColor: const Color(0xFF173E32),
+                            icon: Iconsax.discount_shape,
+                            iconColor: const Color(0xFFD97706),
                             iconBg: dark
-                                ? const Color(0xFF1E372D)
-                                : const Color(0xFFE9F3ED),
-                            title: isEn ? 'VELORA Wallet' : 'Ví thanh toán',
+                                ? const Color(0xFF332613)
+                                : const Color(0xFFFEF3C7),
+                            title: isEn ? 'Vouchers' : 'Ví Voucher',
                             subtitleBuilder: () {
                               if (benefits == null) {
                                 return Text(
-                                  isEn ? 'Balance & history' : 'Số dư & lịch sử',
+                                  isEn ? 'Member offers' : 'Ưu đãi thành viên',
                                   softWrap: true,
                                   style: TextStyle(
                                     fontSize: 12,
@@ -201,21 +172,31 @@ class SettingScreen extends StatelessWidget {
                                 );
                               }
                               return Obx(() {
-                                final balance = benefits.balanceVnd;
+                                final avail = benefits.coupons
+                                    .where((c) =>
+                                        !benefits.used.contains(c.id) &&
+                                        benefits.now().isBefore(c.expires))
+                                    .length;
                                 return Text(
-                                  _fullVnd(balance, isEn: isEn),
+                                  avail == 0
+                                      ? (isEn
+                                          ? 'No active codes'
+                                          : 'Chưa có mã mới')
+                                      : (isEn
+                                          ? '$avail available codes'
+                                          : '$avail mã khả dụng'),
                                   softWrap: true,
                                   style: TextStyle(
-                                    fontSize: 12.5,
-                                    color: dark
-                                        ? const Color(0xFFDDEABB)
-                                        : const Color(0xFF173E32),
-                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12,
+                                    color: avail > 0
+                                        ? const Color(0xFFD97706)
+                                        : theme.hintColor,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 );
                               });
                             },
-                            onTap: () => Get.to(() => const DemoBankScreen()),
+                            onTap: () => Get.to(() => const CouponsScreen()),
                           ),
                         ),
                       ],
@@ -275,26 +256,6 @@ class SettingScreen extends StatelessWidget {
                                   ))
                               : const Icon(Icons.chevron_right_rounded),
                           onTap: () => Get.to(() => const AddressScreen()),
-                        ),
-                        _rowDivider(borderColor),
-
-                        // Ví Voucher & Ưu đãi
-                        _AccountMenuRow(
-                          icon: Iconsax.discount_shape,
-                          iconColor: const Color(0xFFD97706),
-                          iconBg: dark
-                              ? const Color(0xFF332613)
-                              : const Color(0xFFFEF3C7),
-                          title: isEn ? 'Voucher Wallet' : 'Ví Voucher & Ưu đãi',
-                          subtitle: isEn
-                              ? 'Member offers & free shipping codes'
-                              : 'Mã giảm giá thành viên & miễn phí vận chuyển',
-                          trailing: benefits != null
-                              ? Obx(() => _TrailingBadgeChevron(
-                                    count: benefits.newCouponCount,
-                                  ))
-                              : const Icon(Icons.chevron_right_rounded),
-                          onTap: () => Get.to(() => const CouponsScreen()),
                         ),
                         _rowDivider(borderColor),
 
@@ -400,7 +361,8 @@ class SettingScreen extends StatelessWidget {
                           iconBg: dark
                               ? const Color(0xFF162540)
                               : const Color(0xFFDBEAFE),
-                          title: isEn ? 'Language & Currency' : 'Ngôn ngữ & Tiền tệ',
+                          title:
+                              isEn ? 'Language & Currency' : 'Ngôn ngữ & Tiền tệ',
                           subtitle: isEn
                               ? 'Switch app language and display currency'
                               : 'Chuyển đổi giữa Tiếng Việt (VND) và English (USD)',
@@ -603,7 +565,6 @@ class _MemberHeroHeader extends StatelessWidget {
     required this.activity,
     required this.benefits,
     required this.favController,
-    required this.compactVnd,
   });
 
   final bool isEn;
@@ -611,7 +572,6 @@ class _MemberHeroHeader extends StatelessWidget {
   final AccountActivity? activity;
   final CustomerBenefits? benefits;
   final FavouritesController? favController;
-  final String Function(int) compactVnd;
 
   @override
   Widget build(BuildContext context) {
@@ -718,7 +678,6 @@ class _MemberHeroHeader extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
                     children: [
-                      // Avatar with subtle lime ring
                       if (userController != null)
                         Obx(() {
                           final pic =
@@ -863,10 +822,10 @@ class _MemberHeroHeader extends StatelessWidget {
               ),
               const SizedBox(height: 18),
 
-              // Frosted Glass 4-Stat Live Metrics Bar
+              // Frosted Glass 3-Stat Live Metrics Bar (Đơn hàng · Yêu thích · Voucher)
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.09),
                   borderRadius: BorderRadius.circular(18),
@@ -880,7 +839,8 @@ class _MemberHeroHeader extends StatelessWidget {
                       child: _HeroStatCell(
                         label: isEn ? 'Orders' : 'Đơn hàng',
                         valueWidget: activity != null
-                            ? Obx(() => _HeroStatNumber('${activity!.orderCount}'))
+                            ? Obx(() =>
+                                _HeroStatNumber('${activity!.orderCount}'))
                             : const _HeroStatNumber('0'),
                         onTap: () => Get.to(() => const OrderScreen()),
                       ),
@@ -914,18 +874,6 @@ class _MemberHeroHeader extends StatelessWidget {
                         onTap: () => Get.to(() => const CouponsScreen()),
                       ),
                     ),
-                    _statVerticalDivider(),
-                    Expanded(
-                      child: _HeroStatCell(
-                        label: isEn ? 'Wallet' : 'Ví tiền',
-                        valueWidget: benefits != null
-                            ? Obx(() => _HeroStatNumber(
-                                  compactVnd(benefits!.balanceVnd),
-                                ))
-                            : const _HeroStatNumber('0 ₫'),
-                        onTap: () => Get.to(() => const DemoBankScreen()),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -954,7 +902,7 @@ class _HeroStatNumber extends StatelessWidget {
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 15.5,
+          fontSize: 16,
           fontWeight: FontWeight.w800,
           color: Color(0xFFDDEABB),
         ),
@@ -991,9 +939,9 @@ class _HeroStatCell extends StatelessWidget {
               textAlign: TextAlign.center,
               softWrap: true,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.82),
+                color: Colors.white.withValues(alpha: 0.85),
               ),
             ),
           ],
@@ -1052,7 +1000,8 @@ class _OrderPipelineCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 onTap: () => Get.to(() => const OrderScreen()),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1089,7 +1038,8 @@ class _OrderPipelineCard extends StatelessWidget {
                   icon: Iconsax.clock,
                   label: isEn ? 'Pending' : 'Chờ xác nhận',
                   badgeWidget: activity != null
-                      ? Obx(() => _SmallBadge(count: activity!.counts['pending'] ?? 0))
+                      ? Obx(() =>
+                          _SmallBadge(count: activity!.counts['pending'] ?? 0))
                       : null,
                   onTap: () => Get.to(() => const OrderScreen()),
                 ),
@@ -1099,8 +1049,8 @@ class _OrderPipelineCard extends StatelessWidget {
                   icon: Iconsax.box_tick,
                   label: isEn ? 'Packing' : 'Đang chuẩn bị',
                   badgeWidget: activity != null
-                      ? Obx(() =>
-                          _SmallBadge(count: activity!.counts['processing'] ?? 0))
+                      ? Obx(() => _SmallBadge(
+                          count: activity!.counts['processing'] ?? 0))
                       : null,
                   onTap: () => Get.to(() => const OrderScreen()),
                 ),
@@ -1110,7 +1060,8 @@ class _OrderPipelineCard extends StatelessWidget {
                   icon: Iconsax.truck_fast,
                   label: isEn ? 'Shipping' : 'Đang giao',
                   badgeWidget: activity != null
-                      ? Obx(() => _SmallBadge(count: activity!.counts['shipped'] ?? 0))
+                      ? Obx(() =>
+                          _SmallBadge(count: activity!.counts['shipped'] ?? 0))
                       : null,
                   onTap: () => Get.to(() => const OrderScreen()),
                 ),

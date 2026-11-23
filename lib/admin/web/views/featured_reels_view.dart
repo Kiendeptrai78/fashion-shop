@@ -4,6 +4,7 @@ import 'package:fashion_business_app/admin/web/data/admin_web_models.dart';
 import 'package:fashion_business_app/admin/web/theme/admin_theme.dart';
 import 'package:fashion_business_app/admin/web/widgets/admin_product_video_preview_dialog.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
+import 'package:fashion_business_app/features/shop/screens/reels/velora_review_video_catalog.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -27,38 +28,8 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
 
   AdminWebController get c => widget.controller;
 
-  static const List<({String label, String url})> _studioPresetVideos = [
-    (
-      label: 'Studio 9:16 • VELORA Running NitroFoam',
-      url:
-          'https://res.cloudinary.com/lbbgn51d/video/upload/v1795248617/velora-reels-v2/running_1_v2.mp4',
-    ),
-    (
-      label: 'Studio 9:16 • VELORA Carbon Marathon',
-      url:
-          'https://res.cloudinary.com/lbbgn51d/video/upload/v1795248619/velora-reels-v2/running_2_v2.mp4',
-    ),
-    (
-      label: 'Studio 9:16 • VELORA Lifestyle Minimal',
-      url:
-          'https://res.cloudinary.com/lbbgn51d/video/upload/v1795248621/velora-reels-v2/lifestyle_1_v2.mp4',
-    ),
-    (
-      label: 'Studio 9:16 • VELORA Gym & Training',
-      url:
-          'https://res.cloudinary.com/lbbgn51d/video/upload/v1795248623/velora-reels-v2/training_1_v2.mp4',
-    ),
-    (
-      label: 'Studio 9:16 • VELORA Pro Basketball',
-      url:
-          'https://res.cloudinary.com/lbbgn51d/video/upload/v1795248626/velora-reels-v2/basketball_1_v2.mp4',
-    ),
-    (
-      label: 'Studio 9:16 • VELORA Trail Outdoor GTX',
-      url:
-          'https://res.cloudinary.com/lbbgn51d/video/upload/v1795248628/velora-reels-v2/trail_1_v2.mp4',
-    ),
-  ];
+  List<({String label, String url})> get _studioPresetVideos =>
+      VeloraReviewVideoCatalog.adminPresetVideos;
 
   @override
   Widget build(BuildContext context) {

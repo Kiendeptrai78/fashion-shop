@@ -59,6 +59,8 @@
 	<string>VELORA cần quyền lưu hình ảnh vào Thư viện ảnh của bạn.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>VELORA cần quyền Micro để quay video có âm thanh khi gửi đánh giá, đổi trả hoặc nhắn tin hỗ trợ.</string>
+	<key>GIDClientID</key>
+	<string>823625169651-aabh11qmkgpa6fffjud9md0fmjnsbmah.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -66,7 +68,8 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>app-1-823625169651-ios-51f520e2658e4652559586</string>
+				<string>app-1-823625169651-ios-272e6fecc8f10700559586</string>
+				<string>com.googleusercontent.apps.823625169651-aabh11qmkgpa6fffjud9md0fmjnsbmah</string>
 			</array>
 		</dict>
 	</array>

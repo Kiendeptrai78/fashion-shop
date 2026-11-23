@@ -66,11 +66,6 @@ class PrivacyScreen extends StatelessWidget {
       ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Iconsax.user_edit),
         title: const ShopText('Manage account'), trailing: const Icon(Icons.chevron_right),
         onTap: () => Get.to(() => const ProfileScreen())),
-      const Divider(height: 36),
-      const ShopText('Demo payments', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 12),
-      const ShopText('Demo banking does not ask for real bank details. Its balance and transactions are stored only on this device.',
-          style: TextStyle(height: 1.7)),
     ]),
   );
 }

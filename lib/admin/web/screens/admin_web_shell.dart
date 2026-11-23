@@ -55,7 +55,7 @@ class _AdminWebShellState extends State<AdminWebShell> {
     return Theme(
       data: ThemeData(
         useMaterial3: true,
-        fontFamily: 'Poppins',
+        fontFamily: 'BeVietnamPro',
         colorScheme: ColorScheme.fromSeed(
           seedColor: AdminColors.forest,
           primary: AdminColors.forest,
