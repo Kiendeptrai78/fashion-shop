@@ -33,14 +33,14 @@
       "CategoryId": "sneaker-category-basketball"
     },
     {
-      "Id": "campaign-nike-everyday",
-      "ImageUrl": "https://res.cloudinary.com/lbbgn51d/image/upload/v1795165685/campaigns-v1/nike-everyday.png",
+      "Id": "campaign-velora-everyday",
+      "ImageUrl": "https://res.cloudinary.com/lbbgn51d/image/upload/v1795243604/velora-v1/velora_terra_knit_v2.png",
       "TargetScreen": "/all-products",
       "Active": true,
-      "Title": "Nike everyday essentials",
+      "Title": "VELORA Studio Essentials",
+      "Subtitle": "Thiết kế tối giản cho từng bước chân",
       "SortOrder": 1,
-      "CategoryId": "sneaker-category-running",
-      "BrandId": "sneaker-brand-nike"
+      "CategoryId": "sneaker-category-lifestyle"
     },
     {
       "Id": "campaign-street-rotation",

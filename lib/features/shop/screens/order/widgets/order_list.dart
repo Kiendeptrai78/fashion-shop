@@ -71,21 +71,34 @@ class TOrderListItem extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              ShopText(
-                                order.orderStatusText,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge!
-                                    .apply(
-                                        color: order.orderStatusText == 'Processing' ? TColors.primaryColor :
-                                        order.orderStatusText == 'Shipping' ? Colors.yellow :
-                                        order.orderStatusText == 'Received' ? Colors.green : Colors.red,
-                                        fontWeightDelta: 1),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: order.statusBgColor,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: order.statusBorderColor.withValues(alpha: 0.65),
+                                  ),
+                                ),
+                                child: Text(
+                                  order.orderStatusLabel(
+                                    english: Localizations.localeOf(context).languageCode == 'en',
+                                  ),
+                                  style: TextStyle(
+                                    color: order.statusColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                               ),
+                              const SizedBox(height: 4),
                               ShopText(
                                 order.formattedOrderDate,
                                 style: const TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold),
+                                    fontSize: 15, fontWeight: FontWeight.bold),
                               )
                             ],
                           ),
@@ -126,10 +139,14 @@ class TOrderListItem extends StatelessWidget {
                                         style: Theme.of(context)
                                             .textTheme
                                             .labelMedium),
-                                    ShopText(order.id,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium)
+                                    Text(
+                                      order.itemsSummary(
+                                        english: Localizations.localeOf(context).languageCode == 'en',
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    )
                                   ],
                                 ),
                               ),

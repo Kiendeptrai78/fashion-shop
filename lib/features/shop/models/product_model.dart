@@ -13,9 +13,11 @@ class ProductModel {
   DateTime? date;
   double salePrice;
   String thumbnail;
-final  bool isFeatured;
+  final bool isFeatured;
+  final bool isDiscontinued;
   String? description;
   List<String>? images;
+  List<String>? videos;
   String productType;
   BrandModel? brand;
   String categoryId;
@@ -33,8 +35,10 @@ final  bool isFeatured;
         required this.productType,
         this.date,
         this.images,
+        this.videos,
         this.salePrice = 0.0,
         required this.isFeatured,
+        this.isDiscontinued = false,
         this.productAttributes,
         this.productVariations,
         this.description,
@@ -52,9 +56,11 @@ final  bool isFeatured;
       'Stock': stock,
       'Price': price,
       'Images': images ?? [],
+      'Videos': videos ?? [],
       'Thumbnail': thumbnail,
       'SalePrice': salePrice,
       'IsFeatured': isFeatured,
+      'IsDiscontinued': isDiscontinued,
       'Description': description,
       'ProductType': productType,
       if (brand != null) 'Brand': brand!.toJson(),
@@ -76,6 +82,8 @@ final  bool isFeatured;
       title: data['Title'] ?? '',
       stock: data['Stock'] ?? 0,
       isFeatured: data['IsFeatured'] ?? false,
+      isDiscontinued:
+          data['IsDiscontinued'] == true || data['isDiscontinued'] == true,
       price: double.parse((data['Price'] ?? 0).toString()),
       salePrice: double.parse((data['SalePrice'] ?? 0).toString()),
       thumbnail: data['Thumbnail'] ?? '',
@@ -87,6 +95,7 @@ final  bool isFeatured;
       categoryName: data['CategoryName'] ?? '',
       catalogId: data['CatalogId'] ?? '',
       images: List<String>.from(data['Images'] ?? []),
+      videos: List<String>.from(data['Videos'] ?? []),
       productAttributes: (data['ProductAttributes'] as List? ?? [])
           .map((e) => ProductAttributeModel.fromJson(Map<String, dynamic>.from(e))).toList(),
       productVariations: (data['ProductVariations'] as List? ?? [])

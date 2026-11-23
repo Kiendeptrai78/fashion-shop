@@ -143,12 +143,19 @@ class TBottomAddToCart extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: !ready ? onSelectOptions : null,
                     style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      minimumSize: const Size.fromHeight(48),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
                     ),
                     child: ShopText(
                       !ready ? 'Select size' : 'Sold out',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 )

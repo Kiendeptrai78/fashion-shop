@@ -16,6 +16,7 @@ import 'package:fashion_business_app/features/personalization/services/customer_
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
 import 'package:fashion_business_app/features/shop/screens/cart/cart_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/order/order.dart';
+import 'package:fashion_business_app/features/shop/screens/order/return_request_screen.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
@@ -205,6 +206,19 @@ class SettingScreen extends StatelessWidget {
                                     ))
                                 : const Icon(Icons.chevron_right_rounded),
                             onTap: () => Get.to(() => const OrderScreen()),
+                          ),
+                          _cardDivider(borderColor),
+                          TSettingMenuTiles(
+                            icon: Iconsax.refresh_circle,
+                            title: Localizations.localeOf(context).languageCode == 'en'
+                                ? 'Returns & Exchanges'
+                                : 'Đổi trả & Bảo hành',
+                            subtitle: Localizations.localeOf(context).languageCode == 'en'
+                                ? 'Exchange size, 1-to-1 replacement or refund'
+                                : 'Đổi kích cỡ EU, đổi đôi mới 1-1 hoặc hoàn tiền',
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () =>
+                                Get.to(() => const MyReturnRequestsScreen()),
                           ),
                           _cardDivider(borderColor),
                           TSettingMenuTiles(

@@ -1,6 +1,8 @@
 import 'package:fashion_business_app/admin/web/controllers/admin_web_controller.dart';
 import 'package:fashion_business_app/admin/web/data/admin_web_models.dart';
 import 'package:fashion_business_app/admin/web/theme/admin_theme.dart';
+import 'package:fashion_business_app/admin/web/widgets/admin_product_video_preview_dialog.dart';
+import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -531,6 +533,33 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                   Column(
                     children: filtered.map((record) {
                       final r = record.review;
+                      final matchedProduct = widget.controller.products
+                              .firstWhereOrNull(
+                                  (p) => p.id == record.productId) ??
+                          ProductModel(
+                            id: record.productId,
+                            title: record.productTitle,
+                            stock: 10,
+                            price: 0,
+                            thumbnail: record.productThumbnail,
+                            productType: 'ProductType.variable',
+                            isFeatured: true,
+                          );
+
+                      void openInspect({
+                        String? initialVideoUrl,
+                        String? initialImageUrl,
+                      }) {
+                        showAdminProductAndVideoPreviewDialog(
+                          context,
+                          controller: widget.controller,
+                          product: matchedProduct,
+                          reviewRecord: record,
+                          initialVideoUrl: initialVideoUrl,
+                          initialImageUrl: initialImageUrl,
+                        );
+                      }
+
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: AdminCard(
@@ -538,11 +567,32 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              AdminImageThumb(
-                                url: record.productThumbnail,
-                                width: 58,
-                                height: 58,
-                                fit: BoxFit.contain,
+                              InkWell(
+                                onTap: () => openInspect(),
+                                borderRadius: BorderRadius.circular(10),
+                                child: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    AdminImageThumb(
+                                      url: record.productThumbnail,
+                                      width: 62,
+                                      height: 62,
+                                      fit: BoxFit.contain,
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: const BoxDecoration(
+                                        color: AdminColors.forest,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Iconsax.eye,
+                                        size: 11,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -554,12 +604,17 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                                       runSpacing: 6,
                                       crossAxisAlignment: WrapCrossAlignment.center,
                                       children: [
-                                        Text(
-                                          record.productTitle,
-                                          style: const TextStyle(
-                                            fontSize: 14.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: AdminColors.ink,
+                                        InkWell(
+                                          onTap: () => openInspect(),
+                                          child: Text(
+                                            record.productTitle,
+                                            style: const TextStyle(
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: AdminColors.forest,
+                                              decoration:
+                                                  TextDecoration.underline,
+                                            ),
                                           ),
                                         ),
                                         Row(
@@ -593,6 +648,68 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                                         height: 1.5,
                                       ),
                                     ),
+                                    if (r.hasMedia) ...[
+                                      const SizedBox(height: 10),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          for (final imgUrl in r.imageUrls)
+                                            InkWell(
+                                              onTap: () => openInspect(
+                                                  initialImageUrl: imgUrl),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              child: AdminImageThumb(
+                                                url: imgUrl,
+                                                width: 68,
+                                                height: 68,
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
+                                          for (var vIdx = 0; vIdx < r.videoUrls.length; vIdx++)
+                                            InkWell(
+                                              onTap: () => openInspect(
+                                                initialVideoUrl:
+                                                    r.videoUrls[vIdx],
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              child: Container(
+                                                width: 96,
+                                                height: 68,
+                                                decoration: BoxDecoration(
+                                                  color: AdminColors.forest,
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    const Icon(
+                                                      Icons
+                                                          .play_circle_fill_rounded,
+                                                      color: AdminColors.sage,
+                                                      size: 24,
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      '▶️ Phát Video #${vIdx + 1}',
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 10.5,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
                                     const SizedBox(height: 8),
                                     Text(
                                       'Bởi ${r.authorName}'
@@ -607,6 +724,26 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                                       spacing: 8,
                                       runSpacing: 8,
                                       children: [
+                                        OutlinedButton.icon(
+                                          onPressed: () => openInspect(),
+                                          icon: const Icon(Iconsax.eye, size: 15),
+                                          label: Text(
+                                            r.hasMedia
+                                                ? 'Xem Đôi giày & Phát Video/Ảnh đánh giá'
+                                                : 'Xem Đôi giày & Video sản phẩm',
+                                            style: const TextStyle(fontSize: 12),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: AdminColors.sky,
+                                            side: BorderSide(
+                                              color: AdminColors.sky
+                                                  .withValues(alpha: 0.4),
+                                            ),
+                                            backgroundColor: AdminColors.skyBg,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 6),
+                                          ),
+                                        ),
                                         if (!r.hasAdminReply)
                                           FilledButton.tonalIcon(
                                             onPressed: () =>

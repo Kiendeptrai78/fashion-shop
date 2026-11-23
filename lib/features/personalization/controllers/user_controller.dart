@@ -62,11 +62,55 @@ class UserController extends GetxController {
   ///fetch user record
   Future<void> fetchUserRecord() async {
     try {
+      final authUser = FirebaseAuth.instance.currentUser;
+      if (authUser == null) {
+        user(UserModel.empty());
+        return;
+      }
       profileLoading.value = true;
-      final user = await userRepository.fetchUserDetail();
-      this.user(user);
+      var loaded = await userRepository.fetchUserDetail();
+      if (loaded.id.isEmpty) {
+        final display = (authUser.displayName ?? '').trim();
+        final email = (authUser.email ?? '').trim();
+        final fallbackName = display.isNotEmpty
+            ? display
+            : (email.contains('@') ? email.split('@').first : 'Khách hàng VELORA');
+        final parts = UserModel.nameParts(fallbackName);
+        loaded = UserModel(
+          id: authUser.uid,
+          email: email,
+          firstName: parts.isNotEmpty ? parts.first : fallbackName,
+          lastName: parts.length > 1 ? parts.sublist(1).join(' ') : '',
+          username: UserModel.generateUsername(fallbackName),
+          phoneNumber: authUser.phoneNumber ?? '',
+          profilePicture: authUser.photoURL ?? '',
+          role: AdminConfig.roleForEmail(email),
+        );
+        try {
+          await userRepository.saveUserRecord(loaded);
+        } catch (_) {}
+      }
+      user(loaded);
+      user.refresh();
     } catch (e) {
-      user(UserModel.empty());
+      final authUser = FirebaseAuth.instance.currentUser;
+      if (authUser != null) {
+        final email = authUser.email ?? '';
+        final display = (authUser.displayName ?? '').trim();
+        final fallback = display.isNotEmpty ? display : email.split('@').first;
+        user(UserModel(
+          id: authUser.uid,
+          email: email,
+          firstName: fallback,
+          lastName: '',
+          username: UserModel.generateUsername(fallback),
+          phoneNumber: authUser.phoneNumber ?? '',
+          profilePicture: authUser.photoURL ?? '',
+          role: AdminConfig.roleForEmail(email),
+        ));
+      } else {
+        user(UserModel.empty());
+      }
     } finally {
       profileLoading.value = false;
     }

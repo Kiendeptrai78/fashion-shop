@@ -9,11 +9,13 @@ import 'package:fashion_business_app/features/shop/models/banner_model.dart';
 import 'package:fashion_business_app/features/shop/models/brand_model.dart';
 import 'package:fashion_business_app/features/shop/models/category_model.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
+import 'package:fashion_business_app/features/shop/models/return_request_model.dart';
 import 'package:fashion_business_app/routes/routes.dart';
 import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/helpers/pricing_caculator.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
+import 'package:fashion_business_app/utils/localization/shop_translations.dart';
 import 'package:fashion_business_app/utils/web/url_strategy.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -29,9 +31,24 @@ class AdminWebController extends GetxController {
 
   final activeSection = AdminSection.dashboard.obs;
   final showVnd = true.obs;
+  final isVi = true.obs;
   final isLoading = false.obs;
   final isRefreshing = false.obs;
   final errorMessage = ''.obs;
+
+  String tr(String vi, String en) => isVi.value ? vi : en;
+
+  String localizeCategory(String raw) {
+    if (raw.trim().isEmpty) return isVi.value ? 'Giày thể thao' : 'Athletic';
+    return shopTranslate(raw.trim(), language: isVi.value ? 'vi' : 'en');
+  }
+
+  void setLanguage(bool vi) {
+    isVi.value = vi;
+    if (Get.isRegistered<ShopLocale>()) {
+      Get.find<ShopLocale>().change(vi ? 'vi' : 'en');
+    }
+  }
 
   /// Financial & accounting controls (adjustable live on Finance/Dashboard)
   final cogsRatePercent = 60.0.obs; // % giá vốn hàng bán trên tổng tiền hàng
@@ -46,7 +63,9 @@ class AdminWebController extends GetxController {
   final banners = <AdminBannerRecord>[].obs;
   final users = <UserModel>[].obs;
   final orders = <AdminOrderRecord>[].obs;
+  final returnRequests = <ReturnRequestModel>[].obs;
   final reviews = <AdminReviewRecord>[].obs;
+  final videoComments = <AdminVideoCommentRecord>[].obs;
   final campaigns = <AdminNotificationCampaign>[].obs;
   final userInterests = <AdminUserInterest>[].obs;
   final stockReceipts = <AdminStockReceipt>[].obs;
@@ -75,8 +94,12 @@ class AdminWebController extends GetxController {
         return TRoutes.adminFinance;
       case AdminSection.orders:
         return TRoutes.adminOrders;
+      case AdminSection.returns:
+        return TRoutes.adminReturns;
       case AdminSection.products:
         return TRoutes.adminProducts;
+      case AdminSection.featured:
+        return TRoutes.adminFeatured;
       case AdminSection.vouchers:
         return TRoutes.adminVouchers;
       case AdminSection.brands:
@@ -131,11 +154,45 @@ class AdminWebController extends GetxController {
 
       final loadedProducts = results[0] as List<ProductModel>;
       final loadedBrands = results[1] as List<BrandModel>;
-      final loadedCategories = results[2] as List<CategoryModel>;
+      final rawCategories = results[2] as List<CategoryModel>;
       final loadedBanners = results[3] as List<AdminBannerRecord>;
       final loadedUsers = results[4] as List<UserModel>;
       final loadedCampaigns = results[5] as List<AdminNotificationCampaign>;
       final loadedVouchers = results[6] as List<AdminVoucherRecord>;
+
+      // Merge any categories discovered from products or canonical VELORA sport categories
+      final catById = <String, CategoryModel>{
+        for (final c in rawCategories)
+          if (c.id.isNotEmpty) c.id: c,
+      };
+      for (final p in loadedProducts) {
+        if (p.categoryId.isNotEmpty && !catById.containsKey(p.categoryId)) {
+          catById[p.categoryId] = CategoryModel(
+            id: p.categoryId,
+            name: p.categoryName.isNotEmpty ? p.categoryName : p.categoryId,
+            image: p.thumbnail,
+            isFeatured: true,
+          );
+        }
+      }
+      if (catById.isEmpty) {
+        const defaults = [
+          ('running-category', 'Chạy bộ'),
+          ('lifestyle-category', 'Hằng ngày'),
+          ('training-category', 'Tập luyện'),
+          ('basketball-category', 'Bóng rổ'),
+          ('trail-category', 'Địa hình'),
+        ];
+        for (final d in defaults) {
+          catById[d.$1] = CategoryModel(
+            id: d.$1,
+            name: d.$2,
+            image: '',
+            isFeatured: true,
+          );
+        }
+      }
+      final loadedCategories = catById.values.toList();
 
       products.assignAll(loadedProducts);
       brands.assignAll(loadedBrands);
@@ -160,6 +217,17 @@ class AdminWebController extends GetxController {
       userInterests.assignAll(secondary[3] as List<AdminUserInterest>);
       stockReceipts.assignAll(secondary[4] as List<AdminStockReceipt>);
       automation.value = secondary[5] as AdminAutomationSettings;
+
+      try {
+        final loadedVideoComments =
+            await repository.fetchAllVideoComments(loadedProducts);
+        videoComments.assignAll(loadedVideoComments);
+      } catch (_) {}
+
+      try {
+        final loadedReturns = await repository.fetchReturnRequests();
+        returnRequests.assignAll(loadedReturns);
+      } catch (_) {}
     } catch (e) {
       errorMessage.value = 'Không thể tải dữ liệu quản trị: $e';
     } finally {
@@ -297,6 +365,13 @@ class AdminWebController extends GetxController {
       countOrdersByStatus(OrderStatus.pending) +
       countOrdersByStatus(OrderStatus.processing);
 
+  int get pendingReturnsCount => returnRequests
+      .where((r) =>
+          r.status == ReturnRequestStatus.pending ||
+          r.status == ReturnRequestStatus.approvedPickup ||
+          r.status == ReturnRequestStatus.inspecting)
+      .length;
+
   List<ProductModel> get lowStockProducts =>
       products.where((p) => p.stock <= 10).toList()
         ..sort((a, b) => a.stock.compareTo(b.stock));
@@ -417,6 +492,46 @@ class AdminWebController extends GetxController {
       _toastSuccess('Đã xóa sản phẩm', 'Sản phẩm "${product.title}" đã được xóa.');
     } catch (e) {
       _toastError('Lỗi xóa sản phẩm', e.toString());
+    }
+  }
+
+  Future<bool> toggleProductDiscontinued(
+    ProductModel product,
+    bool isDiscontinued,
+  ) async {
+    final updated = ProductModel(
+      id: product.id,
+      title: product.title,
+      stock: product.stock,
+      price: product.price,
+      salePrice: product.salePrice,
+      thumbnail: product.thumbnail,
+      images: product.images,
+      videos: product.videos,
+      description: product.description,
+      productType: product.productType,
+      isFeatured: isDiscontinued ? false : product.isFeatured,
+      isDiscontinued: isDiscontinued,
+      brand: product.brand,
+      categoryId: product.categoryId,
+      categoryName: product.categoryName,
+      catalogId: product.catalogId,
+      productAttributes: product.productAttributes,
+      productVariations: product.productVariations,
+    );
+    try {
+      await repository.saveProduct(updated, isNew: false);
+      await loadAll(silent: true);
+      _toastSuccess(
+        isDiscontinued ? 'Đã chuyển sang Ngừng bán' : 'Đã mở bán trở lại',
+        isDiscontinued
+            ? '"${product.title}" đã chuyển vào danh sách Ngừng bán. Khách hàng đã mua vẫn xem được lịch sử với nhãn Đã ngừng bán.'
+            : '"${product.title}" đã được mở bán trở lại trên cửa hàng.',
+      );
+      return true;
+    } catch (e) {
+      _toastError('Lỗi cập nhật trạng thái bán', e.toString());
+      return false;
     }
   }
 
@@ -659,6 +774,91 @@ class AdminWebController extends GetxController {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Return & Exchange Requests Management
+  // ---------------------------------------------------------------------------
+  Future<bool> updateReturnRequest({
+    required ReturnRequestModel request,
+    required ReturnRequestStatus nextStatus,
+    String? customAdminResponse,
+  }) async {
+    try {
+      final responseText = (customAdminResponse != null &&
+              customAdminResponse.trim().isNotEmpty)
+          ? customAdminResponse.trim()
+          : (request.adminResponse.trim().isNotEmpty
+              ? request.adminResponse.trim()
+              : automation.value.renderReturnReply(
+                  customerName: request.customerName,
+                  productTitle: request.productTitle,
+                  typeLabel: request.typeLabel(),
+                  requestedSizeOrColor: request.requestedSizeOrColor,
+                ));
+      await repository.updateReturnRequest(
+        request: request,
+        nextStatus: nextStatus,
+        adminResponse: responseText,
+      );
+      await loadAll(silent: true);
+      _toastSuccess(
+        'Đã cập nhật yêu cầu Đổi / Trả',
+        'Yêu cầu của ${request.customerName} đã chuyển sang "${ReturnRequestModel.statusLabelOf(nextStatus)}" và gửi thông báo tới khách.',
+      );
+      return true;
+    } catch (e) {
+      _toastError('Lỗi cập nhật đổi trả', e.toString());
+      return false;
+    }
+  }
+
+  Future<int> autoApproveAllPendingReturnRequests() async {
+    final pending = returnRequests
+        .where((r) => r.status == ReturnRequestStatus.pending)
+        .toList();
+    if (pending.isEmpty) {
+      _toastSuccess(
+        'Không có yêu cầu chờ duyệt',
+        'Tất cả yêu cầu Đổi trả & Bảo hành đều đã được xử lý.',
+      );
+      return 0;
+    }
+    var count = 0;
+    try {
+      for (final req in pending) {
+        final reply = automation.value.renderReturnReply(
+          customerName: req.customerName,
+          productTitle: req.productTitle,
+          typeLabel: req.typeLabel(),
+          requestedSizeOrColor: req.requestedSizeOrColor,
+        );
+        await repository.updateReturnRequest(
+          request: req,
+          nextStatus: ReturnRequestStatus.approvedPickup,
+          adminResponse: reply,
+        );
+        count++;
+      }
+      await loadAll(silent: true);
+      _toastSuccess(
+        'Đã tự động duyệt & điều Shipper cho $count yêu cầu',
+        'Toàn bộ khách hàng đã nhận thông báo Shipper VELORA đến thu hồi tận nơi.',
+      );
+    } catch (e) {
+      _toastError('Lỗi tự động duyệt đổi trả', e.toString());
+    }
+    return count;
+  }
+
+  Future<void> deleteReturnRequest(ReturnRequestModel request) async {
+    try {
+      await repository.deleteReturnRequest(request.id);
+      returnRequests.removeWhere((r) => r.id == request.id);
+      _toastSuccess('Đã xóa yêu cầu đổi trả', 'Bản ghi đổi trả đã được gỡ.');
+    } catch (e) {
+      _toastError('Lỗi xóa yêu cầu đổi trả', e.toString());
+    }
+  }
+
   Future<bool> saveBrand(BrandModel brand, {required bool isNew}) async {
     try {
       await repository.saveBrand(brand, isNew: isNew);
@@ -798,6 +998,280 @@ class AdminWebController extends GetxController {
     } catch (e) {
       _toastError('Lỗi xóa đánh giá', e.toString());
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Featured Tab ("Nổi bật") Video, Comment Reply & Similar-Product Automation
+  // ---------------------------------------------------------------------------
+  List<ProductModel> similarProductsFor(ProductModel watched, {int limit = 4}) {
+    final sameCat = products
+        .where((p) =>
+            p.id != watched.id &&
+            p.categoryId.isNotEmpty &&
+            p.categoryId == watched.categoryId)
+        .take(limit)
+        .toList();
+    if (sameCat.length >= limit) return sameCat;
+    final extras = products
+        .where((p) => p.id != watched.id && !sameCat.any((s) => s.id == p.id))
+        .take(limit - sameCat.length);
+    return [...sameCat, ...extras];
+  }
+
+  Future<bool> toggleProductFeatured(
+      ProductModel product, bool isFeatured) async {
+    final updated = ProductModel(
+      id: product.id,
+      title: product.title,
+      stock: product.stock,
+      price: product.price,
+      salePrice: product.salePrice,
+      thumbnail: product.thumbnail,
+      images: product.images,
+      videos: product.videos,
+      description: product.description,
+      productType: product.productType,
+      isFeatured: isFeatured,
+      brand: product.brand,
+      categoryId: product.categoryId,
+      categoryName: product.categoryName,
+      catalogId: product.catalogId,
+      productAttributes: product.productAttributes,
+      productVariations: product.productVariations,
+    );
+    try {
+      await repository.saveProduct(updated, isNew: false);
+      await loadAll(silent: true);
+      _toastSuccess(
+        isFeatured ? 'Đã ghim lên tab Nổi bật' : 'Đã gỡ khỏi tab Nổi bật',
+        isFeatured
+            ? '"${product.title}" đã hiển thị trên tab Nổi bật của ứng dụng.'
+            : '"${product.title}" chỉ hiển thị khi khách hàng tương tác mẫu cùng gu.',
+      );
+      return true;
+    } catch (e) {
+      _toastError('Lỗi cập nhật Nổi bật', e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> assignVideosToProduct({
+    required ProductModel product,
+    required List<String> videoUrls,
+    bool makeFeatured = true,
+  }) async {
+    final cleaned = videoUrls
+        .map((u) => u.trim())
+        .where((u) => u.isNotEmpty)
+        .toSet()
+        .toList();
+    final updated = ProductModel(
+      id: product.id,
+      title: product.title,
+      stock: product.stock,
+      price: product.price,
+      salePrice: product.salePrice,
+      thumbnail: product.thumbnail,
+      images: product.images,
+      videos: cleaned,
+      description: product.description,
+      productType: product.productType,
+      isFeatured: makeFeatured ? true : product.isFeatured,
+      brand: product.brand,
+      categoryId: product.categoryId,
+      categoryName: product.categoryName,
+      catalogId: product.catalogId,
+      productAttributes: product.productAttributes,
+      productVariations: product.productVariations,
+    );
+    return saveProduct(updated, isNew: false);
+  }
+
+  Future<bool> replyToVideoComment(
+      AdminVideoCommentRecord record, String replyText) async {
+    try {
+      await repository.replyToVideoComment(record, replyText);
+      await loadAll(silent: true);
+      _toastSuccess(
+        'Đã trả lời bình luận video',
+        'Phản hồi đã hiển thị trên video "${record.productTitle}" và báo tới ${record.authorName}.',
+      );
+      return true;
+    } catch (e) {
+      _toastError('Lỗi trả lời bình luận', e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> autoReplySingleVideoComment(
+      AdminVideoCommentRecord record) async {
+    final text = automation.value.renderVideoCommentReply(
+      authorName: record.authorName,
+      productTitle: record.productTitle,
+      categoryName: record.categoryName,
+    );
+    return replyToVideoComment(record, text);
+  }
+
+  Future<int> autoReplyAllUnrepliedVideoComments() async {
+    final pending = videoComments.where((c) => !c.hasAdminReply).toList();
+    if (pending.isEmpty) {
+      _toastSuccess(
+        'Không còn bình luận chờ',
+        'Tất cả bình luận trên tab Nổi bật đều đã được phản hồi.',
+      );
+      return 0;
+    }
+    var count = 0;
+    try {
+      for (final rec in pending) {
+        final text = automation.value.renderVideoCommentReply(
+          authorName: rec.authorName,
+          productTitle: rec.productTitle,
+          categoryName: rec.categoryName,
+        );
+        await repository.replyToVideoComment(rec, text);
+        count++;
+      }
+      await loadAll(silent: true);
+      _toastSuccess(
+        'Đã tự động trả lời $count bình luận video',
+        'Toàn bộ phản hồi theo mẫu tự động đã gửi tới khách hàng.',
+      );
+    } catch (e) {
+      _toastError('Lỗi trả lời tự động', e.toString());
+    }
+    return count;
+  }
+
+  Future<void> deleteVideoComment(AdminVideoCommentRecord record) async {
+    try {
+      await repository.deleteVideoComment(record.productId, record.id);
+      videoComments.removeWhere(
+        (c) => c.productId == record.productId && c.id == record.id,
+      );
+      _toastSuccess('Đã xóa bình luận', 'Bình luận trên video đã được gỡ.');
+    } catch (e) {
+      _toastError('Lỗi xóa bình luận', e.toString());
+    }
+  }
+
+  Future<bool> pushSimilarProductsToUser({
+    required String userId,
+    required String userName,
+    required ProductModel watchedProduct,
+    required List<ProductModel> similarProducts,
+    String? customBodyVi,
+  }) async {
+    if (similarProducts.isEmpty) {
+      _toastError('Chưa chọn sản phẩm', 'Hãy chọn ít nhất 1 sản phẩm tương tự để gợi ý.');
+      return false;
+    }
+    try {
+      final simTitles = similarProducts.map((p) => p.title).join(', ');
+      final bodyVi = (customBodyVi != null && customBodyVi.trim().isNotEmpty)
+          ? customBodyVi.trim()
+          : automation.value.renderVideoSimilarPush(
+              userName: userName,
+              watchedProductTitle: watchedProduct.title,
+              similarProductTitles: simTitles,
+              categoryName: watchedProduct.categoryName,
+            );
+      await repository.pushSimilarProductsToUser(
+        userId: userId,
+        userName: userName,
+        watchedProduct: watchedProduct,
+        similarProducts: similarProducts,
+        bodyVi: bodyVi,
+      );
+      await loadAll(silent: true);
+      _toastSuccess(
+        'Đã tung ${similarProducts.length} sản phẩm tương tự tới $userName',
+        'Các mẫu ($simTitles) đã được mở khóa trên tab Nổi bật & gửi thông báo tới $userName.',
+      );
+      return true;
+    } catch (e) {
+      _toastError('Lỗi đẩy sản phẩm tương tự', e.toString());
+      return false;
+    }
+  }
+
+  Future<int> autoPushSimilarProductsForAllVideoInteractions() async {
+    final targets = <String, ({String userId, String userName, ProductModel product})>{};
+
+    // 1. From UserInterests (video_like / video_comment)
+    for (final interest in userInterests) {
+      if (interest.userId.isEmpty) continue;
+      ProductModel? watched;
+      if (interest.lastProductId.isNotEmpty) {
+        watched = products.firstWhereOrNull((p) => p.id == interest.lastProductId);
+      }
+      if (watched == null && interest.interestedCategoryIds.isNotEmpty) {
+        final cid = interest.interestedCategoryIds.first;
+        watched = products.firstWhereOrNull((p) => p.categoryId == cid);
+      }
+      watched ??= products.firstOrNull;
+      if (watched != null) {
+        targets[interest.userId] = (
+          userId: interest.userId,
+          userName: interest.userName,
+          product: watched,
+        );
+      }
+    }
+
+    // 2. From VideoComments
+    for (final c in videoComments) {
+      if (c.userId.isEmpty || targets.containsKey(c.userId)) continue;
+      final watched = products.firstWhereOrNull((p) => p.id == c.productId) ??
+          products.firstOrNull;
+      if (watched != null) {
+        targets[c.userId] = (
+          userId: c.userId,
+          userName: c.authorName,
+          product: watched,
+        );
+      }
+    }
+
+    if (targets.isEmpty) {
+      _toastSuccess(
+        'Chưa có lượt tương tác mới',
+        'Khi khách thả tim hoặc bình luận video, hệ thống sẽ tự động đẩy sản phẩm tương tự.',
+      );
+      return 0;
+    }
+
+    var count = 0;
+    try {
+      for (final entry in targets.values) {
+        final sims = similarProductsFor(entry.product, limit: 3);
+        if (sims.isEmpty) continue;
+        final simTitles = sims.map((p) => p.title).join(', ');
+        final bodyVi = automation.value.renderVideoSimilarPush(
+          userName: entry.userName,
+          watchedProductTitle: entry.product.title,
+          similarProductTitles: simTitles,
+          categoryName: entry.product.categoryName,
+        );
+        await repository.pushSimilarProductsToUser(
+          userId: entry.userId,
+          userName: entry.userName,
+          watchedProduct: entry.product,
+          similarProducts: sims,
+          bodyVi: bodyVi,
+        );
+        count++;
+      }
+      await loadAll(silent: true);
+      _toastSuccess(
+        'Đã tự động đẩy sản phẩm tương tự cho $count khách hàng',
+        'Mỗi khách hàng đã được mở khóa 3 mẫu giày cùng gu trên tab Nổi bật kèm thông báo.',
+      );
+    } catch (e) {
+      _toastError('Lỗi tự động đẩy sản phẩm', e.toString());
+    }
+    return count;
   }
 
   Future<bool> saveVoucher(

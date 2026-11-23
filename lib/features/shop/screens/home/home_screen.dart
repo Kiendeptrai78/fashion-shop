@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
-import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 import 'package:fashion_business_app/common/widgets/layouts/grid_layout.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_count_badge.dart';
 import 'package:fashion_business_app/common/widgets/product/cart/cart_menu_icon.dart';
@@ -128,7 +127,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _showFilters() async {
-    var brand = _catalog.filter.brandId;
     var category = _catalog.filter.categoryId;
     final facets = _catalog.facets.value;
     final result = await showModalBottomSheet<CatalogFilter>(
@@ -152,23 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: const Icon(Icons.close),
                   ),
                 ]),
-                const SizedBox(height: 24),
-                ShopText('Brand', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 12),
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  ChoiceChip(
-                    label: const ShopText('All brands'),
-                    selected: brand == null,
-                    onSelected: (_) => update(() => brand = null),
-                  ),
-                  for (final item in facets.brands)
-                    ChoiceChip(
-                      label: ShopText(item.name),
-                      selected: brand == item.id,
-                      onSelected: (selected) => update(() => brand = selected ? item.id : null),
-                    ),
-                ]),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 ShopText('Activity', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 12),
                 Wrap(spacing: 8, runSpacing: 8, children: [
@@ -187,10 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 28),
                 Row(children: [
                   TextButton(
-                    onPressed: () => update(() {
-                      brand = null;
-                      category = null;
-                    }),
+                    onPressed: () => update(() => category = null),
                     child: const ShopText('Clear all'),
                   ),
                   const SizedBox(width: 16),
@@ -198,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(
                         context,
-                        CatalogFilter(search: _search.text, brandId: brand, categoryId: category),
+                        CatalogFilter(search: _search.text, categoryId: category),
                       ),
                       child: const ShopText('Show results'),
                     ),
@@ -358,6 +337,36 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
         actions: [
+          if (!widget.showBackArrow && Get.isRegistered<ShopLocale>())
+            Builder(builder: (context) {
+              final currentLang = Localizations.localeOf(context).languageCode;
+              final isVi = currentLang != 'en';
+              return Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: () => Get.find<ShopLocale>().change(isVi ? 'en' : 'vi'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: dark ? const Color(0xFF1E352B) : const Color(0xFFE7F0EA),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: const Color(0xFF173E32).withValues(alpha: 0.22),
+                      ),
+                    ),
+                    child: Text(
+                      isVi ? 'VI 🇻🇳' : 'EN 🇬🇧',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
           if (!widget.showBackArrow)
             activity != null
                 ? Obx(() => IconButton(
@@ -574,73 +583,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               () => AllProductScreen(title: category.name, categoryId: category.id),
                             ),
                           ),
-                          const SizedBox(height: 24),
-                        ],
-                        if (facets.brands.isNotEmpty) ...[
-                          Row(children: [
-                            Expanded(
-                              child: ShopText(
-                                'Shop by brand',
-                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                            TextButton(onPressed: _showFilters, child: const ShopText('View all')),
-                          ]),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: 48,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: facets.brands.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 10),
-                              itemBuilder: (_, index) {
-                                final brand = facets.brands[index];
-                                final hasLogo = brand.image.trim().isNotEmpty;
-                                return Material(
-                                  color: dark ? const Color(0xFF1D2D26) : Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                    side: BorderSide(
-                                      color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE4E8E0),
-                                    ),
-                                  ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: InkWell(
-                                    onTap: () => Get.to(
-                                      () => AllProductScreen(title: brand.name, brandId: brand.id),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (hasLogo) ...[
-                                            TRoundedImage(
-                                              imageUrl: brand.image,
-                                              isNetworkImage: true,
-                                              width: 26,
-                                              height: 26,
-                                              borderRadius: 8,
-                                              padding: const EdgeInsets.all(2),
-                                            ),
-                                            const SizedBox(width: 8),
-                                          ],
-                                          ShopText(
-                                            brand.name.toUpperCase(),
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              letterSpacing: 0.6,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
                           const SizedBox(height: 28),
                         ],
                         ShopText(
@@ -721,7 +663,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: ShopText('$count products · Page $page', style: theme.textTheme.bodySmall),
                         ),
                         OutlinedButton.icon(
-                          onPressed: facets.brands.isEmpty ? null : _showFilters,
+                          onPressed: facets.categories.isEmpty ? null : _showFilters,
                           icon: const Icon(Icons.tune_rounded, size: 17),
                           label: ShopText(active == 0 ? 'Filters' : 'Filters ($active)'),
                           style: OutlinedButton.styleFrom(

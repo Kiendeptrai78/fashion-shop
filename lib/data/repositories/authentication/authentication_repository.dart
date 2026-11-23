@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
 import 'package:fashion_business_app/features/personalization/services/account_activity.dart';
 import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
 import 'package:fashion_business_app/features/personalization/models_shopper_preferences.dart';
@@ -34,7 +35,7 @@ class AuthenticationRepository extends GetxController {
   static AuthenticationRepository get instance => Get.find();
 
   ///variables
-  final deviceStorage = GetStorage();
+  final deviceStorage = GetStorage('app_preferences');
   final _auth = FirebaseAuth.instance;
 
   ///get auth user data
@@ -81,21 +82,27 @@ class AuthenticationRepository extends GetxController {
       screenRedirectAdmin();
       return;
     }
-    // Clear any stale Firebase Auth session restored from iOS Keychain / OS backup on a fresh install.
-    if (deviceStorage.read('app_installed_v1') != true) {
-      if (_auth.currentUser != null) {
-        try {
-          await GoogleSignIn().signOut();
-        } catch (_) {}
-        await _auth.signOut();
-      }
-      await deviceStorage.write('app_installed_v1', true);
-    }
-    final user = _auth.currentUser;
-    if(user != null){
-      if(user.emailVerified || AdminConfig.isAdminEmail(user.email)){
+    await deviceStorage.write('app_installed_v1', true);
 
+    User? user = _auth.currentUser;
+    if (user == null) {
+      try {
+        user = await _auth
+            .authStateChanges()
+            .first
+            .timeout(const Duration(milliseconds: 1200), onTimeout: () => _auth.currentUser);
+      } catch (_) {
+        user = _auth.currentUser;
+      }
+    }
+
+    if (user != null) {
+      if (user.emailVerified || AdminConfig.isAdminEmail(user.email)) {
         await TLocalStorage.init(user.uid);
+        final userCtrl = Get.isRegistered<UserController>()
+            ? UserController.instance
+            : Get.put(UserController(), permanent: true);
+        await userCtrl.fetchUserRecord();
         if (Get.isRegistered<CustomerBenefits>()) Get.delete<CustomerBenefits>(force: true);
         final benefits = Get.put(CustomerBenefits.local(), permanent: true);
         await benefits.initialize();
@@ -107,17 +114,16 @@ class AuthenticationRepository extends GetxController {
         } else {
           Get.offAll(() => const ShopperOnboarding());
         }
-      } else{
+      } else {
         Get.offAll(() => VerifyEmailScreen(email: _auth.currentUser?.email));
       }
-    }else{
+    } else {
       //local storage
       deviceStorage.writeIfNull('IsFirstTime', true);
       deviceStorage.read('IsFirstTime') != true
           ? Get.offAll(() => const LoginScreen())
           : Get.offAll(() => const LoginScreen());
     }
-
   }
 
   String _resolveInitialAdminRoute() {

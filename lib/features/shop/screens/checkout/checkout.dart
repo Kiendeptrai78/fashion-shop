@@ -6,6 +6,8 @@ import 'package:fashion_business_app/data/repositories/authentication/authentica
 import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
 import 'package:fashion_business_app/features/personalization/screens/account/coupons_screen.dart';
 import 'package:fashion_business_app/features/shop/models/order_model.dart';
+import 'package:fashion_business_app/features/shop/models/product_availability_helper.dart';
+import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'widgets/checkout_complete_screen.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
@@ -58,10 +60,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         bank: bank, coupon: _coupon, saveOrder: (quote) async {
           final uid = AuthenticationRepository.instance.authUser.uid;
           final date = DateTime.now();
+          final eta = ShippingRouteHelper.estimateForAddress(address);
           final order = OrderModel(id: _orderId, userId: uid, status: OrderStatus.pending,
             totalAmount: quote.total, orderDate: date, searchDate: date,
             paymentMethod: bank ? 'Demo bank' : 'Cash on delivery', address: address,
-            deliveryDate: date.add(const Duration(days: 3)), items: cart.cartItems.toList());
+            deliveryDate: eta.latestDeliveryDate(date), items: cart.cartItems.toList());
           final db = FirebaseFirestore.instance;
           final user = db.collection('Users').doc(uid);
           final batch = db.batch();
@@ -105,6 +108,38 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ShopText('Review your pairs and choose how to pay.', style: theme.textTheme.bodySmall),
           const SizedBox(height: 28),
           const TBillingAddressSection(),
+          const SizedBox(height: 12),
+          Obx(() {
+            final selectedAddr = AddressController.instance.selectedAddress.value;
+            final eta = ShippingRouteHelper.estimateForAddress(selectedAddr);
+            final isEn = Localizations.localeOf(context).languageCode == 'en';
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F9FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBAE6FD)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.local_shipping_outlined,
+                      size: 18, color: Color(0xFF0284C7)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      eta.customerEtaHeadline(english: isEn),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0C4A6E),
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
           const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(height: 1)),
           const TBillingPaymentSection(),
           Obx(() => _checkoutController.selectedPaymentMethod.value.name != 'Demo bank'
@@ -122,25 +157,94 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             TextButton(onPressed: () => Get.back(), child: const ShopText('Edit bag')),
           ]),
           const SizedBox(height: 12),
-          Obx(() => Column(children: [for (final item in cart.cartItems)
-            Padding(padding: const EdgeInsets.only(bottom: 20), child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start, children: [
-                TRoundedImage(imageUrl: item.image ?? '', width: 84, height: 84, isNetworkImage: true),
-                const SizedBox(width: 16),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  ShopText(item.brandName ?? '', style: theme.textTheme.bodySmall),
-                  const SizedBox(height: 4),
-                  ShopText(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  ShopText((item.selectedVariation?.entries ?? []).map((e) => '${e.key}: ${e.value}').join(' · '),
-                      style: theme.textTheme.bodySmall),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 12, children: [ShopText('Qty ${item.quantity}', style: theme.textTheme.bodySmall),
-                    ShopText(formatShopMoney(item.price * item.quantity, language: Localizations.localeOf(context).languageCode),
-                        style: const TextStyle(fontWeight: FontWeight.w600))]),
-                ])),
+          Obx(() => Column(children: [
+                for (final item in cart.cartItems)
+                  FutureBuilder<ProductAvailabilityResult>(
+                    future: ProductAvailabilityHelper.checkCartItem(item),
+                    builder: (context, availSnap) {
+                      final unavailable =
+                          availSnap.data?.isUnavailable == true;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => ProductAvailabilityHelper
+                              .openProductDetailFromCartItem(context, item),
+                          child: Opacity(
+                            opacity: unavailable ? 0.55 : 1.0,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                TRoundedImage(
+                                  imageUrl: item.image ?? '',
+                                  width: 84,
+                                  height: 84,
+                                  isNetworkImage: true,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      ShopText(
+                                        item.brandName ?? '',
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      ShopText(
+                                        item.title,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          decoration: unavailable
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                        ),
+                                      ),
+                                      if (unavailable) ...[
+                                        const SizedBox(height: 5),
+                                        const DiscontinuedProductBadge(
+                                            compact: true),
+                                      ],
+                                      const SizedBox(height: 6),
+                                      ShopText(
+                                        (item.selectedVariation?.entries ?? [])
+                                            .map((e) => '${e.key}: ${e.value}')
+                                            .join(' · '),
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 12,
+                                        children: [
+                                          ShopText(
+                                            'Qty ${item.quantity}',
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                          ShopText(
+                                            formatShopMoney(
+                                              item.price * item.quantity,
+                                              language: Localizations.localeOf(
+                                                      context)
+                                                  .languageCode,
+                                            ),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
               ])),
-          ])),
           const Divider(height: 32),
           ListTile(contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.local_offer_outlined),

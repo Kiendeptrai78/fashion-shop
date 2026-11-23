@@ -133,13 +133,13 @@ class TProductCartVertical extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ShopText(
-                      (product.brand?.name ?? product.categoryName).toUpperCase(),
+                      'VELORA',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelSmall?.copyWith(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 0.9,
+                        letterSpacing: 1.2,
                         color: dark ? const Color(0xFFB6CEB4) : const Color(0xFF4F6B5D),
                       ),
                     ),

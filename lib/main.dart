@@ -29,6 +29,7 @@ Future<void> main() async {
   }
 
   ///GetX Local storage
+  await GetStorage.init();
   await GetStorage.init('');
   await GetStorage.init('app_preferences');
   Get.put(ShopLocale(GetStorage('app_preferences')), permanent: true);

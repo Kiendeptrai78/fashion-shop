@@ -6,6 +6,7 @@ import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/features/shop/models/product_variation_model.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -25,17 +26,44 @@ class _AdminProductsViewState extends State<AdminProductsView> {
   String _brandFilter = '';
   String _categoryFilter = '';
   bool _onlyLowStock = false;
+  String _sellingTab = 'all'; // 'all' | 'active' | 'lowStock' | 'discontinued'
+
+  String _canonicalCatKey(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.contains('running') || s.contains('chạy bộ')) return 'running';
+    if (s.contains('lifestyle') || s.contains('hằng ngày')) return 'lifestyle';
+    if (s.contains('training') || s.contains('tập luyện')) return 'training';
+    if (s.contains('basketball') || s.contains('bóng rổ')) return 'basketball';
+    if (s.contains('trail') || s.contains('địa hình')) return 'trail';
+    return s;
+  }
+
+  bool _matchesCategory(ProductModel p, String filterId) {
+    if (filterId.isEmpty) return true;
+    if (p.categoryId == filterId) return true;
+    final fk = _canonicalCatKey(filterId);
+    return _canonicalCatKey(p.categoryId) == fk ||
+        _canonicalCatKey(p.categoryName) == fk;
+  }
 
   List<ProductModel> _filtered(List<ProductModel> all) {
     final q = _query.trim().toLowerCase();
     return all.where((p) {
+      if (_sellingTab == 'active' && p.isDiscontinued) return false;
+      if (_sellingTab == 'discontinued' && !p.isDiscontinued) return false;
+      if ((_sellingTab == 'lowStock' || _onlyLowStock) && p.stock > 10) {
+        return false;
+      }
       if (_brandFilter.isNotEmpty && p.brand?.id != _brandFilter) return false;
-      if (_categoryFilter.isNotEmpty && p.categoryId != _categoryFilter) return false;
-      if (_onlyLowStock && p.stock > 10) return false;
+      if (_categoryFilter.isNotEmpty && !_matchesCategory(p, _categoryFilter)) {
+        return false;
+      }
       if (q.isEmpty) return true;
       return p.title.toLowerCase().contains(q) ||
+          p.id.toLowerCase().contains(q) ||
           (p.brand?.name.toLowerCase().contains(q) ?? false) ||
-          p.categoryName.toLowerCase().contains(q);
+          p.categoryName.toLowerCase().contains(q) ||
+          widget.controller.localizeCategory(p.categoryName).toLowerCase().contains(q);
     }).toList();
   }
 
@@ -75,8 +103,10 @@ class _AdminProductsViewState extends State<AdminProductsView> {
     return Obx(() {
       final all = widget.controller.products.toList();
       final filtered = _filtered(all);
-      final brands = widget.controller.brands.toList();
       final categories = widget.controller.categories.toList();
+      final vi = widget.controller.isVi.value;
+      final safeCategoryValue =
+          categories.any((c) => c.id == _categoryFilter) ? _categoryFilter : '';
 
       return SingleChildScrollView(
         padding: EdgeInsets.all(width < 700 ? 16 : 28),
@@ -87,14 +117,21 @@ class _AdminProductsViewState extends State<AdminProductsView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AdminSectionToolbar(
-                  title: 'Quản lý Sản phẩm & Kho hàng (${all.length})',
-                  subtitle:
-                      'Nhập bổ sung tồn kho theo từng mẫu / size, theo dõi phiếu nhập hàng hoặc thêm mẫu giày mới.',
+                  title: vi
+                      ? 'Quản lý Sản phẩm & Kho hàng (${all.length})'
+                      : 'Product & Inventory Management (${all.length})',
+                  subtitle: vi
+                      ? 'Nhập bổ sung tồn kho theo từng mẫu / size, theo dõi phiếu nhập hàng hoặc thêm mẫu giày mới.'
+                      : 'Restock inventory by model & EU size, track stock receipts, or add new VELORA models.',
                   actions: [
                     OutlinedButton.icon(
                       onPressed: _openStockHistoryDialog,
                       icon: const Icon(Iconsax.receipt_text, size: 17),
-                      label: Text('Lịch sử nhập kho (${widget.controller.stockReceipts.length})'),
+                      label: Text(
+                        vi
+                            ? 'Lịch sử nhập kho (${widget.controller.stockReceipts.length})'
+                            : 'Stock Receipts (${widget.controller.stockReceipts.length})',
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AdminColors.forest,
                         side: const BorderSide(color: AdminColors.borderStrong),
@@ -103,14 +140,14 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                       ),
                     ),
                     AdminPrimaryButton(
-                      label: 'Nhập hàng vào kho',
+                      label: vi ? 'Nhập hàng vào kho' : 'Restock Inventory',
                       icon: Iconsax.box_add,
                       onPressed: all.isEmpty ? null : () => _openRestockDialog(),
                     ),
                     OutlinedButton.icon(
                       onPressed: () => _openProductEditor(),
                       icon: const Icon(Iconsax.add_circle, size: 17),
-                      label: const Text('Thêm mẫu mới'),
+                      label: Text(vi ? 'Thêm mẫu mới' : 'Add New Model'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AdminColors.ink,
                         side: const BorderSide(color: AdminColors.borderStrong),
@@ -125,71 +162,152 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                 // Filter toolbar
                 AdminCard(
                   padding: const EdgeInsets.all(16),
-                  child: Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      AdminSearchField(
-                        hint: 'Tìm tên sản phẩm, thương hiệu...',
-                        onChanged: (v) => setState(() => _query = v),
-                        width: 280,
-                      ),
-                      SizedBox(
-                        width: 210,
-                        child: DropdownButtonFormField<String>(
-                          value: _brandFilter,
-                          isExpanded: true,
-                          decoration: adminInputDecoration(label: 'Thương hiệu'),
-                          items: [
-                            const DropdownMenuItem(
-                              value: '',
-                              child: Text('Tất cả thương hiệu', overflow: TextOverflow.ellipsis),
-                            ),
-                            ...brands.map(
-                              (b) => DropdownMenuItem(
-                                value: b.id,
-                                child: Text(b.name, overflow: TextOverflow.ellipsis),
+                      // Selling Status Tabs (Đang mở bán vs Sản phẩm Ngừng bán)
+                      Builder(builder: (_) {
+                        final activeCount =
+                            all.where((p) => !p.isDiscontinued).length;
+                        final discontinuedCount =
+                            all.where((p) => p.isDiscontinued).length;
+                        final lowCount =
+                            widget.controller.lowStockProducts.length;
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: Text(
+                                vi
+                                    ? 'Tất cả kho (${all.length})'
+                                    : 'All Inventory (${all.length})',
                               ),
+                              selected: _sellingTab == 'all',
+                              onSelected: (_) => setState(() {
+                                _sellingTab = 'all';
+                                _onlyLowStock = false;
+                              }),
+                            ),
+                            ChoiceChip(
+                              label: Text(
+                                vi
+                                    ? '✅ Đang mở bán ($activeCount)'
+                                    : '✅ Active ($activeCount)',
+                              ),
+                              selected: _sellingTab == 'active',
+                              selectedColor: AdminColors.emeraldBg,
+                              onSelected: (_) => setState(() {
+                                _sellingTab = 'active';
+                                _onlyLowStock = false;
+                              }),
+                            ),
+                            ChoiceChip(
+                              label: Text(
+                                vi
+                                    ? '⚠️ Sắp hết hàng ($lowCount)'
+                                    : '⚠️ Low Stock ($lowCount)',
+                              ),
+                              selected: _sellingTab == 'lowStock' || _onlyLowStock,
+                              selectedColor: AdminColors.amberBg,
+                              onSelected: (_) => setState(() {
+                                _sellingTab = 'lowStock';
+                                _onlyLowStock = true;
+                              }),
+                            ),
+                            ChoiceChip(
+                              label: Text(
+                                vi
+                                    ? '🚫 Sản phẩm Ngừng bán ($discontinuedCount)'
+                                    : '🚫 Discontinued ($discontinuedCount)',
+                              ),
+                              selected: _sellingTab == 'discontinued',
+                              selectedColor: AdminColors.roseBg,
+                              onSelected: (_) => setState(() {
+                                _sellingTab = 'discontinued';
+                                _onlyLowStock = false;
+                              }),
                             ),
                           ],
-                          onChanged: (v) => setState(() => _brandFilter = v ?? ''),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 210,
-                        child: DropdownButtonFormField<String>(
-                          value: _categoryFilter,
-                          isExpanded: true,
-                          decoration: adminInputDecoration(label: 'Danh mục'),
-                          items: [
-                            const DropdownMenuItem(
-                              value: '',
-                              child: Text('Tất cả danh mục', overflow: TextOverflow.ellipsis),
-                            ),
-                            ...categories.map(
-                              (c) => DropdownMenuItem(
-                                value: c.id,
-                                child: Text(c.name, overflow: TextOverflow.ellipsis),
-                              ),
-                            ),
-                          ],
-                          onChanged: (v) => setState(() => _categoryFilter = v ?? ''),
-                        ),
-                      ),
-                      FilterChip(
-                        selected: _onlyLowStock,
-                        selectedColor: AdminColors.amberBg,
-                        checkmarkColor: AdminColors.amber,
-                        label: Text(
-                          'Sắp hết hàng (${widget.controller.lowStockProducts.length})',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: _onlyLowStock ? AdminColors.amber : AdminColors.inkSecondary,
+                        );
+                      }),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          AdminSearchField(
+                            hint: vi
+                                ? 'Tìm tên mẫu giày VELORA, danh mục...'
+                                : 'Search VELORA model, SKU, or category...',
+                            onChanged: (v) => setState(() => _query = v),
+                            width: 280,
                           ),
+                          SizedBox(
+                            width: 240,
+                            child: DropdownButtonFormField<String>(
+                              value: safeCategoryValue,
+                              isExpanded: true,
+                              decoration: adminInputDecoration(
+                                label: vi ? 'Danh mục giày thể thao' : 'Athletic Category',
+                              ),
+                              items: [
+                                DropdownMenuItem(
+                                  value: '',
+                                  child: Text(
+                                    vi
+                                        ? 'Tất cả danh mục (${all.length})'
+                                        : 'All categories (${all.length})',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                ...categories.map((c) {
+                                  final count =
+                                      all.where((p) => _matchesCategory(p, c.id)).length;
+                                  final label = widget.controller.localizeCategory(c.name);
+                                  return DropdownMenuItem(
+                                    value: c.id,
+                                    child: Text(
+                                      '$label ($count)',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }),
+                              ],
+                              onChanged: (v) => setState(() => _categoryFilter = v ?? ''),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            ChoiceChip(
+                              label: Text(
+                                vi ? 'Tất cả (${all.length})' : 'All (${all.length})',
+                              ),
+                              selected: safeCategoryValue.isEmpty,
+                              onSelected: (_) => setState(() => _categoryFilter = ''),
+                            ),
+                            ...categories.map((c) {
+                              final count =
+                                  all.where((p) => _matchesCategory(p, c.id)).length;
+                              final label = widget.controller.localizeCategory(c.name);
+                              return Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: ChoiceChip(
+                                  label: Text('$label ($count)'),
+                                  selected: safeCategoryValue == c.id,
+                                  onSelected: (_) =>
+                                      setState(() => _categoryFilter = c.id),
+                                ),
+                              );
+                            }),
+                          ],
                         ),
-                        onSelected: (v) => setState(() => _onlyLowStock = v),
                       ),
                     ],
                   ),
@@ -202,10 +320,12 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                   child: filtered.isEmpty
                       ? AdminEmptyState(
                           icon: Iconsax.box,
-                          title: 'Không tìm thấy sản phẩm',
-                          subtitle: 'Thử điều chỉnh bộ lọc hoặc thêm sản phẩm mới vào kho.',
+                          title: vi ? 'Không tìm thấy sản phẩm' : 'No products found',
+                          subtitle: vi
+                              ? 'Thử điều chỉnh bộ lọc hoặc thêm sản phẩm mới vào kho.'
+                              : 'Try adjusting your category filter or search query.',
                           action: AdminPrimaryButton(
-                            label: 'Thêm sản phẩm',
+                            label: vi ? 'Thêm sản phẩm' : 'Add Product',
                             onPressed: () => _openProductEditor(),
                           ),
                         )
@@ -214,74 +334,75 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(minWidth: 1020),
                             child: DataTable(
+                              columnSpacing: 16,
+                              horizontalMargin: 16,
                               headingRowColor:
                                   WidgetStateProperty.all(AdminColors.surfaceMuted),
-                              dataRowMinHeight: 66,
-                              dataRowMaxHeight: 74,
-                              columns: const [
-                                DataColumn(label: Text('Sản phẩm', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Thương hiệu', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Danh mục', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Giá bán', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Tồn kho', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Biến thể', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Nổi bật', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text('Thao tác', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                              dataRowMinHeight: 68,
+                              dataRowMaxHeight: 76,
+                              columns: [
+                                DataColumn(label: Text(vi ? 'Sản phẩm VELORA' : 'VELORA Product', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text(vi ? 'Danh mục' : 'Category', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text(vi ? 'Giá bán' : 'Price', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text(vi ? 'Tồn kho & Nhập nhanh (từ bên ngoài)' : 'Stock & Quick Restock', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text(vi ? 'Trạng thái bán' : 'Status', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text(vi ? 'Thao tác' : 'Actions', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
                               ],
                               rows: filtered.map((product) {
                                 final hasSale =
                                     product.salePrice > 0 && product.salePrice < product.price;
                                 final lowStock = product.stock <= 10;
-                                final variationCount =
-                                    product.productVariations?.length ?? 0;
+                                final isDisc = product.isDiscontinued;
                                 return DataRow(
                                   cells: [
-                                    DataCell(Row(
-                                      children: [
-                                        AdminImageThumb(
-                                          url: product.thumbnail,
-                                          width: 50,
-                                          height: 50,
-                                          fit: BoxFit.contain,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        SizedBox(
-                                          width: 220,
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                product.title,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 13,
-                                                  color: AdminColors.ink,
-                                                ),
-                                              ),
-                                              Text(
-                                                product.id,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: AdminColors.inkMuted,
-                                                ),
-                                              ),
-                                            ],
+                                    DataCell(Opacity(
+                                      opacity: isDisc ? 0.55 : 1.0,
+                                      child: Row(
+                                        children: [
+                                          AdminImageThumb(
+                                            url: product.thumbnail,
+                                            width: 48,
+                                            height: 48,
+                                            fit: BoxFit.contain,
                                           ),
-                                        ),
-                                      ],
-                                    )),
-                                    DataCell(Text(
-                                      product.brand?.name ?? '—',
-                                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
+                                          const SizedBox(width: 10),
+                                          SizedBox(
+                                            width: 200,
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  product.title,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 13,
+                                                    color: AdminColors.ink,
+                                                    decoration: isDisc
+                                                        ? TextDecoration.lineThrough
+                                                        : null,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  product.id,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: AdminColors.inkMuted,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     )),
                                     DataCell(Text(
                                       product.categoryName.isNotEmpty
-                                          ? product.categoryName
+                                          ? widget.controller.localizeCategory(product.categoryName)
                                           : '—',
                                       style: const TextStyle(fontSize: 12.5, color: AdminColors.inkSecondary),
                                     )),
@@ -309,72 +430,122 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                                           ),
                                       ],
                                     )),
+                                    // Tồn kho & Ô điền số lượng nhập nhanh trực tiếp từ bên ngoài!
+                                    DataCell(Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        AdminBadge(
+                                          label: product.stock <= 0
+                                              ? 'Hết hàng'
+                                              : '${product.stock} đôi',
+                                          color: product.stock <= 0
+                                              ? AdminColors.rose
+                                              : lowStock
+                                                  ? AdminColors.amber
+                                                  : AdminColors.emerald,
+                                          bgColor: product.stock <= 0
+                                              ? AdminColors.roseBg
+                                              : lowStock
+                                                  ? AdminColors.amberBg
+                                                  : AdminColors.emeraldBg,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        _InlineQuickRestockBox(
+                                          key: ValueKey('quick-restock-${product.id}'),
+                                          product: product,
+                                          controller: widget.controller,
+                                        ),
+                                      ],
+                                    )),
+                                    // Trạng thái bán (Đang mở bán vs Đã ngừng bán)
                                     DataCell(AdminBadge(
-                                      label: product.stock <= 0
-                                          ? 'Hết hàng'
-                                          : '${product.stock} đôi',
-                                      color: product.stock <= 0
+                                      label: isDisc
+                                          ? (vi ? '🚫 Đã ngừng bán' : '🚫 Discontinued')
+                                          : (vi ? '✅ Đang mở bán' : '✅ Active'),
+                                      color: isDisc
                                           ? AdminColors.rose
-                                          : lowStock
-                                              ? AdminColors.amber
-                                              : AdminColors.emerald,
-                                      bgColor: product.stock <= 0
+                                          : AdminColors.emerald,
+                                      bgColor: isDisc
                                           ? AdminColors.roseBg
-                                          : lowStock
-                                              ? AdminColors.amberBg
-                                              : AdminColors.emeraldBg,
-                                    )),
-                                    DataCell(Text(
-                                      variationCount > 0 ? '$variationCount biến thể' : 'Đơn lẻ',
-                                      style: const TextStyle(fontSize: 12.5, color: AdminColors.inkSecondary),
-                                    )),
-                                    DataCell(Icon(
-                                      product.isFeatured
-                                          ? Icons.star_rounded
-                                          : Icons.star_outline_rounded,
-                                      color: product.isFeatured
-                                          ? AdminColors.amber
-                                          : AdminColors.inkMuted,
-                                      size: 20,
+                                          : AdminColors.emeraldBg,
                                     )),
                                     DataCell(Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Tooltip(
-                                          message: 'Nhập thêm tồn kho',
+                                          message: 'Nhập kho chi tiết theo từng size EU',
                                           child: FilledButton.tonalIcon(
                                             onPressed: () => _openRestockDialog(product: product),
-                                            icon: const Icon(Iconsax.box_add, size: 15),
-                                            label: const Text('Nhập kho', style: TextStyle(fontSize: 12)),
+                                            icon: const Icon(Iconsax.box_add, size: 14),
+                                            label: Text(vi ? 'Theo size' : 'By Size', style: const TextStyle(fontSize: 11.5)),
                                             style: FilledButton.styleFrom(
                                               backgroundColor: AdminColors.sageSoft,
                                               foregroundColor: AdminColors.forest,
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                              minimumSize: const Size(0, 32),
+                                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                                              minimumSize: const Size(0, 30),
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
+                                        const SizedBox(width: 6),
+                                        OutlinedButton.icon(
+                                          onPressed: () => widget.controller
+                                              .toggleProductDiscontinued(
+                                                  product, !isDisc),
+                                          icon: Icon(
+                                            isDisc
+                                                ? Iconsax.refresh
+                                                : Icons.block_rounded,
+                                            size: 13,
+                                          ),
+                                          label: Text(
+                                            isDisc
+                                                ? (vi ? 'Mở bán lại' : 'Re-list')
+                                                : (vi ? 'Ngừng bán' : 'Discontinue'),
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: isDisc
+                                                ? AdminColors.emerald
+                                                : AdminColors.rose,
+                                            side: BorderSide(
+                                              color: (isDisc
+                                                      ? AdminColors.emerald
+                                                      : AdminColors.rose)
+                                                  .withValues(alpha: 0.4),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 9,
+                                              vertical: 5,
+                                            ),
+                                            minimumSize: const Size(0, 30),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
                                         IconButton(
+                                          visualDensity: VisualDensity.compact,
                                           tooltip: 'Chỉnh sửa sản phẩm',
                                           onPressed: () =>
                                               _openProductEditor(existing: product),
-                                          icon: const Icon(Iconsax.edit_2, size: 18, color: AdminColors.forest),
+                                          icon: const Icon(Iconsax.edit_2, size: 17, color: AdminColors.forest),
                                         ),
                                         IconButton(
-                                          tooltip: 'Xóa sản phẩm',
+                                          visualDensity: VisualDensity.compact,
+                                          tooltip: 'Xóa hẳn khỏi kho',
                                           onPressed: () async {
                                             final ok = await showAdminConfirmDialog(
                                               context,
                                               title: 'Xóa "${product.title}"?',
                                               message:
-                                                  'Sản phẩm sẽ bị xóa khỏi Firestore và không còn hiển thị trên ứng dụng khách hàng.',
+                                                  'Mẹo: Bạn có thể bấm nút "Ngừng bán" để ẩn sản phẩm trên cửa hàng mà vẫn giữ lịch sử đơn cũ. Nếu chọn Xóa, sản phẩm sẽ bị xóa khỏi kho.',
                                             );
                                             if (ok) {
                                               await widget.controller.deleteProduct(product);
                                             }
                                           },
-                                          icon: const Icon(Iconsax.trash, size: 18, color: AdminColors.rose),
+                                          icon: const Icon(Iconsax.trash, size: 17, color: AdminColors.rose),
                                         ),
                                       ],
                                     )),
@@ -442,6 +613,7 @@ class _ProductEditorDialogState extends State<_ProductEditorDialog> {
   final _customColorCtrl = TextEditingController();
 
   late List<String> _images;
+  late List<String> _videos;
   late String _thumbnailUrl;
   late List<String> _selectedColors;
   late List<String> _selectedSizes;
@@ -453,6 +625,7 @@ class _ProductEditorDialogState extends State<_ProductEditorDialog> {
   bool _isVariable = true;
   bool _sendNotification = true;
   bool _saving = false;
+  bool _uploadingVideos = false;
   late List<ProductVariationModel> _variations;
 
   bool get _isNew => widget.existing == null;
@@ -487,6 +660,10 @@ class _ProductEditorDialogState extends State<_ProductEditorDialog> {
         if (img.trim().isNotEmpty) img.trim(),
     ].toSet().toList();
     _images = initialImages;
+    _videos = [
+      for (final v in p?.videos ?? const <String>[])
+        if (v.trim().isNotEmpty) v.trim(),
+    ];
     _thumbnailUrl = (p?.thumbnail ?? '').trim().isNotEmpty
         ? p!.thumbnail.trim()
         : (initialImages.isNotEmpty ? initialImages.first : '');
@@ -585,6 +762,38 @@ class _ProductEditorDialogState extends State<_ProductEditorDialog> {
     });
   }
 
+  Future<void> _pickAndUploadVideos() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.video,
+        allowMultiple: true,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      setState(() => _uploadingVideos = true);
+      for (final f in result.files) {
+        final bytes = f.bytes;
+        if (bytes == null || bytes.isEmpty) continue;
+        final url = await widget.controller.uploadVideo(
+          bytes,
+          f.name,
+          'Products/Videos',
+        );
+        if (url.trim().isNotEmpty && !_videos.contains(url.trim())) {
+          setState(() => _videos.add(url.trim()));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải video lên Cloudinary: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingVideos = false);
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_images.isEmpty) {
@@ -626,6 +835,7 @@ class _ProductEditorDialogState extends State<_ProductEditorDialog> {
       salePrice: salePriceUsd,
       thumbnail: effectiveThumb,
       images: _images,
+      videos: _videos,
       description: _descCtrl.text.trim(),
       productType: _isVariable
           ? ProductType.variable.toString()
@@ -713,6 +923,112 @@ class _ProductEditorDialogState extends State<_ProductEditorDialog> {
                         onUploadBytes: (bytes, name) => widget.controller
                             .uploadImage(bytes, name, 'Products/Images'),
                       ),
+                      const SizedBox(height: 16),
+
+                      // Multi-video promo uploader (for TikTok-style VELORA Reels feed)
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AdminColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AdminColors.border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.play_circle_fill_rounded,
+                                  color: AdminColors.forest,
+                                  size: 19,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Video quảng cáo sản phẩm (${_videos.length} video — hiển thị trên VELORA Reels kiểu TikTok)',
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AdminColors.ink,
+                                    ),
+                                  ),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: _uploadingVideos ? null : _pickAndUploadVideos,
+                                  icon: _uploadingVideos
+                                      ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        )
+                                      : const Icon(Iconsax.video_add, size: 16),
+                                  label: Text(
+                                    _uploadingVideos
+                                        ? 'Đang tải lên...'
+                                        : 'Thêm 1 hoặc nhiều Video (MP4)',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_videos.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: List.generate(_videos.length, (vIdx) {
+                                  final vUrl = _videos[vIdx];
+                                  final fileName = vUrl.split('/').last;
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: AdminColors.border),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.videocam_rounded,
+                                          color: AdminColors.forest,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        ConstrainedBox(
+                                          constraints: const BoxConstraints(maxWidth: 190),
+                                          child: Text(
+                                            'Video #${vIdx + 1}: $fileName',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        InkWell(
+                                          onTap: () => setState(() => _videos.removeAt(vIdx)),
+                                          child: const Icon(
+                                            Icons.close_rounded,
+                                            size: 16,
+                                            color: AdminColors.rose,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 20),
 
                       TextFormField(
@@ -721,51 +1037,24 @@ class _ProductEditorDialogState extends State<_ProductEditorDialog> {
                             ? 'Vui lòng nhập tên sản phẩm'
                             : null,
                         decoration: adminInputDecoration(
-                          label: 'Tên sản phẩm *',
-                          hint: 'Ví dụ: Air Force 1 Low',
+                          label: 'Tên mẫu giày VELORA *',
+                          hint: 'Ví dụ: VELORA AeroPulse R2',
                         ),
                       ),
                       const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: brands.any((b) => b.id == _selectedBrandId)
-                                  ? _selectedBrandId
-                                  : null,
-                              isExpanded: true,
-                              decoration: adminInputDecoration(label: 'Thương hiệu'),
-                              items: brands
-                                  .map((b) => DropdownMenuItem(
-                                        value: b.id,
-                                        child: Text(b.name,
-                                            overflow: TextOverflow.ellipsis),
-                                      ))
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _selectedBrandId = v ?? ''),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: categories.any((c) => c.id == _selectedCategoryId)
-                                  ? _selectedCategoryId
-                                  : null,
-                              isExpanded: true,
-                              decoration: adminInputDecoration(label: 'Danh mục'),
-                              items: categories
-                                  .map((c) => DropdownMenuItem(
-                                        value: c.id,
-                                        child: Text(c.name,
-                                            overflow: TextOverflow.ellipsis),
-                                      ))
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _selectedCategoryId = v ?? ''),
-                            ),
-                          ),
-                        ],
+                      DropdownButtonFormField<String>(
+                        value: categories.any((c) => c.id == _selectedCategoryId)
+                            ? _selectedCategoryId
+                            : null,
+                        isExpanded: true,
+                        decoration: adminInputDecoration(label: 'Danh mục giày thể thao'),
+                        items: categories
+                            .map((c) => DropdownMenuItem(
+                                  value: c.id,
+                                  child: Text(c.name, overflow: TextOverflow.ellipsis),
+                                ))
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedCategoryId = v ?? ''),
                       ),
                       const SizedBox(height: 14),
                       Row(
@@ -1134,7 +1423,6 @@ class _ProductEditorDialogState extends State<_ProductEditorDialog> {
   }
 }
 
-
 class _RestockProductDialog extends StatefulWidget {
   const _RestockProductDialog({
     required this.controller,
@@ -1150,13 +1438,17 @@ class _RestockProductDialog extends StatefulWidget {
 
 class _RestockProductDialogState extends State<_RestockProductDialog> {
   late ProductModel _product;
+  final _productSearchCtrl = TextEditingController();
+  final _variationSearchCtrl = TextEditingController();
   final _singleAddCtrl = TextEditingController(text: '10');
   final _supplierCtrl = TextEditingController();
   final _unitCostCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   final Map<String, TextEditingController> _varCtrls = {};
+  String _stockFilter = 'all'; // 'all' | 'low' | categoryId
   bool _notifyBackInStock = false;
   bool _saving = false;
+  bool _showProductPicker = true;
 
   @override
   void initState() {
@@ -1178,6 +1470,8 @@ class _RestockProductDialogState extends State<_RestockProductDialog> {
 
   @override
   void dispose() {
+    _productSearchCtrl.dispose();
+    _variationSearchCtrl.dispose();
     _singleAddCtrl.dispose();
     _supplierCtrl.dispose();
     _unitCostCtrl.dispose();
@@ -1201,13 +1495,49 @@ class _RestockProductDialogState extends State<_RestockProductDialog> {
     return (int.tryParse(_singleAddCtrl.text.trim()) ?? 0).clamp(0, 99999);
   }
 
-  void _fillAllVariations(int delta) {
+  void _fillAllVariations(int delta, {List<ProductVariationModel>? subset}) {
     setState(() {
-      for (final ctrl in _varCtrls.values) {
+      final targets = subset != null
+          ? subset.map((v) => _varCtrls[v.id]).whereType<TextEditingController>()
+          : _varCtrls.values;
+      for (final ctrl in targets) {
         final cur = int.tryParse(ctrl.text.trim()) ?? 0;
-        ctrl.text = '${cur + delta}';
+        ctrl.text = '${(cur + delta).clamp(0, 99999)}';
       }
     });
+  }
+
+  void _resetAllVariations() {
+    setState(() {
+      for (final ctrl in _varCtrls.values) {
+        ctrl.text = '0';
+      }
+    });
+  }
+
+  String _categoryLabel(ProductModel p) {
+    if (p.categoryName.isNotEmpty) return p.categoryName;
+    return widget.controller.categories
+            .firstWhereOrNull((c) => c.id == p.categoryId)
+            ?.name ??
+        'Giày thể thao VELORA';
+  }
+
+  List<ProductModel> _filterProducts(List<ProductModel> allProducts) {
+    final q = _productSearchCtrl.text.trim().toLowerCase();
+    return allProducts.where((p) {
+      if (_stockFilter == 'low' && p.stock > 15) return false;
+      if (_stockFilter != 'all' &&
+          _stockFilter != 'low' &&
+          p.categoryId != _stockFilter) {
+        return false;
+      }
+      if (q.isEmpty) return true;
+      final catName = _categoryLabel(p).toLowerCase();
+      return p.title.toLowerCase().contains(q) ||
+          p.id.toLowerCase().contains(q) ||
+          catName.contains(q);
+    }).toList();
   }
 
   Future<void> _submit() async {
@@ -1243,14 +1573,28 @@ class _RestockProductDialogState extends State<_RestockProductDialog> {
   @override
   Widget build(BuildContext context) {
     final allProducts = widget.controller.products;
+    final filteredProducts = _filterProducts(allProducts);
+    final lowStockCount = allProducts.where((p) => p.stock <= 15).length;
+    final categories = widget.controller.categories;
     final added = _totalAdded;
     final newStock = _product.stock + added;
+
+    final varQuery = _variationSearchCtrl.text.trim().toLowerCase();
+    final filteredVariations = (_product.productVariations ?? const <ProductVariationModel>[])
+        .where((v) {
+      if (varQuery.isEmpty) return true;
+      final label = v.attributeValues.entries
+          .map((e) => '${e.key}: ${e.value}')
+          .join(' ')
+          .toLowerCase();
+      return label.contains(varQuery) || v.id.toLowerCase().contains(varQuery);
+    }).toList();
 
     return Dialog(
       backgroundColor: AdminColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680, maxHeight: 780),
+        constraints: const BoxConstraints(maxWidth: 760, maxHeight: 860),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1280,7 +1624,7 @@ class _RestockProductDialogState extends State<_RestockProductDialog> {
                           style: TextStyle(fontSize: 17.5, fontWeight: FontWeight.w700),
                         ),
                         Text(
-                          'Cộng dồn tồn kho trực tiếp vào sản phẩm hiện có và lưu lịch sử phiếu nhập.',
+                          'Tìm kiếm nhanh mẫu giày, lọc theo danh mục hoặc tồn kho thấp để nhập hàng.',
                           style: TextStyle(fontSize: 12, color: AdminColors.inkSecondary),
                         ),
                       ],
@@ -1299,40 +1643,20 @@ class _RestockProductDialogState extends State<_RestockProductDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    DropdownButtonFormField<String>(
-                      value: allProducts.any((p) => p.id == _product.id) ? _product.id : null,
-                      isExpanded: true,
-                      decoration: adminInputDecoration(label: 'Chọn sản phẩm cần nhập thêm'),
-                      items: allProducts
-                          .map((p) => DropdownMenuItem(
-                                value: p.id,
-                                child: Text(
-                                  '${p.title} (Tồn hiện tại: ${p.stock} đôi)',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (id) {
-                        final picked = allProducts.firstWhereOrNull((p) => p.id == id);
-                        if (picked != null) setState(() => _selectProduct(picked));
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Summary banner
+                    // Selected product summary card + toggle picker button
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: AdminColors.sageSoft.withValues(alpha: 0.65),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AdminColors.forest.withValues(alpha: 0.16)),
+                        border: Border.all(color: AdminColors.forest.withValues(alpha: 0.22)),
                       ),
                       child: Row(
                         children: [
                           AdminImageThumb(
                             url: _product.thumbnail,
-                            width: 48,
-                            height: 48,
+                            width: 52,
+                            height: 52,
                             fit: BoxFit.contain,
                           ),
                           const SizedBox(width: 12),
@@ -1340,11 +1664,34 @@ class _RestockProductDialogState extends State<_RestockProductDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Row(
+                                  children: [
+                                    const AdminBadge(
+                                      label: 'ĐANG CHỌN NHẬP KHO',
+                                      color: AdminColors.forest,
+                                      bgColor: Colors.white,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _categoryLabel(_product),
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: AdminColors.inkSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
                                 Text(
                                   _product.title,
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14.5,
+                                    color: AdminColors.ink,
+                                  ),
                                 ),
-                                const SizedBox(height: 3),
+                                const SizedBox(height: 2),
                                 Text(
                                   'Tồn kho: ${_product.stock} đôi  →  $newStock đôi (+$added)',
                                   style: const TextStyle(
@@ -1356,9 +1703,198 @@ class _RestockProductDialogState extends State<_RestockProductDialog> {
                               ],
                             ),
                           ),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                setState(() => _showProductPicker = !_showProductPicker),
+                            icon: Icon(
+                              _showProductPicker
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Iconsax.search_normal_1,
+                              size: 16,
+                            ),
+                            label: Text(_showProductPicker ? 'Thu gọn' : 'Đổi sản phẩm'),
+                          ),
                         ],
                       ),
                     ),
+
+                    if (_showProductPicker) ...[
+                      const SizedBox(height: 14),
+                      // Search box + quick filter chips
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AdminColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AdminColors.border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextField(
+                              controller: _productSearchCtrl,
+                              onChanged: (_) => setState(() {}),
+                              decoration: adminInputDecoration(
+                                label: 'Tìm kiếm sản phẩm cần nhập kho',
+                                hint: 'Nhập tên giày, mã sản phẩm hoặc danh mục (VD: AeroPulse, GTX, Chạy bộ)...',
+                                prefixIcon: const Icon(Iconsax.search_normal_1, size: 18),
+                                suffixIcon: _productSearchCtrl.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear_rounded, size: 18),
+                                        onPressed: () {
+                                          _productSearchCtrl.clear();
+                                          setState(() {});
+                                        },
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  ChoiceChip(
+                                    label: Text('Tất cả (${allProducts.length})'),
+                                    selected: _stockFilter == 'all',
+                                    onSelected: (_) =>
+                                        setState(() => _stockFilter = 'all'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ChoiceChip(
+                                    label: Text('Tồn thấp ≤15 ($lowStockCount)'),
+                                    selected: _stockFilter == 'low',
+                                    onSelected: (_) =>
+                                        setState(() => _stockFilter = 'low'),
+                                  ),
+                                  ...categories.map((cat) {
+                                    final count = allProducts
+                                        .where((p) => p.categoryId == cat.id)
+                                        .length;
+                                    if (count == 0) return const SizedBox.shrink();
+                                    return Padding(
+                                      padding: const EdgeInsets.only(left: 6),
+                                      child: ChoiceChip(
+                                        label: Text('${cat.name} ($count)'),
+                                        selected: _stockFilter == cat.id,
+                                        onSelected: (_) =>
+                                            setState(() => _stockFilter = cat.id),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 195),
+                              child: filteredProducts.isEmpty
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 22),
+                                      alignment: Alignment.center,
+                                      child: const Text(
+                                        'Không tìm thấy mẫu giày nào khớp từ khóa.',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          color: AdminColors.inkMuted,
+                                        ),
+                                      ),
+                                    )
+                                  : ListView.separated(
+                                      shrinkWrap: true,
+                                      itemCount: filteredProducts.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(height: 6),
+                                      itemBuilder: (_, idx) {
+                                        final item = filteredProducts[idx];
+                                        final isSelected = item.id == _product.id;
+                                        final isLow = item.stock <= 15;
+                                        return InkWell(
+                                          borderRadius: BorderRadius.circular(10),
+                                          onTap: () => setState(() {
+                                            _selectProduct(item);
+                                          }),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? AdminColors.forest.withValues(alpha: 0.09)
+                                                  : Colors.white,
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: isSelected
+                                                    ? AdminColors.forest
+                                                    : AdminColors.border,
+                                                width: isSelected ? 1.5 : 1,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                AdminImageThumb(
+                                                  url: item.thumbnail,
+                                                  width: 38,
+                                                  height: 38,
+                                                  fit: BoxFit.contain,
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        item.title,
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          fontWeight: isSelected
+                                                              ? FontWeight.w700
+                                                              : FontWeight.w600,
+                                                          color: AdminColors.ink,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        '${_categoryLabel(item)} • Mã: ${item.id}',
+                                                        style: const TextStyle(
+                                                          fontSize: 11,
+                                                          color: AdminColors.inkMuted,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                AdminBadge(
+                                                  label: 'Tồn: ${item.stock} đôi',
+                                                  color: isLow
+                                                      ? AdminColors.amber
+                                                      : AdminColors.emerald,
+                                                  bgColor: isLow
+                                                      ? AdminColors.amberBg
+                                                      : AdminColors.emeraldBg,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Icon(
+                                                  isSelected
+                                                      ? Icons.check_circle_rounded
+                                                      : Icons.radio_button_unchecked_rounded,
+                                                  size: 18,
+                                                  color: isSelected
+                                                      ? AdminColors.forest
+                                                      : AdminColors.inkMuted,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 18),
 
                     if (_hasVariations) ...[
@@ -1371,23 +1907,49 @@ class _RestockProductDialogState extends State<_RestockProductDialog> {
                             ),
                           ),
                           TextButton(
-                            onPressed: () => _fillAllVariations(5),
-                            child: const Text('+5 tất cả size'),
+                            onPressed: () =>
+                                _fillAllVariations(5, subset: filteredVariations),
+                            child: const Text('+5 size đang lọc'),
                           ),
                           TextButton(
-                            onPressed: () => _fillAllVariations(10),
-                            child: const Text('+10 tất cả size'),
+                            onPressed: () =>
+                                _fillAllVariations(10, subset: filteredVariations),
+                            child: const Text('+10 size đang lọc'),
+                          ),
+                          TextButton(
+                            onPressed: _resetAllVariations,
+                            child: const Text('Đặt lại 0'),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
+                      if ((_product.productVariations?.length ?? 0) > 4) ...[
+                        TextField(
+                          controller: _variationSearchCtrl,
+                          onChanged: (_) => setState(() {}),
+                          decoration: adminInputDecoration(
+                            label: 'Lọc nhanh Size hoặc Màu (VD: 41, 42, White...)',
+                            prefixIcon: const Icon(Iconsax.search_normal_1, size: 16),
+                            suffixIcon: _variationSearchCtrl.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear_rounded, size: 16),
+                                    onPressed: () {
+                                      _variationSearchCtrl.clear();
+                                      setState(() {});
+                                    },
+                                  )
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: AdminColors.border),
                         ),
                         child: Column(
-                          children: _product.productVariations!.map((v) {
+                          children: filteredVariations.map((v) {
                             final ctrl = _varCtrls[v.id]!;
                             final label = v.attributeValues.entries
                                 .map((e) => '${e.key}: ${e.value}')
@@ -1465,7 +2027,7 @@ class _RestockProductDialogState extends State<_RestockProductDialog> {
                             controller: _supplierCtrl,
                             decoration: adminInputDecoration(
                               label: 'Nhà cung cấp / Nguồn hàng',
-                              hint: 'VD: Kho tổng Nike VN',
+                              hint: 'VD: Xưởng sản xuất VELORA Bình Dương',
                             ),
                           ),
                         ),
@@ -1539,18 +2101,39 @@ class _RestockProductDialogState extends State<_RestockProductDialog> {
   }
 }
 
-class _StockHistoryDialog extends StatelessWidget {
+class _StockHistoryDialog extends StatefulWidget {
   const _StockHistoryDialog({required this.controller});
   final AdminWebController controller;
 
   @override
+  State<_StockHistoryDialog> createState() => _StockHistoryDialogState();
+}
+
+class _StockHistoryDialogState extends State<_StockHistoryDialog> {
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final receipts = controller.stockReceipts;
+    final q = _searchCtrl.text.trim().toLowerCase();
+    final receipts = widget.controller.stockReceipts.where((r) {
+      if (q.isEmpty) return true;
+      return r.productTitle.toLowerCase().contains(q) ||
+          r.productId.toLowerCase().contains(q) ||
+          r.supplier.toLowerCase().contains(q) ||
+          r.note.toLowerCase().contains(q);
+    }).toList();
+
     return Dialog(
       backgroundColor: AdminColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 720),
+        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 740),
         child: Column(
           children: [
             Container(
@@ -1573,11 +2156,32 @@ class _StockHistoryDialog extends StatelessWidget {
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+              child: TextField(
+                controller: _searchCtrl,
+                onChanged: (_) => setState(() {}),
+                decoration: adminInputDecoration(
+                  label: 'Tìm kiếm lịch sử phiếu nhập',
+                  hint: 'Nhập tên mẫu giày, nhà cung cấp hoặc ghi chú lô hàng...',
+                  prefixIcon: const Icon(Iconsax.search_normal_1, size: 18),
+                  suffixIcon: _searchCtrl.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                ),
+              ),
+            ),
             Expanded(
               child: receipts.isEmpty
                   ? const AdminEmptyState(
                       icon: Iconsax.box_add,
-                      title: 'Chưa có phiếu nhập kho nào',
+                      title: 'Không tìm thấy phiếu nhập kho nào',
                       subtitle: 'Mọi lần nhập bổ sung tồn kho sẽ được lưu chi tiết tại đây.',
                     )
                   : ListView.separated(
@@ -1654,6 +2258,114 @@ class _StockHistoryDialog extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _InlineQuickRestockBox extends StatefulWidget {
+  const _InlineQuickRestockBox({
+    super.key,
+    required this.product,
+    required this.controller,
+  });
+
+  final ProductModel product;
+  final AdminWebController controller;
+
+  @override
+  State<_InlineQuickRestockBox> createState() => _InlineQuickRestockBoxState();
+}
+
+class _InlineQuickRestockBoxState extends State<_InlineQuickRestockBox> {
+  final _qtyCtrl = TextEditingController(text: '20');
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _qtyCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitQuickRestock() async {
+    final qty = int.tryParse(_qtyCtrl.text.trim()) ?? 0;
+    if (qty <= 0 || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.controller.restockProduct(
+        product: widget.product,
+        totalAdded: qty,
+        supplier: 'Tổng Kho VELORA Hà Nội',
+        note: 'Nhập nhanh trực tiếp từ bảng sản phẩm (+$qty đôi)',
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 58,
+          height: 30,
+          child: TextField(
+            controller: _qtyCtrl,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            onSubmitted: (_) => _submitQuickRestock(),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AdminColors.ink,
+            ),
+            decoration: InputDecoration(
+              hintText: '+SL',
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AdminColors.borderStrong),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AdminColors.borderStrong),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 5),
+        SizedBox(
+          height: 30,
+          child: FilledButton(
+            onPressed: _busy ? null : _submitQuickRestock,
+            style: FilledButton.styleFrom(
+              backgroundColor: AdminColors.forest,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: _busy
+                ? const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.8,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    '+ Nhập',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }

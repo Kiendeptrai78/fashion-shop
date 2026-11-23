@@ -12,6 +12,8 @@ import 'package:fashion_business_app/features/shop/models/category_model.dart';
 import 'package:fashion_business_app/features/shop/models/order_model.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/features/shop/models/product_review_model.dart';
+import 'package:fashion_business_app/features/shop/models/return_request_model.dart';
+import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
 import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 
@@ -69,9 +71,11 @@ class AdminWebRepository {
       salePrice: product.salePrice,
       thumbnail: product.thumbnail.trim(),
       images: product.images,
+      videos: product.videos,
       description: product.description?.trim() ?? '',
       productType: product.productType,
       isFeatured: product.isFeatured,
+      isDiscontinued: product.isDiscontinued,
       brand: product.brand,
       categoryId: product.categoryId,
       categoryName: product.categoryName,
@@ -544,9 +548,12 @@ class AdminWebRepository {
         .collection('Orders')
         .doc(record.docId);
 
+    final eta = ShippingRouteHelper.estimateForAddress(record.order.address);
+    final autoDeliveryDate = eta.latestDeliveryDate(record.order.orderDate);
     final updates = <String, dynamic>{
       'status': nextStatus.toString(),
       'notificationPending': true,
+      'deliveryDate': autoDeliveryDate,
       if (nextStatus == OrderStatus.received) 'searchDate': DateTime.now(),
     };
     await orderRef.update(updates);
@@ -595,6 +602,94 @@ class AdminWebRepository {
         .collection('Orders')
         .doc(record.docId)
         .delete();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Return & Exchange Requests (ReturnRequests/{requestId})
+  // ---------------------------------------------------------------------------
+  Future<List<ReturnRequestModel>> fetchReturnRequests() async {
+    try {
+      final snap = await _db.collection('ReturnRequests').get();
+      final list = snap.docs.map(ReturnRequestModel.fromSnapshot).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> updateReturnRequest({
+    required ReturnRequestModel request,
+    required ReturnRequestStatus nextStatus,
+    required String adminResponse,
+  }) async {
+    final trimmed = adminResponse.trim();
+    await _db.collection('ReturnRequests').doc(request.id).update({
+      'status': nextStatus.name,
+      if (trimmed.isNotEmpty) 'adminResponse': trimmed,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    if (request.userId.isNotEmpty) {
+      final statusVi =
+          ReturnRequestModel.statusLabelOf(nextStatus, english: false);
+      final statusEn =
+          ReturnRequestModel.statusLabelOf(nextStatus, english: true);
+      final notifId = 'return-${request.id}-${nextStatus.name}';
+      final titleVi =
+          'Đổi trả & Bảo hành (${request.productTitle}): $statusVi';
+      final titleEn =
+          'Return & Exchange (${request.productTitle}): $statusEn';
+      final bodyVi = trimmed.isNotEmpty
+          ? trimmed
+          : ReturnRequestModel.statusSubtitleOf(
+              nextStatus,
+              request.type,
+              english: false,
+            );
+      final bodyEn = ReturnRequestModel.statusSubtitleOf(
+        nextStatus,
+        request.type,
+        english: true,
+      );
+
+      await _db
+          .collection('Users')
+          .doc(request.userId)
+          .collection('Notifications')
+          .doc(notifId)
+          .set({
+        'id': notifId,
+        'kind': 'return',
+        'targetId': request.id,
+        if (request.productThumbnail.isNotEmpty)
+          'imageUrl': request.productThumbnail,
+        'titleVi': titleVi,
+        'titleEn': titleEn,
+        'bodyVi': bodyVi,
+        'bodyEn': bodyEn,
+        'read': false,
+        'pushPending': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await _db.collection('AdminNotifications').add({
+        'titleVi': titleVi,
+        'titleEn': titleEn,
+        'bodyVi': bodyVi,
+        'bodyEn': bodyEn,
+        'kind': 'return',
+        'targetId': request.id,
+        'audienceLabel':
+            'Cập nhật đổi trả cho ${request.customerName} ($statusVi)',
+        'recipientCount': 1,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  Future<void> deleteReturnRequest(String requestId) async {
+    await _db.collection('ReturnRequests').doc(requestId).delete();
   }
 
   (String, String, String, String) _orderStatusNotificationCopy(
@@ -657,6 +752,24 @@ class AdminWebRepository {
           final data = doc.data();
           final rating = (data['rating'] as num? ?? 0).toInt();
           if (rating < 1 || rating > 5) continue;
+          final authorName = (data['authorName'] ?? 'Khách hàng') as String;
+          final rawReply = (data['adminReply'] as String?)?.trim();
+          final sanitizedReply = ProductReviewEntry.sanitizeAdminReplyForRating(
+            rawReply: rawReply,
+            rating: rating,
+            authorName: authorName,
+            productTitle: product.title,
+          );
+          if (rawReply != null &&
+              sanitizedReply != null &&
+              rawReply != sanitizedReply) {
+            _db
+                .collection('Products')
+                .doc(product.id)
+                .collection('Reviews')
+                .doc(doc.id)
+                .update({'adminReply': sanitizedReply}).catchError((_) {});
+          }
           results.add(AdminReviewRecord(
             productId: product.id,
             productTitle: product.title,
@@ -664,12 +777,17 @@ class AdminWebRepository {
             purchaseOrderId: (data['purchaseOrderId'] ?? '') as String,
             review: ProductReviewEntry(
               id: doc.id,
-              authorName: (data['authorName'] ?? 'Khách hàng') as String,
+              userId: (data['userId'] as String?) ?? doc.id.split('_').first,
+              authorName: authorName,
               rating: rating,
               text: (data['text'] ?? '') as String,
               createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
-              adminReply: (data['adminReply'] as String?)?.trim(),
+              adminReply: sanitizedReply,
               adminReplyAt: (data['adminReplyAt'] as Timestamp?)?.toDate(),
+              imageUrls: List<String>.from(data['imageUrls'] as List? ?? const []),
+              videoUrls: List<String>.from(data['videoUrls'] as List? ?? const []),
+              verifiedPurchase: data['verifiedPurchase'] == true ||
+                  (data['purchaseOrderId'] as String? ?? '').isNotEmpty,
             ),
           ));
         }
@@ -695,17 +813,18 @@ class AdminWebRepository {
       'adminReplyAt': FieldValue.serverTimestamp(),
     });
 
-    // Notify the customer who wrote this review (review doc ID == reviewer uid)
-    final notifId = 'review-reply-${record.productId}';
+    // Notify the customer who wrote this review
+    final notifId = 'review-reply-${record.productId}-${record.review.id}';
     final snippet = trimmed.length > 90 ? '${trimmed.substring(0, 90)}...' : trimmed;
     final titleVi = 'VELORA đã phản hồi đánh giá của bạn';
     final titleEn = 'VELORA replied to your review';
     final bodyVi = '${record.productTitle}: "$snippet"';
     final bodyEn = '${record.productTitle}: "$snippet"';
+    final recipientUid = record.review.effectiveUserId;
 
     await _db
         .collection('Users')
-        .doc(record.review.id)
+        .doc(recipientUid)
         .collection('Notifications')
         .doc(notifId)
         .set({
@@ -742,6 +861,204 @@ class AdminWebRepository {
         .collection('Reviews')
         .doc(reviewId)
         .delete();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Featured Video Comments & Personalized Similar-Product Push
+  // (Products/{productId}/VideoComments/{commentId})
+  // ---------------------------------------------------------------------------
+  Future<List<AdminVideoCommentRecord>> fetchAllVideoComments(
+      List<ProductModel> products) async {
+    final productMap = {for (final p in products) p.id: p};
+    final results = <AdminVideoCommentRecord>[];
+
+    try {
+      final groupSnap = await _db.collectionGroup('VideoComments').get();
+      for (final doc in groupSnap.docs) {
+        final data = doc.data();
+        final pid = doc.reference.parent.parent?.id ?? '';
+        final product = productMap[pid];
+        results.add(AdminVideoCommentRecord(
+          id: doc.id,
+          productId: pid,
+          productTitle: product?.title ?? (data['productTitle'] ?? 'Giày VELORA').toString(),
+          productThumbnail: product?.thumbnail ?? '',
+          categoryId: product?.categoryId ?? '',
+          categoryName: product?.categoryName ?? '',
+          userId: (data['userId'] ?? '').toString(),
+          authorName: (data['authorName'] ?? 'Khách hàng').toString(),
+          text: (data['text'] ?? '').toString(),
+          videoUrl: (data['videoUrl'] ?? '').toString(),
+          createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+          adminReply: (data['adminReply'] as String?)?.trim(),
+          adminReplyAt: (data['adminReplyAt'] as Timestamp?)?.toDate(),
+        ));
+      }
+    } catch (_) {
+      await Future.wait(products.map((product) async {
+        try {
+          final snap = await _db
+              .collection('Products')
+              .doc(product.id)
+              .collection('VideoComments')
+              .get();
+          for (final doc in snap.docs) {
+            final data = doc.data();
+            results.add(AdminVideoCommentRecord(
+              id: doc.id,
+              productId: product.id,
+              productTitle: product.title,
+              productThumbnail: product.thumbnail,
+              categoryId: product.categoryId,
+              categoryName: product.categoryName,
+              userId: (data['userId'] ?? '').toString(),
+              authorName: (data['authorName'] ?? 'Khách hàng').toString(),
+              text: (data['text'] ?? '').toString(),
+              videoUrl: (data['videoUrl'] ?? '').toString(),
+              createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+              adminReply: (data['adminReply'] as String?)?.trim(),
+              adminReplyAt: (data['adminReplyAt'] as Timestamp?)?.toDate(),
+            ));
+          }
+        } catch (_) {}
+      }));
+    }
+
+    results.sort((a, b) {
+      final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bd.compareTo(ad);
+    });
+    return results;
+  }
+
+  Future<void> replyToVideoComment(
+      AdminVideoCommentRecord record, String replyText) async {
+    final trimmed = replyText.trim();
+    await _db
+        .collection('Products')
+        .doc(record.productId)
+        .collection('VideoComments')
+        .doc(record.id)
+        .update({
+      'adminReply': trimmed,
+      'adminReplyAt': FieldValue.serverTimestamp(),
+    });
+
+    if (record.userId.isNotEmpty) {
+      final notifId = 'video-reply-${record.productId}-${record.id}';
+      final snippet =
+          trimmed.length > 90 ? '${trimmed.substring(0, 90)}...' : trimmed;
+      final titleVi = 'VELORA đã trả lời bình luận video của bạn';
+      final titleEn = 'VELORA replied to your video comment';
+      final bodyVi = '${record.productTitle}: "$snippet"';
+      final bodyEn = '${record.productTitle}: "$snippet"';
+
+      await _db
+          .collection('Users')
+          .doc(record.userId)
+          .collection('Notifications')
+          .doc(notifId)
+          .set({
+        'id': notifId,
+        'kind': 'video_comment',
+        'targetId': record.productId,
+        if (record.productThumbnail.isNotEmpty)
+          'imageUrl': record.productThumbnail,
+        'titleVi': titleVi,
+        'titleEn': titleEn,
+        'bodyVi': bodyVi,
+        'bodyEn': bodyEn,
+        'read': false,
+        'pushPending': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await _db.collection('AdminNotifications').add({
+        'titleVi': titleVi,
+        'titleEn': titleEn,
+        'bodyVi': bodyVi,
+        'bodyEn': bodyEn,
+        'kind': 'video_comment',
+        'targetId': record.productId,
+        'audienceLabel': 'Trả lời bình luận video của ${record.authorName}',
+        'recipientCount': 1,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  Future<void> deleteVideoComment(String productId, String commentId) async {
+    await _db
+        .collection('Products')
+        .doc(productId)
+        .collection('VideoComments')
+        .doc(commentId)
+        .delete();
+  }
+
+  Future<void> pushSimilarProductsToUser({
+    required String userId,
+    required String userName,
+    required ProductModel watchedProduct,
+    required List<ProductModel> similarProducts,
+    required String bodyVi,
+  }) async {
+    if (userId.isEmpty || similarProducts.isEmpty) return;
+    final simIds = similarProducts.map((p) => p.id).toList();
+    final simTitles = similarProducts.map((p) => p.title).join(', ');
+    final firstSim = similarProducts.first;
+
+    // 1. Unlock these similar products in this user's personalized "Nổi bật" feed
+    await _db.collection('Users').doc(userId).set({
+      'recommendedProductIds': FieldValue.arrayUnion(simIds),
+      if (watchedProduct.categoryId.isNotEmpty)
+        'FavoriteCategoryIds':
+            FieldValue.arrayUnion([watchedProduct.categoryId]),
+    }, SetOptions(merge: true));
+
+    // 2. Send notification directly to this user
+    final notifId =
+        'sim-push-${watchedProduct.id}-${DateTime.now().millisecondsSinceEpoch}';
+    final titleVi =
+        'Gợi ý tương tự ${watchedProduct.title}: ${firstSim.title}';
+    final titleEn =
+        'Similar to ${watchedProduct.title}: ${firstSim.title}';
+    final bodyEn =
+        'Since you liked ${watchedProduct.title}, we unlocked $simTitles in your Featured feed!';
+
+    await _db
+        .collection('Users')
+        .doc(userId)
+        .collection('Notifications')
+        .doc(notifId)
+        .set({
+      'id': notifId,
+      'kind': 'product',
+      'targetId': firstSim.id,
+      'categoryId': firstSim.categoryId,
+      if (firstSim.thumbnail.isNotEmpty) 'imageUrl': firstSim.thumbnail,
+      'titleVi': titleVi,
+      'titleEn': titleEn,
+      'bodyVi': bodyVi,
+      'bodyEn': bodyEn,
+      'read': false,
+      'pushPending': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await _db.collection('AdminNotifications').add({
+      'titleVi': titleVi,
+      'titleEn': titleEn,
+      'bodyVi': bodyVi,
+      'bodyEn': bodyEn,
+      'kind': 'product',
+      'targetId': firstSim.id,
+      'audienceLabel':
+          'Đẩy ${similarProducts.length} sản phẩm tương tự tới $userName',
+      'recipientCount': 1,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   // ---------------------------------------------------------------------------

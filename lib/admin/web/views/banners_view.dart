@@ -29,12 +29,11 @@ class _AdminBannersViewState extends State<AdminBannersView> {
         ? existing!.banner.targetScreen
         : '/all-products';
     String categoryId = existing?.banner.categoryId ?? '';
-    String brandId = existing?.banner.brandId ?? '';
+    const String brandId = 'velora-brand';
     bool active = existing?.banner.active ?? true;
     bool saving = false;
 
     final categories = widget.controller.categories;
-    final brands = widget.controller.brands;
 
     await showDialog<void>(
       context: context,
@@ -132,51 +131,27 @@ class _AdminBannersViewState extends State<AdminBannersView> {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: categories.any((c) => c.id == categoryId)
-                                      ? categoryId
-                                      : '',
-                                  decoration: adminInputDecoration(
-                                    label: 'Liên kết Danh mục (tùy chọn)',
-                                  ),
-                                  items: [
-                                    const DropdownMenuItem(value: '', child: Text('Không lọc danh mục')),
-                                    ...categories.map((c) => DropdownMenuItem(
-                                          value: c.id,
-                                          child: Text(c.name),
-                                        )),
-                                  ],
-                                  onChanged: (v) => setModalState(() => categoryId = v ?? ''),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: brands.any((b) => b.id == brandId) ? brandId : '',
-                                  decoration: adminInputDecoration(
-                                    label: 'Liên kết Thương hiệu (tùy chọn)',
-                                  ),
-                                  items: [
-                                    const DropdownMenuItem(value: '', child: Text('Không lọc hãng')),
-                                    ...brands.map((b) => DropdownMenuItem(
-                                          value: b.id,
-                                          child: Text(b.name),
-                                        )),
-                                  ],
-                                  onChanged: (v) => setModalState(() => brandId = v ?? ''),
-                                ),
-                              ),
+                          DropdownButtonFormField<String>(
+                            value: categories.any((c) => c.id == categoryId)
+                                ? categoryId
+                                : '',
+                            decoration: adminInputDecoration(
+                              label: 'Liên kết Danh mục thể thao (tùy chọn)',
+                            ),
+                            items: [
+                              const DropdownMenuItem(value: '', child: Text('Không lọc danh mục')),
+                              ...categories.map((c) => DropdownMenuItem(
+                                    value: c.id,
+                                    child: Text(c.name),
+                                  )),
                             ],
+                            onChanged: (v) => setModalState(() => categoryId = v ?? ''),
                           ),
                           const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
                             value: [
                               '/all-products',
                               '/store',
-                              '/brand',
                               '/order',
                             ].contains(targetScreen)
                                 ? targetScreen
@@ -187,7 +162,6 @@ class _AdminBannersViewState extends State<AdminBannersView> {
                                   value: '/all-products',
                                   child: Text('Danh sách sản phẩm (/all-products)')),
                               DropdownMenuItem(value: '/store', child: Text('Cửa hàng (/store)')),
-                              DropdownMenuItem(value: '/brand', child: Text('Thương hiệu (/brand)')),
                               DropdownMenuItem(value: '/order', child: Text('Đơn hàng (/order)')),
                             ],
                             onChanged: (v) =>

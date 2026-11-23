@@ -109,7 +109,7 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Khách hàng đang quan tâm gì? (Từ Trợ lý AI)',
+                    'Khách hàng đang quan tâm gì? (Video Reels & Trợ lý AI)',
                     style: TextStyle(
                       fontSize: 15.5,
                       fontWeight: FontWeight.w700,
@@ -121,7 +121,7 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Ghi nhận tự động khi khách tìm kiếm với VELORA AI — khi bạn thêm sản phẩm mới cùng hãng/danh mục, hệ thống cũng tự động báo tới các khách này.',
+              'Ghi nhận tức thì khi khách Thả tim ❤️, Bình luận 💬 trên Video quảng cáo hoặc hỏi Trợ lý AI — bấm "Tung sản phẩm tương tự" để đẩy mẫu giày cùng dòng đến thẳng thông báo của khách.',
               style: TextStyle(fontSize: 12, color: AdminColors.inkSecondary, height: 1.4),
             ),
             if (topTags.isNotEmpty) ...[
@@ -141,16 +141,35 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
             const SizedBox(height: 14),
             if (interests.isEmpty)
               const Text(
-                'Chưa có lượt tìm kiếm từ Trợ lý AI. Khi khách hàng hỏi tìm giày trên app mobile, dữ liệu quan tâm sẽ hiện tại đây.',
+                'Chưa có lượt thả tim/bình luận Video hoặc tìm kiếm AI. Khi khách hàng tương tác trên app mobile, dữ liệu sẽ hiện ngay tại đây.',
                 style: TextStyle(fontSize: 12.5, color: AdminColors.inkMuted),
               )
             else
               Column(
-                children: interests.take(8).map((interest) {
+                children: interests.take(12).map((interest) {
                   final tags = [
-                    ...interest.interestedBrands,
                     ...interest.interestedCategories,
                   ].take(4).join(' • ');
+                  final isVideoLike = interest.lastSource == 'video_like' ||
+                      interest.lastQuery.contains('Thả tim video');
+                  final isVideoComment = interest.lastSource == 'video_comment' ||
+                      interest.lastQuery.contains('Bình luận video');
+                  final sourceBadgeLabel = isVideoLike
+                      ? '❤️ Thả tim Video'
+                      : isVideoComment
+                          ? '💬 Bình luận Video'
+                          : '🤖 Hỏi Trợ lý AI';
+                  final sourceBadgeColor = isVideoLike
+                      ? AdminColors.rose
+                      : isVideoComment
+                          ? AdminColors.amber
+                          : AdminColors.forest;
+                  final sourceBadgeBg = isVideoLike
+                      ? AdminColors.roseBg
+                      : isVideoComment
+                          ? AdminColors.amberBg
+                          : AdminColors.sageSoft;
+
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),
@@ -166,18 +185,31 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '${interest.userName} (${interest.userEmail})',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AdminColors.ink,
-                                ),
+                              Row(
+                                children: [
+                                  AdminBadge(
+                                    label: sourceBadgeLabel,
+                                    color: sourceBadgeColor,
+                                    bgColor: sourceBadgeBg,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '${interest.userName} (${interest.userEmail})',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: AdminColors.ink,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                               if (interest.lastQuery.isNotEmpty) ...[
-                                const SizedBox(height: 3),
+                                const SizedBox(height: 5),
                                 Text(
-                                  'Vừa hỏi AI: "${interest.lastQuery}"',
+                                  interest.lastQuery,
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: AdminColors.inkSecondary,
@@ -188,7 +220,7 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                               if (tags.isNotEmpty) ...[
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Quan tâm: $tags (${interest.queryCount} lượt)',
+                                  'Danh mục quan tâm: $tags (${interest.queryCount} tương tác)',
                                   style: const TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w600,
@@ -202,31 +234,40 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                         const SizedBox(width: 8),
                         FilledButton.tonalIcon(
                           onPressed: () {
-                            // Match a relevant product if available
-                            final matched = products.firstWhereOrNull((p) {
-                              final bn = (p.brand?.name ?? '').toLowerCase();
+                            // Find a similar product in the same category (prefer different from the watched product)
+                            final similarCandidates = products.where((p) {
+                              if (interest.interestedCategoryIds.contains(p.categoryId)) {
+                                return true;
+                              }
                               final cn = p.categoryName.toLowerCase();
-                              return interest.interestedBrands
-                                      .any((b) => b.toLowerCase() == bn) ||
-                                  interest.interestedCategories
-                                      .any((c) => c.toLowerCase() == cn);
-                            });
+                              return interest.interestedCategories
+                                  .any((c) => c.toLowerCase() == cn);
+                            }).toList();
+                            final matched = similarCandidates.firstWhereOrNull(
+                                  (p) => p.id != interest.lastProductId,
+                                ) ??
+                                similarCandidates.firstOrNull ??
+                                products.firstOrNull;
+
                             setState(() {
                               _audienceMode = 'user';
                               _selectedUserId = interest.userId;
                               _kind = matched != null ? 'product' : 'promo';
                               _selectedProductId = matched?.id ?? '';
-                              final topic = tags.isNotEmpty ? tags : 'mẫu giày mới';
+                              final topic = tags.isNotEmpty ? tags : 'VELORA';
+                              final refTitle = interest.lastProductTitle.isNotEmpty
+                                  ? interest.lastProductTitle
+                                  : topic;
                               _titleViCtrl.text = matched != null
-                                  ? 'Mẫu mới hợp gu bạn: ${matched.title}'
-                                  : 'VELORA vừa về hàng mới dòng $topic!';
+                                  ? 'Gợi ý tương tự $refTitle: ${matched.title}'
+                                  : 'VELORA vừa lên kệ mẫu mới dòng $topic!';
                               _bodyViCtrl.text = matched != null
-                                  ? 'Thấy bạn đang quan tâm $topic — ${matched.title} hiện đã sẵn size. Xem ngay nhé!'
-                                  : 'Gợi ý dành riêng cho bạn dựa trên phong cách bạn quan tâm tại VELORA.';
+                                  ? 'Thấy bạn vừa yêu thích video $refTitle — mẫu ${matched.title} cùng dòng $topic đang có ưu đãi cực tốt. Chạm để xem ngay!'
+                                  : 'Gợi ý dành riêng cho bạn dựa trên video bạn vừa thả tim tại VELORA.';
                             });
                           },
-                          icon: const Icon(Iconsax.send_2, size: 15),
-                          label: const Text('Gửi gợi ý', style: TextStyle(fontSize: 12)),
+                          icon: const Icon(Iconsax.flash_1, size: 15),
+                          label: const Text('Tung sản phẩm tương tự', style: TextStyle(fontSize: 12)),
                           style: FilledButton.styleFrom(
                             backgroundColor: AdminColors.sageSoft,
                             foregroundColor: AdminColors.forest,

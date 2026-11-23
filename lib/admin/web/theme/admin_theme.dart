@@ -60,28 +60,28 @@ class AdminOrderStatusMeta {
         );
       case OrderStatus.processing:
         return const AdminOrderStatusMeta(
-          label: 'Đang chuẩn bị',
+          label: 'Đang đóng gói',
           color: AdminColors.violet,
           bgColor: AdminColors.violetBg,
           icon: Iconsax.box_time,
         );
       case OrderStatus.shipped:
         return const AdminOrderStatusMeta(
-          label: 'Đang giao hàng',
+          label: 'Đang vận chuyển',
           color: AdminColors.sky,
           bgColor: AdminColors.skyBg,
           icon: Iconsax.truck_fast,
         );
       case OrderStatus.received:
         return const AdminOrderStatusMeta(
-          label: 'Đã nhận',
+          label: 'Giao thành công',
           color: AdminColors.emerald,
           bgColor: AdminColors.emeraldBg,
           icon: Iconsax.tick_circle,
         );
       case OrderStatus.cancelled:
         return const AdminOrderStatusMeta(
-          label: 'Đã hủy',
+          label: 'Đã hủy đơn',
           color: AdminColors.rose,
           bgColor: AdminColors.roseBg,
           icon: Iconsax.close_circle,
@@ -182,19 +182,19 @@ class AdminStatCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Text(
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 24,
+                fontSize: 23,
                 fontWeight: FontWeight.w700,
                 color: AdminColors.ink,
                 letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               subtitle,
               maxLines: 1,
@@ -232,6 +232,7 @@ class AdminBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.32)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -240,12 +241,16 @@ class AdminBadge extends StatelessWidget {
             Icon(icon, size: 13, color: color),
             const SizedBox(width: 5),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
           ),
         ],

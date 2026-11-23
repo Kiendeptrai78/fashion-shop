@@ -228,7 +228,7 @@ const shopVietnamese = <String, String> {
   "Welcome to Your Ultimate Shopping Destination: ..... ": "Tài khoản đã sẵn sàng. Khám phá những đôi giày dành cho bạn.",
   "Didn't get the email! Check ....": "Chưa nhận được email? Kiểm tra mục thư rác hoặc gửi lại email.",
   "Add to bag": "Thêm vào giỏ",
-  "Search model or brand": "Tìm tên giày hoặc thương hiệu",
+  "Search model or brand": "Tìm mẫu giày VELORA hoặc danh mục",
   "Your bag is empty. Explore the collection\nand find something that moves you.": "Giỏ hàng đang trống. Khám phá bộ sưu tập\nvà tìm đôi giày bạn yêu thích.",
   "Tap the heart on any sneaker to save it here.\nCome back when you’re ready to choose.": "Chạm vào trái tim để lưu giày tại đây.\nQuay lại khi bạn sẵn sàng lựa chọn.",
   "Add new Address": "Thêm địa chỉ mới",
@@ -471,15 +471,83 @@ const shopVietnamese = <String, String> {
   "Finding matching pairs...": "Đang tìm những đôi phù hợp nhất...",
   "Orders, vouchers, reviews & VELORA updates.": "Đơn hàng, mã ưu đãi, đánh giá và tin mới từ VELORA.",
   "New arrivals": "Mẫu mới",
+  "Featured": "Nổi bật",
+  "Video": "Video",
+  "For you": "Dành cho bạn",
+  "Mute": "Tắt tiếng",
+  "Unmute": "Bật tiếng",
+  "Full screen": "Lướt toàn màn hình",
+  "Like & Comment": "Thả tim & Bình luận",
+  "Verified purchase": "Đã mua hàng",
+  "Take photo": "Chụp ảnh",
+  "Choose photo": "Chọn ảnh",
+  "Record video": "Quay video",
+  "Choose video": "Chọn video",
+  "Attach real photos or videos": "Đính kèm hình ảnh hoặc video thực tế",
+  "Forest Green / Cream": "Xanh rừng / Kem",
+  "White / Green": "Trắng / Xanh lá",
+  "Triple Black": "Đen tuyền",
+  "Studio White / Grey": "Trắng Studio / Xám",
+  "VELORA Green": "Xanh lá VELORA",
+  "Black / Orange": "Đen / Cam",
+  "Vintage Cream / Green": "Kem Vintage / Xanh",
+  "Smoke Grey": "Xám khói",
+  "Black / White": "Đen / Trắng",
+};
+
+final Map<String, String> _shopEnglishFromVietnamese = {
+  for (final entry in shopVietnamese.entries) entry.value: entry.key,
+  'Chạy bộ': 'Running',
+  'Hằng ngày': 'Lifestyle',
+  'Tập luyện': 'Training',
+  'Bóng rổ': 'Basketball',
+  'Địa hình': 'Trail',
+  'Xanh rừng / Kem': 'Forest Green / Cream',
+  'Trắng / Xanh lá': 'White / Green',
+  'Đen tuyền': 'Triple Black',
+  'Trắng Studio / Xám': 'Studio White / Grey',
+  'Xanh lá VELORA': 'VELORA Green',
+  'Đen / Cam': 'Black / Orange',
+  'Kem Vintage / Xanh': 'Vintage Cream / Green',
+  'Xám khói': 'Smoke Grey',
+  'Đen / Trắng': 'Black / White',
+  'Xanh lá': 'Green',
+  'Trắng': 'White',
+  'Đen': 'Black',
+  'Xám': 'Grey',
+  'Kem': 'Cream',
+  'Dành cho bạn': 'For you',
+  'Tắt tiếng': 'Mute',
+  'Bật tiếng': 'Unmute',
+  'Mua ngay': 'Buy now',
+  'Đã mua hàng': 'Verified purchase',
+  'Lướt toàn màn hình': 'Full screen',
+  'Thả tim & Bình luận': 'Like & Comment',
 };
 
 class ShopTranslations extends Translations {
   @override
-  Map<String, Map<String, String>> get keys => {'vi': shopVietnamese, 'en': {for (final key in shopVietnamese.keys) key: key}};
+  Map<String, Map<String, String>> get keys => {
+        'vi': shopVietnamese,
+        'en': {
+          for (final key in shopVietnamese.keys) key: key,
+          ..._shopEnglishFromVietnamese,
+        },
+      };
 }
 
 String shopTranslate(String value, {String language = 'vi'}) {
-  if (language != 'vi') return value;
+  if (language != 'vi') {
+    final exactEn = _shopEnglishFromVietnamese[value];
+    if (exactEn != null) return exactEn;
+    if (value.contains(' · ')) {
+      return value.split(' · ').map((part) => shopTranslate(part, language: 'en')).join(' · ');
+    }
+    if (value.contains(' / ')) {
+      return value.split(' / ').map((part) => shopTranslate(part, language: 'en')).join(' / ');
+    }
+    return value;
+  }
   final exact = shopVietnamese[value];
   if (exact != null) return exact;
   final patterns = <String, String Function(Match)>{

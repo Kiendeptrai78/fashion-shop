@@ -3,6 +3,8 @@ import 'package:fashion_business_app/features/personalization/models/address_mod
 import 'package:fashion_business_app/features/shop/models/cart_item_model.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
+import 'package:flutter/material.dart';
+import 'package:iconsax/iconsax.dart';
 
 class OrderModel {
   final String id;
@@ -44,8 +46,83 @@ class OrderModel {
         OrderStatus.cancelled => 'Cancelled',
       };
 
+  String orderStatusLabel({bool english = false}) => switch (status) {
+        OrderStatus.pending =>
+          english ? 'Awaiting confirmation' : 'Chờ xác nhận',
+        OrderStatus.processing =>
+          english ? 'Packing & preparing' : 'Đang đóng gói',
+        OrderStatus.shipped =>
+          english ? 'Out for delivery' : 'Đang vận chuyển',
+        OrderStatus.received =>
+          english ? 'Delivered' : 'Giao thành công',
+        OrderStatus.cancelled =>
+          english ? 'Cancelled' : 'Đã hủy đơn',
+      };
+
+  String orderStatusSubtitle({bool english = false}) => switch (status) {
+        OrderStatus.pending => english
+            ? 'Your order has been placed and is awaiting VELORA confirmation.'
+            : 'Đơn hàng đã được tiếp nhận, đang chờ cửa hàng VELORA xác nhận.',
+        OrderStatus.processing => english
+            ? 'VELORA confirmed your order and is carefully packing your shoes.'
+            : 'VELORA đã xác nhận đơn và đang kiểm tra QC, đóng gói hộp giày.',
+        OrderStatus.shipped => english
+            ? 'Handed over to express courier and on the way to your address.'
+            : 'Đã bàn giao cho đơn vị vận chuyển nhanh, đang trên đường giao tới bạn.',
+        OrderStatus.received => english
+            ? 'Delivered successfully. Share your photo/video review anytime!'
+            : 'Giao hàng thành công. Bạn có thể chụp ảnh/quay video đánh giá đôi giày!',
+        OrderStatus.cancelled => english
+            ? 'This order was cancelled.'
+            : 'Đơn hàng đã chuyển sang trạng thái hủy.',
+      };
+
+  /// Customer-facing title without exposing raw database IDs.
+  String customerOrderTitle({bool english = false}) {
+    final summary = itemsSummary(english: english);
+    return english ? 'Order: $summary' : 'Đơn hàng $summary của bạn';
+  }
+
+  /// Distinct, high-contrast semantic color for each order status (never brand green).
+  static Color colorForStatus(OrderStatus s) => switch (s) {
+        OrderStatus.pending => const Color(0xFFD97706), // Amber / Cam
+        OrderStatus.processing => const Color(0xFF7C3AED), // Violet / Tím
+        OrderStatus.shipped => const Color(0xFF0284C7), // Sky Blue / Xanh dương
+        OrderStatus.received => const Color(0xFF16A34A), // Emerald / Xanh lá tươi
+        OrderStatus.cancelled => const Color(0xFFDC2626), // Red / Đỏ
+      };
+
+  static Color bgColorForStatus(OrderStatus s) => switch (s) {
+        OrderStatus.pending => const Color(0xFFFEF3C7),
+        OrderStatus.processing => const Color(0xFFEDE9FE),
+        OrderStatus.shipped => const Color(0xFFE0F2FE),
+        OrderStatus.received => const Color(0xFFDCFCE7),
+        OrderStatus.cancelled => const Color(0xFFFFE4E6),
+      };
+
+  static Color borderColorForStatus(OrderStatus s) => switch (s) {
+        OrderStatus.pending => const Color(0xFFF59E0B),
+        OrderStatus.processing => const Color(0xFFA78BFA),
+        OrderStatus.shipped => const Color(0xFF38BDF8),
+        OrderStatus.received => const Color(0xFF4ADE80),
+        OrderStatus.cancelled => const Color(0xFFFB7185),
+      };
+
+  static IconData iconForStatus(OrderStatus s) => switch (s) {
+        OrderStatus.pending => Iconsax.clock,
+        OrderStatus.processing => Iconsax.box_time,
+        OrderStatus.shipped => Iconsax.truck_fast,
+        OrderStatus.received => Iconsax.tick_circle,
+        OrderStatus.cancelled => Iconsax.close_circle,
+      };
+
+  Color get statusColor => colorForStatus(status);
+  Color get statusBgColor => bgColorForStatus(status);
+  Color get statusBorderColor => borderColorForStatus(status);
+  IconData get statusIcon => iconForStatus(status);
+
   /// Human-friendly product summary for notifications and order previews
-  /// (e.g. "Air Force 1" or "Air Force 1 và 2 sản phẩm khác").
+  /// (e.g. "VELORA AeroPulse R1" or "VELORA AeroPulse R1 và 2 sản phẩm khác").
   String itemsSummary({bool english = false}) {
     final titles = items
         .map((e) => e.title.trim())

@@ -8,7 +8,9 @@ enum AdminSection {
   dashboard,
   finance,
   orders,
+  returns,
   products,
+  featured,
   vouchers,
   brands,
   categories,
@@ -123,6 +125,15 @@ class AdminAutomationSettings {
         'Cảm ơn {name} đã chia sẻ trải nghiệm về {product}. VELORA đã ghi nhận góp ý của bạn để cải thiện chất lượng và dịch vụ tốt hơn nữa!',
     this.replyTemplateLow =
         'VELORA thành thật xin lỗi {name} vì trải nghiệm chưa trọn vẹn với {product}. Đội ngũ CSKH sẽ liên hệ hỗ trợ kiểm tra và đổi trả tốt nhất cho bạn ngay!',
+    this.autoVideoCommentReply = true,
+    this.templateVideoCommentReply =
+        'Cảm ơn {name} đã quan tâm video mẫu {product}! Đôi này đang sẵn đủ size EU 38–44 tại VELORA. Mình vừa mở khóa thêm vài mẫu {category} tương tự trên tab Nổi bật cho bạn tham khảo nhé ❤️',
+    this.autoVideoSimilarPush = true,
+    this.templateVideoSimilarPush =
+        'Thấy {name} yêu thích video {product} — VELORA gợi ý thêm {similar} cùng dòng {category} đã được mở khóa trên tab Nổi bật Dành cho bạn!',
+    this.autoReturnReply = true,
+    this.templateReturnReply =
+        'VELORA CSKH đã duyệt yêu cầu {type} cho mẫu {product} ({newSize}) của {name}. Shipper VELORA sẽ liên hệ thu hồi đôi cũ tận nơi miễn phí và gửi ngay đôi mới từ Tổng Kho Hà Nội tới bạn!',
   });
 
   final bool autoWelcomeVoucher;
@@ -138,6 +149,12 @@ class AdminAutomationSettings {
   final String replyTemplateHigh;
   final String replyTemplateMid;
   final String replyTemplateLow;
+  final bool autoVideoCommentReply;
+  final String templateVideoCommentReply;
+  final bool autoVideoSimilarPush;
+  final String templateVideoSimilarPush;
+  final bool autoReturnReply;
+  final String templateReturnReply;
 
   factory AdminAutomationSettings.defaults() => const AdminAutomationSettings();
 
@@ -157,6 +174,69 @@ class AdminAutomationSettings {
         .replaceAll('{stars}', '$rating');
   }
 
+  String renderVideoCommentReply({
+    required String authorName,
+    required String productTitle,
+    required String categoryName,
+  }) {
+    return templateVideoCommentReply
+        .replaceAll('{name}', authorName.trim().isEmpty ? 'bạn' : authorName.trim())
+        .replaceAll('{product}', productTitle.trim().isEmpty ? 'sản phẩm' : productTitle.trim())
+        .replaceAll(
+          '{category}',
+          categoryName.trim().isEmpty ? 'giày thể thao' : categoryName.trim(),
+        );
+  }
+
+  String renderVideoSimilarPush({
+    required String userName,
+    required String watchedProductTitle,
+    required String similarProductTitles,
+    required String categoryName,
+  }) {
+    return templateVideoSimilarPush
+        .replaceAll('{name}', userName.trim().isEmpty ? 'bạn' : userName.trim())
+        .replaceAll(
+          '{product}',
+          watchedProductTitle.trim().isEmpty ? 'sản phẩm' : watchedProductTitle.trim(),
+        )
+        .replaceAll(
+          '{similar}',
+          similarProductTitles.trim().isEmpty ? 'các mẫu mới' : similarProductTitles.trim(),
+        )
+        .replaceAll(
+          '{category}',
+          categoryName.trim().isEmpty ? 'giày thể thao' : categoryName.trim(),
+        );
+  }
+
+  String renderReturnReply({
+    required String customerName,
+    required String productTitle,
+    required String typeLabel,
+    required String requestedSizeOrColor,
+  }) {
+    return templateReturnReply
+        .replaceAll(
+          '{name}',
+          customerName.trim().isEmpty ? 'bạn' : customerName.trim(),
+        )
+        .replaceAll(
+          '{product}',
+          productTitle.trim().isEmpty ? 'sản phẩm VELORA' : productTitle.trim(),
+        )
+        .replaceAll(
+          '{type}',
+          typeLabel.trim().isEmpty ? 'Đổi trả & Bảo hành' : typeLabel.trim(),
+        )
+        .replaceAll(
+          '{newSize}',
+          requestedSizeOrColor.trim().isEmpty
+              ? 'đôi mới 1-1'
+              : requestedSizeOrColor.trim(),
+        );
+  }
+
   AdminAutomationSettings copyWith({
     bool? autoWelcomeVoucher,
     int? welcomePercent,
@@ -171,6 +251,12 @@ class AdminAutomationSettings {
     String? replyTemplateHigh,
     String? replyTemplateMid,
     String? replyTemplateLow,
+    bool? autoVideoCommentReply,
+    String? templateVideoCommentReply,
+    bool? autoVideoSimilarPush,
+    String? templateVideoSimilarPush,
+    bool? autoReturnReply,
+    String? templateReturnReply,
   }) {
     return AdminAutomationSettings(
       autoWelcomeVoucher: autoWelcomeVoucher ?? this.autoWelcomeVoucher,
@@ -186,6 +272,14 @@ class AdminAutomationSettings {
       replyTemplateHigh: replyTemplateHigh ?? this.replyTemplateHigh,
       replyTemplateMid: replyTemplateMid ?? this.replyTemplateMid,
       replyTemplateLow: replyTemplateLow ?? this.replyTemplateLow,
+      autoVideoCommentReply: autoVideoCommentReply ?? this.autoVideoCommentReply,
+      templateVideoCommentReply:
+          templateVideoCommentReply ?? this.templateVideoCommentReply,
+      autoVideoSimilarPush: autoVideoSimilarPush ?? this.autoVideoSimilarPush,
+      templateVideoSimilarPush:
+          templateVideoSimilarPush ?? this.templateVideoSimilarPush,
+      autoReturnReply: autoReturnReply ?? this.autoReturnReply,
+      templateReturnReply: templateReturnReply ?? this.templateReturnReply,
     );
   }
 
@@ -203,6 +297,12 @@ class AdminAutomationSettings {
         'replyTemplateHigh': replyTemplateHigh,
         'replyTemplateMid': replyTemplateMid,
         'replyTemplateLow': replyTemplateLow,
+        'autoVideoCommentReply': autoVideoCommentReply,
+        'templateVideoCommentReply': templateVideoCommentReply,
+        'autoVideoSimilarPush': autoVideoSimilarPush,
+        'templateVideoSimilarPush': templateVideoSimilarPush,
+        'autoReturnReply': autoReturnReply,
+        'templateReturnReply': templateReturnReply,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -229,6 +329,23 @@ class AdminAutomationSettings {
       replyTemplateLow: (data['replyTemplateLow'] as String?)?.trim().isNotEmpty == true
           ? data['replyTemplateLow'] as String
           : d.replyTemplateLow,
+      autoVideoCommentReply:
+          data['autoVideoCommentReply'] as bool? ?? d.autoVideoCommentReply,
+      templateVideoCommentReply:
+          (data['templateVideoCommentReply'] as String?)?.trim().isNotEmpty == true
+              ? data['templateVideoCommentReply'] as String
+              : d.templateVideoCommentReply,
+      autoVideoSimilarPush:
+          data['autoVideoSimilarPush'] as bool? ?? d.autoVideoSimilarPush,
+      templateVideoSimilarPush:
+          (data['templateVideoSimilarPush'] as String?)?.trim().isNotEmpty == true
+              ? data['templateVideoSimilarPush'] as String
+              : d.templateVideoSimilarPush,
+      autoReturnReply: data['autoReturnReply'] as bool? ?? d.autoReturnReply,
+      templateReturnReply:
+          (data['templateReturnReply'] as String?)?.trim().isNotEmpty == true
+              ? data['templateReturnReply'] as String
+              : d.templateReturnReply,
     );
   }
 }
@@ -422,6 +539,40 @@ class AdminReviewRecord {
   final String purchaseOrderId;
 }
 
+class AdminVideoCommentRecord {
+  const AdminVideoCommentRecord({
+    required this.id,
+    required this.productId,
+    required this.productTitle,
+    required this.productThumbnail,
+    this.categoryId = '',
+    this.categoryName = '',
+    this.userId = '',
+    required this.authorName,
+    required this.text,
+    this.videoUrl = '',
+    this.createdAt,
+    this.adminReply,
+    this.adminReplyAt,
+  });
+
+  final String id;
+  final String productId;
+  final String productTitle;
+  final String productThumbnail;
+  final String categoryId;
+  final String categoryName;
+  final String userId;
+  final String authorName;
+  final String text;
+  final String videoUrl;
+  final DateTime? createdAt;
+  final String? adminReply;
+  final DateTime? adminReplyAt;
+
+  bool get hasAdminReply => adminReply != null && adminReply!.trim().isNotEmpty;
+}
+
 class AdminNotificationCampaign {
   const AdminNotificationCampaign({
     required this.id,
@@ -471,6 +622,9 @@ class AdminUserInterest {
     required this.userName,
     required this.userEmail,
     required this.lastQuery,
+    this.lastSource = 'ai',
+    this.lastProductId = '',
+    this.lastProductTitle = '',
     this.recentQueries = const [],
     this.interestedBrands = const [],
     this.interestedCategories = const [],
@@ -484,6 +638,9 @@ class AdminUserInterest {
   final String userName;
   final String userEmail;
   final String lastQuery;
+  final String lastSource;
+  final String lastProductId;
+  final String lastProductTitle;
   final List<String> recentQueries;
   final List<String> interestedBrands;
   final List<String> interestedCategories;
@@ -501,6 +658,9 @@ class AdminUserInterest {
       userName: (data['userName'] ?? 'Khách hàng').toString(),
       userEmail: (data['userEmail'] ?? '').toString(),
       lastQuery: (data['lastQuery'] ?? '').toString(),
+      lastSource: (data['lastSource'] ?? 'ai').toString(),
+      lastProductId: (data['lastProductId'] ?? '').toString(),
+      lastProductTitle: (data['lastProductTitle'] ?? '').toString(),
       recentQueries: strList(data['recentQueries']),
       interestedBrands: strList(data['interestedBrands']),
       interestedCategories: strList(data['interestedCategories']),

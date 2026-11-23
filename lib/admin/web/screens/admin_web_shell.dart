@@ -5,15 +5,18 @@ import 'package:fashion_business_app/admin/web/views/banners_view.dart';
 import 'package:fashion_business_app/admin/web/views/brands_view.dart';
 import 'package:fashion_business_app/admin/web/views/categories_view.dart';
 import 'package:fashion_business_app/admin/web/views/dashboard_view.dart';
+import 'package:fashion_business_app/admin/web/views/featured_reels_view.dart';
 import 'package:fashion_business_app/admin/web/views/finance_view.dart';
 import 'package:fashion_business_app/admin/web/views/notifications_view.dart';
 import 'package:fashion_business_app/admin/web/views/orders_view.dart';
 import 'package:fashion_business_app/admin/web/views/products_view.dart';
+import 'package:fashion_business_app/admin/web/views/returns_view.dart';
 import 'package:fashion_business_app/admin/web/views/reviews_view.dart';
 import 'package:fashion_business_app/admin/web/views/users_view.dart';
 import 'package:fashion_business_app/admin/web/views/vouchers_view.dart';
 import 'package:fashion_business_app/data/repositories/authentication/authentication_repository.dart';
 import 'package:fashion_business_app/utils/constants/admin_config.dart';
+import 'package:fashion_business_app/utils/theme/custom_themes/chip_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -54,8 +57,10 @@ class _AdminWebShellState extends State<AdminWebShell> {
         fontFamily: 'Poppins',
         colorScheme: ColorScheme.fromSeed(
           seedColor: AdminColors.forest,
+          primary: AdminColors.forest,
           brightness: Brightness.light,
         ),
+        chipTheme: TChipTheme.lightChipTheme,
         scaffoldBackgroundColor: AdminColors.canvas,
         dividerColor: AdminColors.border,
       ),
@@ -152,8 +157,12 @@ class _AdminWebShellState extends State<AdminWebShell> {
         return AdminFinanceView(controller: _controller);
       case AdminSection.orders:
         return AdminOrdersView(controller: _controller);
+      case AdminSection.returns:
+        return AdminReturnsView(controller: _controller);
       case AdminSection.products:
         return AdminProductsView(controller: _controller);
+      case AdminSection.featured:
+        return AdminFeaturedReelsView(controller: _controller);
       case AdminSection.vouchers:
         return AdminVouchersView(controller: _controller);
       case AdminSection.brands:
@@ -184,29 +193,36 @@ class _AdminTopBar extends StatelessWidget {
   final VoidCallback onMenuTap;
 
   String _titleFor(AdminSection section) {
+    final vi = controller.isVi.value;
     switch (section) {
       case AdminSection.dashboard:
-        return 'Tổng quan cửa hàng';
+        return vi ? 'Tổng quan cửa hàng' : 'Store Overview';
       case AdminSection.finance:
-        return 'Doanh thu, Lãi / Lỗ & Thuế';
+        return vi ? 'Doanh thu, Lãi / Lỗ & Thuế' : 'Revenue, P&L & Tax';
       case AdminSection.orders:
-        return 'Quản lý Đơn hàng';
+        return vi ? 'Quản lý Đơn hàng' : 'Order Management';
+      case AdminSection.returns:
+        return vi ? 'Quản lý Đổi trả & Bảo hành' : 'Returns & Exchanges Center';
       case AdminSection.products:
-        return 'Quản lý Sản phẩm';
+        return vi ? 'Quản lý Sản phẩm' : 'Product & Inventory Management';
+      case AdminSection.featured:
+        return vi
+            ? 'Quản lý Nổi bật (Video Quảng cáo & Tương tác)'
+            : 'Featured Tab (Promo Videos & Engagement)';
       case AdminSection.vouchers:
-        return 'Quản lý Voucher & Mã giảm giá';
+        return vi ? 'Quản lý Voucher & Mã giảm giá' : 'Voucher & Coupon Management';
       case AdminSection.brands:
-        return 'Quản lý Thương hiệu';
+        return vi ? 'Quản lý Thương hiệu' : 'Brand Management';
       case AdminSection.categories:
-        return 'Quản lý Danh mục';
+        return vi ? 'Quản lý Danh mục' : 'Category Management';
       case AdminSection.banners:
-        return 'Quản lý Banner & Chiến dịch';
+        return vi ? 'Quản lý Banner & Chiến dịch' : 'Banners & Campaigns';
       case AdminSection.users:
-        return 'Quản lý Người dùng';
+        return vi ? 'Quản lý Người dùng' : 'Customer Management';
       case AdminSection.reviews:
-        return 'Quản lý Đánh giá';
+        return vi ? 'Quản lý Đánh giá' : 'Product Reviews';
       case AdminSection.notifications:
-        return 'Quản lý Thông báo';
+        return vi ? 'Quản lý Thông báo' : 'Notifications & AI Insights';
     }
   }
 
@@ -245,13 +261,40 @@ class _AdminTopBar extends StatelessWidget {
                       ),
                     ),
                     if (!compact)
-                      const Text(
-                        'VELORA Admin • Đồng bộ Firebase Firestore',
-                        style: TextStyle(fontSize: 11.5, color: AdminColors.inkMuted),
+                      Text(
+                        controller.isVi.value
+                            ? 'VELORA Admin • Đồng bộ Firebase Firestore'
+                            : 'VELORA Admin • Live Firebase Firestore Sync',
+                        style: const TextStyle(fontSize: 11.5, color: AdminColors.inkMuted),
                       ),
                   ],
                 )),
           ),
+          // Language switcher pill (VI / EN)
+          Obx(() => Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: AdminColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AdminColors.border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _CurrencyPill(
+                      label: 'VI 🇻🇳',
+                      selected: controller.isVi.value,
+                      onTap: () => controller.setLanguage(true),
+                    ),
+                    _CurrencyPill(
+                      label: 'EN 🇬🇧',
+                      selected: !controller.isVi.value,
+                      onTap: () => controller.setLanguage(false),
+                    ),
+                  ],
+                ),
+              )),
+          const SizedBox(width: 8),
           // Currency switcher pill (VND / USD)
           Obx(() => Container(
                 padding: const EdgeInsets.all(3),
@@ -423,26 +466,27 @@ class _AdminSidebar extends StatelessWidget {
             Expanded(
               child: Obx(() {
                 final active = controller.activeSection.value;
+                final vi = controller.isVi.value;
                 return ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   children: [
-                    const _SidebarGroupLabel('TỔNG QUAN'),
+                    _SidebarGroupLabel(vi ? 'TỔNG QUAN' : 'OVERVIEW'),
                     _SidebarItem(
                       icon: Iconsax.chart_2,
-                      label: 'Dashboard',
+                      label: vi ? 'Tổng quan' : 'Dashboard',
                       selected: active == AdminSection.dashboard,
                       onTap: () => _go(AdminSection.dashboard),
                     ),
                     _SidebarItem(
                       icon: Iconsax.money_recive,
-                      label: 'Doanh thu & Lãi/Lỗ',
+                      label: vi ? 'Doanh thu & Lãi/Lỗ' : 'Revenue & P&L',
                       selected: active == AdminSection.finance,
                       onTap: () => _go(AdminSection.finance),
                     ),
-                    const _SidebarGroupLabel('KINH DOANH'),
+                    _SidebarGroupLabel(vi ? 'KINH DOANH' : 'COMMERCE'),
                     _SidebarItem(
                       icon: Iconsax.shopping_bag,
-                      label: 'Đơn hàng',
+                      label: vi ? 'Đơn hàng' : 'Orders',
                       badge: controller.pendingOrdersCount > 0
                           ? '${controller.pendingOrdersCount}'
                           : null,
@@ -450,50 +494,53 @@ class _AdminSidebar extends StatelessWidget {
                       onTap: () => _go(AdminSection.orders),
                     ),
                     _SidebarItem(
+                      icon: Iconsax.refresh_circle,
+                      label: vi ? 'Đổi trả & Bảo hành' : 'Returns & Exchanges',
+                      badge: controller.pendingReturnsCount > 0
+                          ? '${controller.pendingReturnsCount}'
+                          : '${controller.returnRequests.length}',
+                      mutedBadge: controller.pendingReturnsCount == 0,
+                      selected: active == AdminSection.returns,
+                      onTap: () => _go(AdminSection.returns),
+                    ),
+                    _SidebarItem(
                       icon: Iconsax.box,
-                      label: 'Sản phẩm',
+                      label: vi ? 'Sản phẩm' : 'Products',
                       badge: '${controller.products.length}',
                       mutedBadge: true,
                       selected: active == AdminSection.products,
                       onTap: () => _go(AdminSection.products),
                     ),
                     _SidebarItem(
+                      icon: Icons.auto_awesome_rounded,
+                      label: vi ? 'Quản lý Nổi bật (Video)' : 'Featured & Videos',
+                      badge:
+                          '${controller.products.where((p) => p.isFeatured == true).length}',
+                      mutedBadge: true,
+                      selected: active == AdminSection.featured,
+                      onTap: () => _go(AdminSection.featured),
+                    ),
+                    _SidebarItem(
                       icon: Iconsax.ticket_discount,
-                      label: 'Voucher giảm giá',
+                      label: vi ? 'Voucher giảm giá' : 'Vouchers',
                       badge: '${controller.vouchers.length}',
                       mutedBadge: true,
                       selected: active == AdminSection.vouchers,
                       onTap: () => _go(AdminSection.vouchers),
                     ),
-                    const _SidebarGroupLabel('DANH MỤC & HIỂN THỊ'),
-                    _SidebarItem(
-                      icon: Iconsax.award,
-                      label: 'Thương hiệu',
-                      badge: '${controller.brands.length}',
-                      mutedBadge: true,
-                      selected: active == AdminSection.brands,
-                      onTap: () => _go(AdminSection.brands),
-                    ),
+                    _SidebarGroupLabel(vi ? 'DANH MỤC & HIỂN THỊ' : 'CATALOG & DISPLAY'),
                     _SidebarItem(
                       icon: Iconsax.category,
-                      label: 'Danh mục',
+                      label: vi ? 'Bộ sưu tập & Danh mục' : 'Athletic Collections',
                       badge: '${controller.categories.length}',
                       mutedBadge: true,
                       selected: active == AdminSection.categories,
                       onTap: () => _go(AdminSection.categories),
                     ),
-                    _SidebarItem(
-                      icon: Iconsax.gallery,
-                      label: 'Banner & Chiến dịch',
-                      badge: '${controller.banners.length}',
-                      mutedBadge: true,
-                      selected: active == AdminSection.banners,
-                      onTap: () => _go(AdminSection.banners),
-                    ),
-                    const _SidebarGroupLabel('KHÁCH HÀNG & TƯƠNG TÁC'),
+                    _SidebarGroupLabel(vi ? 'KHÁCH HÀNG & TƯƠNG TÁC' : 'CUSTOMERS & ENGAGEMENT'),
                     _SidebarItem(
                       icon: Iconsax.people,
-                      label: 'Người dùng',
+                      label: vi ? 'Người dùng' : 'Customers',
                       badge: '${controller.users.length}',
                       mutedBadge: true,
                       selected: active == AdminSection.users,
@@ -501,7 +548,7 @@ class _AdminSidebar extends StatelessWidget {
                     ),
                     _SidebarItem(
                       icon: Iconsax.star,
-                      label: 'Đánh giá',
+                      label: vi ? 'Đánh giá' : 'Reviews',
                       badge: '${controller.reviews.length}',
                       mutedBadge: true,
                       selected: active == AdminSection.reviews,
@@ -509,7 +556,7 @@ class _AdminSidebar extends StatelessWidget {
                     ),
                     _SidebarItem(
                       icon: Iconsax.notification_bing,
-                      label: 'Thông báo',
+                      label: vi ? 'Thông báo' : 'Notifications',
                       selected: active == AdminSection.notifications,
                       onTap: () => _go(AdminSection.notifications),
                     ),

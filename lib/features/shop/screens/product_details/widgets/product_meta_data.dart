@@ -20,24 +20,24 @@ class TProductMetaData extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (product.brand != null) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: dark ? const Color(0xFF20352C) : const Color(0xFFEAF2EE),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ShopText(
-              '${product.brand!.name.toUpperCase()} · ${product.categoryName}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                letterSpacing: 1,
-                fontWeight: FontWeight.w700,
-                color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
-              ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: dark ? const Color(0xFF20352C) : const Color(0xFFEAF2EE),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ShopText(
+            product.categoryName.isNotEmpty
+                ? 'VELORA · ${product.categoryName}'
+                : 'VELORA',
+            style: theme.textTheme.labelSmall?.copyWith(
+              letterSpacing: 1,
+              fontWeight: FontWeight.w700,
+              color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
             ),
           ),
-          const SizedBox(height: 10),
-        ],
+        ),
+        const SizedBox(height: 10),
         ShopText(
           product.title,
           style: theme.textTheme.headlineSmall?.copyWith(

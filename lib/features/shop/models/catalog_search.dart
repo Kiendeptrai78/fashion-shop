@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 const sneakerCatalogId = 'sneakers-v1';
-const catalogPageSize = 10;
+const catalogPageSize = 24;
 
 class CatalogFilter {
   const CatalogFilter({this.search = '', this.brandId, this.categoryId});

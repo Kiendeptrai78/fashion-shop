@@ -7,6 +7,8 @@ import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 import 'package:fashion_business_app/data/repositories/orders/orders_repository.dart';
 import 'package:fashion_business_app/features/shop/models/order_model.dart';
+import 'package:fashion_business_app/features/shop/models/product_availability_helper.dart';
+import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
 import 'package:fashion_business_app/features/shop/screens/order/order_detail.dart';
 import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
@@ -70,15 +72,34 @@ class _OrderScreenState extends State<OrderScreen> {
             _ => activity?.orderCount ?? 0,
           };
           final selected = _filter == index;
-          final tone = Theme.of(context).colorScheme.primary;
-          return ChoiceChip(selectedColor: tone, showCheckmark: false,
+          final tone = switch (index) {
+            1 => OrderModel.colorForStatus(OrderStatus.pending),
+            2 => OrderModel.colorForStatus(OrderStatus.processing),
+            3 => OrderModel.colorForStatus(OrderStatus.shipped),
+            4 => OrderModel.colorForStatus(OrderStatus.received),
+            5 => OrderModel.colorForStatus(OrderStatus.cancelled),
+            _ => const Color(0xFF334155),
+          };
+          final bgTint = switch (index) {
+            1 => OrderModel.bgColorForStatus(OrderStatus.pending),
+            2 => OrderModel.bgColorForStatus(OrderStatus.processing),
+            3 => OrderModel.bgColorForStatus(OrderStatus.shipped),
+            4 => OrderModel.bgColorForStatus(OrderStatus.received),
+            5 => OrderModel.bgColorForStatus(OrderStatus.cancelled),
+            _ => const Color(0xFFF1F5F9),
+          };
+          return ChoiceChip(
+            selectedColor: tone,
+            backgroundColor: bgTint,
+            side: BorderSide(color: tone.withValues(alpha: selected ? 1.0 : 0.35)),
+            showCheckmark: false,
             label: Row(mainAxisSize: MainAxisSize.min, children: [
-              ShopText(_tabs[index], style: TextStyle(color: selected ? Colors.white : tone, fontWeight: FontWeight.w600)),
+              ShopText(_tabs[index], style: TextStyle(color: selected ? Colors.white : tone, fontWeight: FontWeight.w700)),
               const SizedBox(width: 7),
               Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: selected ? Colors.white24 : tone.withValues(alpha: 0.08),
+                decoration: BoxDecoration(color: selected ? Colors.white24 : tone.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(8)),
-                child: Text('$number', style: TextStyle(color: selected ? Colors.white : tone, fontSize: 11))),
+                child: Text('$number', style: TextStyle(color: selected ? Colors.white : tone, fontSize: 11, fontWeight: FontWeight.w700))),
             ]), selected: selected, onSelected: (_) => setState(() => _filter = index));
         }),
       )),
@@ -110,36 +131,250 @@ class _OrderScreenState extends State<OrderScreen> {
 
   Widget _orderCard(OrderModel order) {
     final theme = Theme.of(context);
-    final tone = order.status == OrderStatus.cancelled ? theme.colorScheme.error : theme.colorScheme.primary;
+    final isCancelled = order.status == OrderStatus.cancelled;
+    final tone = order.statusColor;
+    final bgTone = order.statusBgColor;
+    final borderTone = order.statusBorderColor;
     final locale = Localizations.localeOf(context).languageCode;
-    return Padding(padding: const EdgeInsets.only(bottom: 18), child: Material(
-      color: theme.scaffoldBackgroundColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.15))),
-      child: InkWell(borderRadius: BorderRadius.circular(16), onTap: () async {
-        await Get.to(() => OrderDetail(order: order));
-        if (mounted) _reload();
-      }, child: Padding(padding: const EdgeInsets.all(18), child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [Expanded(child: ShopText(order.orderStatusText == 'Shipping' ? 'On the way'
-              : order.orderStatusText, style: TextStyle(color: tone, fontWeight: FontWeight.w600))),
-            const Icon(Icons.chevron_right, size: 20)]),
-          const SizedBox(height: 8),
-          Text('#${order.id}', style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 4),
-          Text(DateFormat.yMMMd(locale).format(order.orderDate), style: theme.textTheme.bodySmall),
-          const Divider(height: 28),
-          for (final item in order.items.take(2)) Padding(padding: const EdgeInsets.only(bottom: 10),
-            child: Row(children: [
-              TRoundedImage(imageUrl: item.image ?? '', width: 64, height: 64, isNetworkImage: true),
-              const SizedBox(width: 14),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 5),
-                ShopText('Qty ${item.quantity}', style: theme.textTheme.bodySmall),
-              ])),
-            ])),
+    final isEn = locale == 'en';
+    final stepIndex = switch (order.status) {
+      OrderStatus.pending => 1,
+      OrderStatus.processing => 2,
+      OrderStatus.shipped => 3,
+      OrderStatus.received => 4,
+      OrderStatus.cancelled => 0,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Material(
+        color: theme.scaffoldBackgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: borderTone.withValues(alpha: 0.45), width: 1.2),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () async {
+            await Get.to(() => OrderDetail(order: order));
+            if (mounted) _reload();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: bgTone,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: borderTone.withValues(alpha: 0.65)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            order.statusIcon,
+                            size: 14,
+                            color: tone,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            order.orderStatusLabel(english: isEn),
+                            style: TextStyle(
+                              color: tone,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      DateFormat.yMMMd(locale).format(order.orderDate),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, size: 20),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  order.customerOrderTitle(english: isEn),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  order.orderStatusSubtitle(english: isEn),
+                  style: theme.textTheme.bodySmall?.copyWith(height: 1.35),
+                ),
+                const SizedBox(height: 6),
+                Builder(builder: (_) {
+                  final eta = ShippingRouteHelper.estimateForAddress(order.address);
+                  return Row(
+                    children: [
+                      const Icon(Iconsax.routing, size: 13, color: Color(0xFF0284C7)),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          isEn
+                              ? 'Hanoi Warehouse → ${eta.destinationCity} • Est. ${eta.minDays}–${eta.maxDays} days'
+                              : 'Kho Hà Nội → ${eta.destinationCity} • Dự kiến ${eta.minDays}–${eta.maxDays} ngày',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0284C7),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+                if (!isCancelled) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: List.generate(4, (i) {
+                      final active = (i + 1) <= stepIndex;
+                      const stepColors = [
+                        Color(0xFFD97706), // 1. Chờ xác nhận (Cam)
+                        Color(0xFF7C3AED), // 2. Đang đóng gói (Tím)
+                        Color(0xFF0284C7), // 3. Đang vận chuyển (Xanh dương)
+                        Color(0xFF16A34A), // 4. Giao thành công (Xanh lá tươi)
+                      ];
+                      return Expanded(
+                        child: Container(
+                          height: 5,
+                          margin: EdgeInsets.only(right: i < 3 ? 6 : 0),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? stepColors[i]
+                                : theme.dividerColor.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+                const Divider(height: 26),
+          for (final item in order.items.take(2))
+            FutureBuilder<ProductAvailabilityResult>(
+              future: ProductAvailabilityHelper.checkCartItem(item),
+              builder: (context, availSnap) {
+                final unavailable = availSnap.data?.isUnavailable == true;
+                final isReceived = order.status == OrderStatus.received;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () =>
+                        ProductAvailabilityHelper.openProductDetailFromCartItem(
+                      context,
+                      item,
+                    ),
+                    child: Opacity(
+                      opacity: unavailable ? 0.56 : 1.0,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          TRoundedImage(
+                            imageUrl: item.image ?? '',
+                            width: 64,
+                            height: 64,
+                            isNetworkImage: true,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    decoration: unavailable
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    ShopText(
+                                      'Qty ${item.quantity}',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                    if (unavailable)
+                                      const DiscontinuedProductBadge(
+                                          compact: true)
+                                    else
+                                      Text(
+                                        isEn
+                                            ? '• Tap to view shoe'
+                                            : '• Ấn xem chi tiết giày',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF173E32),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isReceived && !unavailable) ...[
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              onPressed: () => ProductAvailabilityHelper
+                                  .buyAgainFromCartItem(context, item),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 11,
+                                  vertical: 6,
+                                ),
+                                minimumSize: const Size(0, 32),
+                                side: const BorderSide(
+                                  color: Color(0xFF173E32),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                              ),
+                              child: Text(
+                                isEn ? 'Buy again' : 'Mua lại',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF173E32),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           const SizedBox(height: 8),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const ShopText('Order total'),

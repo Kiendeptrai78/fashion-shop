@@ -5,6 +5,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
+import 'package:fashion_business_app/features/shop/models/product_availability_helper.dart';
 import 'package:fashion_business_app/features/shop/screens/checkout/checkout.dart';
 import 'package:fashion_business_app/features/shop/screens/widgets/shopping_empty_state.dart';
 
@@ -42,132 +43,208 @@ class CartScreen extends StatelessWidget {
             ]),
             const SizedBox(height: 10),
             for (final item in controller.cartItems) ...[
-              Container(
-                margin: const EdgeInsets.only(bottom: 14),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: dark ? const Color(0xFF1A2721) : Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE6EAE3),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: dark ? const Color(0xFF22342B) : const Color(0xFFF3F4EF),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: TRoundedImage(
-                        imageUrl: item.image ?? '',
-                        isNetworkImage: true,
-                        width: 96,
-                        height: 106,
-                        borderRadius: 14,
-                        padding: const EdgeInsets.all(6),
+              FutureBuilder<ProductAvailabilityResult>(
+                future: ProductAvailabilityHelper.checkCartItem(item),
+                builder: (context, availSnap) {
+                  final unavailable = availSnap.data?.isUnavailable == true;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: unavailable
+                          ? (dark
+                              ? const Color(0xFF161D1A)
+                              : const Color(0xFFF8FAFC))
+                          : (dark ? const Color(0xFF1A2721) : Colors.white),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: unavailable
+                            ? const Color(0xFFCBD5E1)
+                            : (dark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : const Color(0xFFE6EAE3)),
                       ),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
+                    child: Opacity(
+                      opacity: unavailable ? 0.56 : 1.0,
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if ((item.brandName ?? '').isNotEmpty) ...[
-                            ShopText(
-                              (item.brandName ?? '').toUpperCase(),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1,
-                                color: dark ? const Color(0xFFB6CEB4) : const Color(0xFF4F6B5D),
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                          ],
-                          ShopText(
-                            item.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, height: 1.25),
-                          ),
-                          if ((item.selectedVariation?.entries ?? []).isNotEmpty) ...[
-                            const SizedBox(height: 7),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => ProductAvailabilityHelper
+                                .openProductDetailFromCartItem(context, item),
+                            child: Container(
                               decoration: BoxDecoration(
-                                color: dark ? const Color(0xFF24372E) : const Color(0xFFF2F5F0),
-                                borderRadius: BorderRadius.circular(8),
+                                color: dark
+                                    ? const Color(0xFF22342B)
+                                    : const Color(0xFFF3F4EF),
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              child: ShopText(
-                                (item.selectedVariation?.entries ?? [])
-                                    .map((e) => '${e.key}: ${e.value}')
-                                    .join(' · '),
-                                style: theme.textTheme.bodySmall?.copyWith(fontSize: 11.5),
+                              child: TRoundedImage(
+                                imageUrl: item.image ?? '',
+                                isNetworkImage: true,
+                                width: 96,
+                                height: 106,
+                                borderRadius: 14,
+                                padding: const EdgeInsets.all(6),
                               ),
-                            ),
-                          ],
-                          const SizedBox(height: 10),
-                          ShopText(
-                            formatShopMoney(item.price * item.quantity, language: lang),
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                              color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          Row(children: [
-                            Container(
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: dark ? const Color(0xFF22342B) : const Color(0xFFF6F7F3),
-                                border: Border.all(
-                                  color: dark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFFDFE5DD),
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                                    tooltip: 'Decrease quantity'.tr,
-                                    icon: const Icon(Icons.remove, size: 16),
-                                    onPressed: () => controller.removeOneFromCart(item),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                                    child: ShopText(
-                                      '${item.quantity}',
-                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if ((item.brandName ?? '').isNotEmpty) ...[
+                                  ShopText(
+                                    (item.brandName ?? '').toUpperCase(),
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 1,
+                                      color: dark
+                                          ? const Color(0xFFB6CEB4)
+                                          : const Color(0xFF4F6B5D),
                                     ),
                                   ),
-                                  IconButton(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                                    tooltip: 'Increase quantity'.tr,
-                                    icon: const Icon(Icons.add, size: 16),
-                                    onPressed: () => controller.addOneToCart(item),
+                                  const SizedBox(height: 3),
+                                ],
+                                InkWell(
+                                  onTap: () => ProductAvailabilityHelper
+                                      .openProductDetailFromCartItem(
+                                          context, item),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      ShopText(
+                                        item.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                          height: 1.25,
+                                          decoration: unavailable
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                        ),
+                                      ),
+                                      if (unavailable) ...[
+                                        const SizedBox(height: 6),
+                                        const DiscontinuedProductBadge(
+                                            compact: true),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                if ((item.selectedVariation?.entries ?? [])
+                                    .isNotEmpty) ...[
+                                  const SizedBox(height: 7),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 9, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: dark
+                                          ? const Color(0xFF24372E)
+                                          : const Color(0xFFF2F5F0),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: ShopText(
+                                      (item.selectedVariation?.entries ?? [])
+                                          .map((e) => '${e.key}: ${e.value}')
+                                          .join(' · '),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(fontSize: 11.5),
+                                    ),
                                   ),
                                 ],
-                              ),
+                                const SizedBox(height: 10),
+                                ShopText(
+                                  formatShopMoney(item.price * item.quantity,
+                                      language: lang),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                    color: dark
+                                        ? const Color(0xFFDDEABB)
+                                        : const Color(0xFF173E32),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Row(children: [
+                                  Container(
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: dark
+                                          ? const Color(0xFF22342B)
+                                          : const Color(0xFFF6F7F3),
+                                      border: Border.all(
+                                        color: dark
+                                            ? Colors.white
+                                                .withValues(alpha: 0.1)
+                                            : const Color(0xFFDFE5DD),
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          constraints: const BoxConstraints(
+                                              minWidth: 34, minHeight: 34),
+                                          tooltip: 'Decrease quantity'.tr,
+                                          icon: const Icon(Icons.remove,
+                                              size: 16),
+                                          onPressed: () => controller
+                                              .removeOneFromCart(item),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 4),
+                                          child: ShopText(
+                                            '${item.quantity}',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13.5),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          constraints: const BoxConstraints(
+                                              minWidth: 34, minHeight: 34),
+                                          tooltip: 'Increase quantity'.tr,
+                                          icon: const Icon(Icons.add, size: 16),
+                                          onPressed: unavailable
+                                              ? null
+                                              : () => controller
+                                                  .addOneToCart(item),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    tooltip: 'Remove item'.tr,
+                                    icon: Icon(Iconsax.trash,
+                                        size: 19, color: theme.hintColor),
+                                    onPressed: () =>
+                                        controller.removeFromCartDialog(
+                                            controller.cartItems.indexOf(item)),
+                                  ),
+                                ]),
+                              ],
                             ),
-                            const Spacer(),
-                            IconButton(
-                              tooltip: 'Remove item'.tr,
-                              icon: Icon(Iconsax.trash, size: 19, color: theme.hintColor),
-                              onPressed: () =>
-                                  controller.removeFromCartDialog(controller.cartItems.indexOf(item)),
-                            ),
-                          ]),
+                          ),
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ],
             const SizedBox(height: 6),

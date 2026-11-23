@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/features/personalization/screens/settings/setting_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/home/home_screen.dart';
+import 'package:fashion_business_app/features/shop/screens/reels/velora_reels_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/wishlist/wishlish_screen.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
 
@@ -82,6 +83,11 @@ class NavigationMenu extends StatelessWidget {
                   label: 'Home'.tr,
                 ),
                 NavigationDestination(
+                  icon: const Icon(Iconsax.magic_star),
+                  selectedIcon: const Icon(Icons.auto_awesome_rounded),
+                  label: 'Featured'.tr,
+                ),
+                NavigationDestination(
                   icon: ShopCountBadge(count: cartCount, child: const Icon(Iconsax.shopping_bag)),
                   selectedIcon: ShopCountBadge(count: cartCount, child: const Icon(Iconsax.shopping_bag5)),
                   label: 'Cart'.tr,
@@ -110,6 +116,7 @@ class NavigationController extends GetxController {
   final Rx<int> selectedIndex = 0.obs;
   final screens = [
     const HomeScreen(),
+    const VeloraReelsScreen(),
     const CartScreen(),
     const WishList(),
     const SettingScreen()

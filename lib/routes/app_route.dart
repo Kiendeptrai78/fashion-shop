@@ -56,8 +56,16 @@ class AppRoutes {
       page: () => const AdminWebShell(initialSection: AdminSection.orders),
     ),
     GetPage(
+      name: TRoutes.adminReturns,
+      page: () => const AdminWebShell(initialSection: AdminSection.returns),
+    ),
+    GetPage(
       name: TRoutes.adminProducts,
       page: () => const AdminWebShell(initialSection: AdminSection.products),
+    ),
+    GetPage(
+      name: TRoutes.adminFeatured,
+      page: () => const AdminWebShell(initialSection: AdminSection.featured),
     ),
     GetPage(
       name: TRoutes.adminVouchers,

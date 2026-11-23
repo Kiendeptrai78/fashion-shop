@@ -10,28 +10,25 @@ void main() {
   final products = (catalog['products'] as List).map((json) => ProductModel.fromJson(
       Map<String, dynamic>.from(json), id: json['Id'] as String)).toList();
 
-  test('catalog contains 72 distinct Cloudinary images across six brands', () {
-    expect(products, hasLength(24));
-    final images = products.expand((p) => p.images!).toSet();
-    expect(images, hasLength(72));
-    expect(images.every((url) => url.startsWith('https://res.cloudinary.com/lbbgn51d/')), isTrue);
+  test('catalog contains 105 bespoke VELORA sneakers with transparent Cloudinary PNGs and promo videos across 5 sport categories', () {
+    expect(products, hasLength(105));
+    final thumbs = products.map((p) => p.thumbnail).toSet();
+    expect(thumbs.every((url) => url.startsWith('https://res.cloudinary.com/lbbgn51d/') && url.endsWith('.png')), isTrue);
+    expect(products.every((p) => p.videos != null && p.videos!.isNotEmpty), isTrue);
     final brands = products.map((p) => p.brand!.name).toSet();
-    expect(brands, {'Nike', 'Adidas', 'Jordan', 'New Balance', 'Asics', 'Puma'});
-    for (final brand in brands) {
-      expect(products.where((p) => p.brand!.name == brand), hasLength(4));
-    }
+    expect(brands, {'VELORA'});
     expect(products.map((p) => p.categoryName).toSet(),
-        {'Lifestyle', 'Running', 'Training', 'Basketball', 'Trail'});
+        {'Hằng ngày', 'Chạy bộ', 'Tập luyện', 'Bóng rổ', 'Địa hình'});
   });
 
   test('stock equals size-color inventory and every variation has its matching image', () {
     for (final product in products) {
       final variants = product.productVariations!;
-      expect(variants, hasLength(21), reason: product.id);
+      final colors = product.productAttributes!.firstWhere((a) => a.name == 'Color').values!;
+      expect(variants, hasLength(colors.length * 7), reason: product.id);
       expect(product.stock, variants.fold<int>(0, (total, v) => total + v.stock));
       expect(variants.every((v) => v.stock > 0 && v.price > 0), isTrue);
-      expect(variants.map((v) => v.id).toSet(), hasLength(21));
-      final colors = product.productAttributes!.firstWhere((a) => a.name == 'Color').values!;
+      expect(variants.map((v) => v.id).toSet(), hasLength(colors.length * 7));
       for (var index = 0; index < colors.length; index++) {
         final matching = variants.where((v) => v.attributeValues['Color'] == colors[index]);
         expect(matching.map((v) => v.attributeValues['Size']).toSet(),
@@ -44,7 +41,7 @@ void main() {
   test('brand and category survive model serialization', () {
     final original = products.first;
     final restored = ProductModel.fromJson(original.toJson(), id: original.id);
-    expect(restored.brand!.name, original.brand!.name);
+    expect(restored.brand!.name, 'VELORA');
     expect(restored.categoryId, original.categoryId);
     expect(restored.categoryName, original.categoryName);
     expect(restored.catalogId, 'sneakers-v1');

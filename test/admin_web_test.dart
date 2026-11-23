@@ -8,11 +8,14 @@ import 'package:fashion_business_app/admin/web/views/banners_view.dart';
 import 'package:fashion_business_app/admin/web/views/brands_view.dart';
 import 'package:fashion_business_app/admin/web/views/categories_view.dart';
 import 'package:fashion_business_app/admin/web/views/dashboard_view.dart';
+import 'package:fashion_business_app/admin/web/views/featured_reels_view.dart';
 import 'package:fashion_business_app/admin/web/views/finance_view.dart';
 import 'package:fashion_business_app/admin/web/views/notifications_view.dart';
 import 'package:fashion_business_app/admin/web/views/orders_view.dart';
 import 'package:fashion_business_app/admin/web/views/products_view.dart';
+import 'package:fashion_business_app/admin/web/views/returns_view.dart';
 import 'package:fashion_business_app/admin/web/views/reviews_view.dart';
+import 'package:fashion_business_app/features/shop/models/return_request_model.dart';
 import 'package:fashion_business_app/admin/web/views/users_view.dart';
 import 'package:fashion_business_app/admin/web/views/vouchers_view.dart';
 import 'package:fashion_business_app/features/authentication/models/user_model.dart';
@@ -220,6 +223,44 @@ class _FakeAdminWebRepository implements AdminWebRepository {
       AdminAutomationSettings.defaults();
 
   @override
+  Future<List<ReturnRequestModel>> fetchReturnRequests() async => [
+        ReturnRequestModel(
+          id: 'RET-1001',
+          orderId: 'ORD-1001',
+          userId: 'user-1',
+          customerName: 'Lan Nguyen',
+          customerPhone: '0909876543',
+          pickupAddress: 'Cầu Giấy, Hà Nội',
+          productId: 'p1',
+          productTitle: 'Air Force 1',
+          refundAmountUsd: 110,
+          requestedSizeOrColor: 'Đổi sang EU 42',
+          type: ReturnRequestType.exchangeSize,
+          reasonCategory: 'Giao sai kích cỡ (Size EU)',
+          description: 'Mình đặt size 42 nhưng nhận size 40',
+          createdAt: DateTime(2026, 11, 22),
+        ),
+      ];
+
+  @override
+  Future<List<AdminVideoCommentRecord>> fetchAllVideoComments(
+          List<ProductModel> products) async =>
+      [
+        AdminVideoCommentRecord(
+          id: 'vc-1',
+          productId: 'p1',
+          productTitle: 'Air Force 1',
+          productThumbnail: '',
+          categoryId: _category.id,
+          categoryName: _category.name,
+          userId: 'user-1',
+          authorName: 'Lan Nguyen',
+          text: 'Đôi này còn size 41 không shop?',
+          createdAt: DateTime(2026, 11, 21),
+        ),
+      ];
+
+  @override
   Future<List<AddressModel>> fetchUserAddresses(String userId) async => [];
 
   @override
@@ -280,7 +321,9 @@ void main() {
       AdminDashboardView(controller: controller),
       AdminFinanceView(controller: controller),
       AdminOrdersView(controller: controller),
+      AdminReturnsView(controller: controller),
       AdminProductsView(controller: controller),
+      AdminFeaturedReelsView(controller: controller),
       AdminVouchersView(controller: controller),
       AdminBrandsView(controller: controller),
       AdminCategoriesView(controller: controller),

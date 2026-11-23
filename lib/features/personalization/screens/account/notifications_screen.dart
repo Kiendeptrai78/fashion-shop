@@ -8,8 +8,10 @@ import 'package:fashion_business_app/features/personalization/services/account_a
 import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
 import 'package:fashion_business_app/features/shop/models/order_model.dart';
 import 'package:fashion_business_app/features/shop/screens/order/order_detail.dart';
+import 'package:fashion_business_app/features/shop/screens/order/return_request_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/product_details/product_details.dart';
 import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
+import 'package:fashion_business_app/features/shop/screens/reels/velora_reels_screen.dart';
 import 'package:fashion_business_app/utils/local_storage/local_utility.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
@@ -102,6 +104,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           bg: dark ? const Color(0xFF342A14) : const Color(0xFFFFF8E1),
           label: 'Reviews',
         );
+      case 'return':
+        return (
+          icon: Iconsax.refresh_circle,
+          color: const Color(0xFF0284C7),
+          bg: dark ? const Color(0xFF142D3C) : const Color(0xFFE0F2FE),
+          label: 'Returns',
+        );
       case 'product':
         return (
           icon: Iconsax.magic_star,
@@ -125,11 +134,37 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     AccountActivity activity,
   ) async {
     await activity.markRead(notice['documentId']);
+    final docId = (notice['documentId'] ?? notice['id'] ?? '').toString();
     final kind = (notice['kind'] ?? '').toString();
     final targetId = (notice['targetId'] ?? '').toString();
+    final titleVi = (notice['titleVi'] ?? '').toString().toLowerCase();
+    final bodyVi = (notice['bodyVi'] ?? '').toString().toLowerCase();
+
+    final isVideoCommentReply = kind == 'video_comment' ||
+        docId.startsWith('video-reply-') ||
+        titleVi.contains('bình luận video');
+    final isVideoReelPush = kind == 'video_reel' ||
+        docId.startsWith('sim-push-') ||
+        docId.startsWith('auto-sim-') ||
+        bodyVi.contains('tab nổi bật');
+
     if (kind == 'order') {
       final matches = orders.where((order) => order.id == targetId);
       if (matches.isNotEmpty) Get.to(() => OrderDetail(order: matches.first));
+    } else if ((isVideoCommentReply || isVideoReelPush) && targetId.isNotEmpty) {
+      try {
+        final product =
+            await ProductRepository.instance.fetchProductById(targetId);
+        if (mounted && product != null) {
+          Get.to(
+            () => VeloraReelsScreen(
+              initialProduct: product,
+              showBackButton: true,
+              initialOpenComments: isVideoCommentReply,
+            ),
+          );
+        }
+      } catch (_) {}
     } else if (kind == 'product' && targetId.isNotEmpty) {
       try {
         final product = await ProductRepository.instance.fetchProductById(targetId);
@@ -147,13 +182,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           );
         }
       }
+    } else if (kind == 'return' || docId.startsWith('return-')) {
+      if (mounted) {
+        Get.to(
+          () => MyReturnRequestsScreen(
+            highlightRequestId: targetId.isNotEmpty ? targetId : null,
+          ),
+        );
+      }
     } else if (kind == 'review' && targetId.isNotEmpty) {
       if (mounted) Get.to(() => ProductReview(productId: targetId));
     } else if (kind == 'voucher') {
       if (Get.isRegistered<CustomerBenefits>()) {
         await CustomerBenefits.instance.initialize();
       }
-      if (mounted) Get.to(() => const CouponsScreen());
+      if (mounted) Get.to(() => CouponsScreen(initialCouponCode: targetId));
     }
   }
 

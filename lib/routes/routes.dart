@@ -27,7 +27,9 @@ class TRoutes{
   static const adminDashboard = '/admin/dashboard';
   static const adminFinance = '/admin/finance';
   static const adminOrders = '/admin/orders';
+  static const adminReturns = '/admin/returns';
   static const adminProducts = '/admin/products';
+  static const adminFeatured = '/admin/featured';
   static const adminVouchers = '/admin/vouchers';
   static const adminBrands = '/admin/brands';
   static const adminCategories = '/admin/categories';
