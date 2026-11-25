@@ -10,6 +10,7 @@ class TOutlinedButtonTheme{
       side: const BorderSide(color: Colors.black26),
       minimumSize: const Size(64, 50),
       textStyle: const TextStyle(
+        fontFamily: 'BeVietnamPro',
         fontSize: 15.5,
         height: 1.2,
         color: Colors.black,
@@ -27,6 +28,7 @@ class TOutlinedButtonTheme{
       side: const BorderSide(color: Colors.grey),
       minimumSize: const Size(64, 50),
       textStyle: const TextStyle(
+        fontFamily: 'BeVietnamPro',
         fontSize: 15.5,
         height: 1.2,
         color: Colors.white,

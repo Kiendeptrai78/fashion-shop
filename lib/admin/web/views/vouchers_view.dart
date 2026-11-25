@@ -19,6 +19,7 @@ class AdminVouchersView extends StatefulWidget {
 
 class _AdminVouchersViewState extends State<AdminVouchersView> {
   String _query = '';
+  String _typeFilter = 'all'; // 'all' | 'product' | 'shipping'
   String _audienceFilter = 'all'; // 'all' | 'newMember' | 'loyal' | 'vip' | 'specific'
   bool _autoBusy = false;
 
@@ -34,14 +35,21 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
     }
   }
 
-  Future<void> _openEditor({AdminVoucherRecord? existing, String? preselectedUserId}) async {
+  Future<void> _openEditor({
+    AdminVoucherRecord? existing,
+    String? preselectedUserId,
+    bool defaultShipping = false,
+  }) async {
     final formKey = GlobalKey<FormState>();
     final codeCtrl = TextEditingController(text: existing?.code ?? '');
     final titleCtrl = TextEditingController(text: existing?.title ?? '');
-    final percentCtrl = TextEditingController(text: (existing?.percent ?? 15).toString());
-    final maxUsdCtrl = TextEditingController(text: (existing?.maxUsd ?? 20).toString());
-    final minUsdCtrl = TextEditingController(text: (existing?.minUsd ?? 50).toString());
-    bool shipping = existing?.shipping ?? false;
+    final percentCtrl =
+        TextEditingController(text: (existing?.percent ?? 15).toString());
+    final maxUsdCtrl =
+        TextEditingController(text: (existing?.maxUsd ?? 20).toString());
+    final minUsdCtrl =
+        TextEditingController(text: (existing?.minUsd ?? 50).toString());
+    bool shipping = existing?.shipping ?? defaultShipping;
     bool active = existing?.active ?? true;
     bool sendNotification = existing == null;
     bool excludeBomHang = existing?.excludeBomHang ?? true;
@@ -53,7 +61,8 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
       if (preselectedUserId != null) preselectedUserId,
     };
     String userSearch = '';
-    DateTime expires = existing?.expires ?? DateTime.now().add(const Duration(days: 14));
+    DateTime expires =
+        existing?.expires ?? DateTime.now().add(const Duration(days: 14));
     bool saving = false;
 
     await showDialog<void>(
@@ -66,8 +75,9 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
           final clientStats = widget.controller.clientUsers
               .map(widget.controller.customerStatsFor)
               .toList();
-          final bomCount =
-              clientStats.where((s) => s.segment == CustomerSegment.bomHang).length;
+          final bomCount = clientStats
+              .where((s) => s.segment == CustomerSegment.bomHang)
+              .length;
           final matchedUsers = widget.controller.usersMatchingVoucherAudience(
             targetAudience: targetAudience,
             targetUserIds: selectedUserIds.toList(),
@@ -82,33 +92,38 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
 
           return Dialog(
             backgroundColor: AdminColors.surface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 640, maxHeight: 780),
+              constraints: const BoxConstraints(maxWidth: 620, maxHeight: 760),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.fromLTRB(24, 18, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(22, 16, 14, 14),
                     decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: AdminColors.border)),
+                      border:
+                          Border(bottom: BorderSide(color: AdminColors.border)),
                     ),
                     child: Row(
                       children: [
                         Expanded(
                           child: Text(
                             existing == null
-                                ? 'Tạo Voucher giảm giá mới'
+                                ? (shipping
+                                    ? 'Tạo Mã Miễn phí vận chuyển (Freeship)'
+                                    : 'Tạo Mã Giảm giá sản phẩm')
                                 : 'Chỉnh sửa Voucher ${existing.code}',
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 17,
                               fontWeight: FontWeight.w700,
                               color: AdminColors.ink,
                             ),
                           ),
                         ),
                         IconButton(
-                          onPressed: saving ? null : () => Navigator.of(context).pop(),
+                          onPressed:
+                              saving ? null : () => Navigator.of(context).pop(),
                           icon: const Icon(Icons.close_rounded),
                         ),
                       ],
@@ -116,12 +131,123 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
                   ),
                   Flexible(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(22),
                       child: Form(
                         key: formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Explicit 2-Type Selector right at the top
+                            const Text(
+                              'Loại Voucher',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AdminColors.ink,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () =>
+                                        setModalState(() => shipping = false),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 11,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: !shipping
+                                            ? AdminColors.sageSoft
+                                                .withValues(alpha: 0.5)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: !shipping
+                                              ? AdminColors.forest
+                                              : AdminColors.border,
+                                          width: !shipping ? 1.5 : 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Iconsax.discount_shape,
+                                            size: 18,
+                                            color: !shipping
+                                                ? AdminColors.forest
+                                                : AdminColors.inkSecondary,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          const Expanded(
+                                            child: Text(
+                                              'Giảm giá sản phẩm (%)',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () =>
+                                        setModalState(() => shipping = true),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 11,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: shipping
+                                            ? AdminColors.sageSoft
+                                                .withValues(alpha: 0.5)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: shipping
+                                              ? AdminColors.forest
+                                              : AdminColors.border,
+                                          width: shipping ? 1.5 : 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.local_shipping_outlined,
+                                            size: 18,
+                                            color: shipping
+                                                ? AdminColors.forest
+                                                : AdminColors.inkSecondary,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          const Expanded(
+                                            child: Text(
+                                              'Miễn phí vận chuyển',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+
                             TextFormField(
                               controller: codeCtrl,
                               readOnly: existing != null,
@@ -129,15 +255,19 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
                               validator: (v) {
                                 final s = (v ?? '').trim();
                                 if (s.isEmpty) return 'Vui lòng nhập mã voucher';
-                                if (s.contains(' ')) return 'Mã voucher không được có khoảng trắng';
+                                if (s.contains(' ')) {
+                                  return 'Mã voucher không được có khoảng trắng';
+                                }
                                 return null;
                               },
                               decoration: adminInputDecoration(
                                 label: 'Mã Voucher (CODE) *',
-                                hint: 'Ví dụ: VELORA20, VIP30, TET2026',
+                                hint: shipping
+                                    ? 'Ví dụ: FREESHIP0D, SHIPVIP'
+                                    : 'Ví dụ: VELORA20, VIP30',
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             TextFormField(
                               controller: titleCtrl,
                               validator: (v) => (v == null || v.trim().isEmpty)
@@ -145,167 +275,14 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
                                   : null,
                               decoration: adminInputDecoration(
                                 label: 'Tên / Mô tả chương trình *',
-                                hint: 'Ví dụ: Tri ân khách VIP cuối tuần',
+                                hint: shipping
+                                    ? 'Ví dụ: Miễn phí giao hàng toàn quốc'
+                                    : 'Ví dụ: Ưu đãi khách thân thiết cuối tuần',
                               ),
                             ),
                             const SizedBox(height: 14),
 
-                            // Audience targeting section
-                            Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: AdminColors.surfaceMuted,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: AdminColors.border),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Row(
-                                    children: [
-                                      Icon(Iconsax.people, size: 17, color: AdminColors.forest),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        'Đối tượng áp dụng & Nhận thông báo',
-                                        style: TextStyle(
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: AdminColors.ink,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  DropdownButtonFormField<String>(
-                                    value: targetAudience,
-                                    isExpanded: true,
-                                    decoration: adminInputDecoration(label: 'Chọn phân khúc khách hàng'),
-                                    items: const [
-                                      DropdownMenuItem(value: 'all', child: Text('Tất cả khách hàng')),
-                                      DropdownMenuItem(
-                                          value: 'newMember',
-                                          child: Text('Chỉ Thành viên mới (chưa mua đơn nào)')),
-                                      DropdownMenuItem(
-                                          value: 'loyal',
-                                          child: Text('Khách lâu năm & VIP (đã mua ≥ 1 đơn)')),
-                                      DropdownMenuItem(
-                                          value: 'vip',
-                                          child: Text('Chỉ Khách VIP thân thiết')),
-                                      DropdownMenuItem(
-                                          value: 'specific',
-                                          child: Text('Chọn đích danh từng thành viên...')),
-                                    ],
-                                    onChanged: (v) =>
-                                        setModalState(() => targetAudience = v ?? 'all'),
-                                  ),
-                                  if (targetAudience != 'specific') ...[
-                                    const SizedBox(height: 6),
-                                    SwitchListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      dense: true,
-                                      activeColor: AdminColors.forest,
-                                      title: Text(
-                                        'Tự động loại trừ tài khoản bom hàng ($bomCount tài khoản)',
-                                        style: const TextStyle(
-                                            fontSize: 12.5, fontWeight: FontWeight.w600),
-                                      ),
-                                      value: excludeBomHang,
-                                      onChanged: (v) =>
-                                          setModalState(() => excludeBomHang = v),
-                                    ),
-                                  ],
-                                  if (targetAudience == 'specific') ...[
-                                    const SizedBox(height: 10),
-                                    TextField(
-                                      onChanged: (v) => setModalState(() => userSearch = v),
-                                      decoration: adminInputDecoration(
-                                        label: 'Tìm thành viên để tích chọn',
-                                        hint: 'Nhập tên hoặc email...',
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Container(
-                                      constraints: const BoxConstraints(maxHeight: 200),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: AdminColors.border),
-                                      ),
-                                      child: ListView.builder(
-                                        shrinkWrap: true,
-                                        itemCount: filteredClients.length,
-                                        itemBuilder: (_, idx) {
-                                          final st = filteredClients[idx];
-                                          final badge = segmentBadgeMeta(st.segment);
-                                          final checked = selectedUserIds.contains(st.user.id);
-                                          return CheckboxListTile(
-                                            dense: true,
-                                            activeColor: AdminColors.forest,
-                                            value: checked,
-                                            onChanged: (val) => setModalState(() {
-                                              if (val == true) {
-                                                selectedUserIds.add(st.user.id);
-                                              } else {
-                                                selectedUserIds.remove(st.user.id);
-                                              }
-                                            }),
-                                            title: Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    st.user.fullName.trim().isNotEmpty
-                                                        ? st.user.fullName
-                                                        : st.user.email,
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                        fontSize: 12.5,
-                                                        fontWeight: FontWeight.w600),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                AdminBadge(
-                                                  label: badge.label,
-                                                  color: badge.color,
-                                                  bgColor: badge.bg,
-                                                ),
-                                              ],
-                                            ),
-                                            subtitle: Text(
-                                              '${st.user.email} • ${st.receivedOrders} nhận / ${st.cancelledOrders} hủy',
-                                              style: const TextStyle(fontSize: 11),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '→ Sẽ áp dụng & gửi thông báo cho đúng ${matchedUsers.length} khách hàng phù hợp.',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AdminColors.forest,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 12),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              activeColor: AdminColors.forest,
-                              title: const Text(
-                                'Voucher Miễn phí vận chuyển (Free Shipping)',
-                                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
-                              ),
-                              value: shipping,
-                              onChanged: (v) => setModalState(() => shipping = v),
-                            ),
                             if (!shipping) ...[
-                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Expanded(
@@ -314,10 +291,15 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
                                       keyboardType: TextInputType.number,
                                       validator: (v) {
                                         final n = int.tryParse((v ?? '').trim());
-                                        if (n == null || n <= 0 || n > 100) return 'Từ 1 đến 100%';
+                                        if (n == null || n <= 0 || n > 100) {
+                                          return 'Từ 1 đến 100%';
+                                        }
                                         return null;
                                       },
-                                      decoration: adminInputDecoration(label: 'Giảm (%) *', hint: '15'),
+                                      decoration: adminInputDecoration(
+                                        label: 'Mức giảm (%) *',
+                                        hint: '15',
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -325,10 +307,16 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
                                     child: TextFormField(
                                       controller: maxUsdCtrl,
                                       onChanged: (_) => setModalState(() {}),
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
                                       validator: (v) {
-                                        final n = double.tryParse((v ?? '').trim());
-                                        if (n == null || n <= 0) return 'Nhập số dương';
+                                        final n =
+                                            double.tryParse((v ?? '').trim());
+                                        if (n == null || n <= 0) {
+                                          return 'Nhập số dương';
+                                        }
                                         return null;
                                       },
                                       decoration: adminInputDecoration(
@@ -340,22 +328,28 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
                                 ],
                               ),
                               Padding(
-                                padding: const EdgeInsets.only(top: 6),
+                                padding: const EdgeInsets.only(top: 5),
                                 child: Text(
                                   'Tối đa quy đổi: ${formatShopMoney(maxUsd, language: 'vi')}',
                                   style: const TextStyle(
-                                      fontSize: 11.5, color: AdminColors.forestLight),
+                                    fontSize: 11.5,
+                                    color: AdminColors.inkSecondary,
+                                  ),
                                 ),
                               ),
+                              const SizedBox(height: 12),
                             ],
-                            const SizedBox(height: 14),
+
                             Row(
                               children: [
                                 Expanded(
                                   child: TextFormField(
                                     controller: minUsdCtrl,
                                     onChanged: (_) => setModalState(() {}),
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                     decoration: adminInputDecoration(
                                       label: 'Đơn tối thiểu (USD)',
                                       hint: '0 nếu không yêu cầu',
@@ -375,19 +369,31 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
                                       if (picked != null) {
                                         setModalState(() {
                                           expires = DateTime(
-                                              picked.year, picked.month, picked.day, 23, 59);
+                                            picked.year,
+                                            picked.month,
+                                            picked.day,
+                                            23,
+                                            59,
+                                          );
                                         });
                                       }
                                     },
                                     style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-                                      side: const BorderSide(color: AdminColors.borderStrong),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 15,
+                                      ),
+                                      side: const BorderSide(
+                                        color: AdminColors.borderStrong,
+                                      ),
                                       shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(11)),
+                                        borderRadius: BorderRadius.circular(11),
+                                      ),
                                     ),
-                                    icon: const Icon(Iconsax.calendar, size: 17),
+                                    icon:
+                                        const Icon(Iconsax.calendar, size: 16),
                                     label: Text(
-                                      'Hết hạn: ${DateFormat('dd/MM/yyyy').format(expires)}',
+                                      'HSD: ${DateFormat('dd/MM/yyyy').format(expires)}',
                                       style: const TextStyle(fontSize: 12.5),
                                     ),
                                   ),
@@ -395,37 +401,198 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
                               ],
                             ),
                             Padding(
-                              padding: const EdgeInsets.only(top: 6),
+                              padding: const EdgeInsets.only(top: 5),
                               child: Text(
                                 'Đơn tối thiểu quy đổi: ${formatShopMoney(minUsd, language: 'vi')}',
                                 style: const TextStyle(
-                                    fontSize: 11.5, color: AdminColors.inkSecondary),
+                                  fontSize: 11.5,
+                                  color: AdminColors.inkSecondary,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 14),
+
+                            // Audience targeting section
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: AdminColors.surfaceMuted,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AdminColors.border),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Đối tượng áp dụng',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: AdminColors.ink,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  DropdownButtonFormField<String>(
+                                    value: targetAudience,
+                                    isExpanded: true,
+                                    decoration: adminInputDecoration(
+                                      label: 'Phân khúc khách hàng',
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'all',
+                                        child: Text('Tất cả khách hàng'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'newMember',
+                                        child: Text(
+                                          'Thành viên mới (chưa mua đơn nào)',
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'loyal',
+                                        child: Text(
+                                          'Khách lâu năm & VIP (≥ 1 đơn)',
+                                        ),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'vip',
+                                        child: Text('Chỉ Khách VIP'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'specific',
+                                        child: Text(
+                                          'Chọn đích danh từng khách...',
+                                        ),
+                                      ),
+                                    ],
+                                    onChanged: (v) => setModalState(
+                                      () => targetAudience = v ?? 'all',
+                                    ),
+                                  ),
+                                  if (targetAudience != 'specific') ...[
+                                    const SizedBox(height: 4),
+                                    SwitchListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      dense: true,
+                                      activeColor: AdminColors.forest,
+                                      title: Text(
+                                        'Loại trừ tài khoản bom hàng ($bomCount tài khoản)',
+                                        style: const TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      value: excludeBomHang,
+                                      onChanged: (v) => setModalState(
+                                        () => excludeBomHang = v,
+                                      ),
+                                    ),
+                                  ],
+                                  if (targetAudience == 'specific') ...[
+                                    const SizedBox(height: 10),
+                                    TextField(
+                                      onChanged: (v) =>
+                                          setModalState(() => userSearch = v),
+                                      decoration: adminInputDecoration(
+                                        label: 'Tìm khách hàng',
+                                        hint: 'Nhập tên hoặc email...',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      constraints:
+                                          const BoxConstraints(maxHeight: 180),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: AdminColors.border,
+                                        ),
+                                      ),
+                                      child: ListView.builder(
+                                        shrinkWrap: true,
+                                        itemCount: filteredClients.length,
+                                        itemBuilder: (_, idx) {
+                                          final st = filteredClients[idx];
+                                          final checked = selectedUserIds
+                                              .contains(st.user.id);
+                                          return CheckboxListTile(
+                                            dense: true,
+                                            activeColor: AdminColors.forest,
+                                            value: checked,
+                                            onChanged: (val) =>
+                                                setModalState(() {
+                                              if (val == true) {
+                                                selectedUserIds.add(st.user.id);
+                                              } else {
+                                                selectedUserIds
+                                                    .remove(st.user.id);
+                                              }
+                                            }),
+                                            title: Text(
+                                              st.user.fullName.trim().isNotEmpty
+                                                  ? st.user.fullName
+                                                  : st.user.email,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            subtitle: Text(
+                                              '${st.user.email} · ${st.receivedOrders} nhận / ${st.cancelledOrders} hủy',
+                                              style:
+                                                  const TextStyle(fontSize: 11),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Áp dụng cho ${matchedUsers.length} khách hàng phù hợp.',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AdminColors.inkSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             SwitchListTile(
                               contentPadding: EdgeInsets.zero,
+                              dense: true,
                               activeColor: AdminColors.forest,
                               title: const Text(
                                 'Kích hoạt Voucher ngay',
-                                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                               value: active,
-                              onChanged: (v) => setModalState(() => active = v),
+                              onChanged: (v) =>
+                                  setModalState(() => active = v),
                             ),
                             SwitchListTile(
                               contentPadding: EdgeInsets.zero,
+                              dense: true,
                               activeColor: AdminColors.forest,
                               title: Text(
-                                'Tự động gửi thông báo tới nhóm đã chọn (${matchedUsers.length} khách)',
-                                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
-                              ),
-                              subtitle: const Text(
-                                'Khách nhấn vào thông báo sẽ mở thẳng Ví Voucher để áp dụng.',
-                                style: TextStyle(fontSize: 11.5, color: AdminColors.inkMuted),
+                                'Gửi thông báo đẩy tới ${matchedUsers.length} khách hàng',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                               value: sendNotification,
-                              onChanged: (v) => setModalState(() => sendNotification = v),
+                              onChanged: (v) =>
+                                  setModalState(() => sendNotification = v),
                             ),
                           ],
                         ),
@@ -433,28 +600,34 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.fromLTRB(24, 14, 24, 16),
+                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 14),
                     decoration: const BoxDecoration(
-                      border: Border(top: BorderSide(color: AdminColors.border)),
+                      border:
+                          Border(top: BorderSide(color: AdminColors.border)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton(
-                          onPressed: saving ? null : () => Navigator.of(context).pop(),
+                          onPressed:
+                              saving ? null : () => Navigator.of(context).pop(),
                           child: const Text('Hủy'),
                         ),
                         const SizedBox(width: 10),
                         AdminPrimaryButton(
-                          label: existing == null ? 'Tạo Voucher' : 'Lưu thay đổi',
+                          label:
+                              existing == null ? 'Tạo Voucher' : 'Lưu thay đổi',
                           icon: Iconsax.tick_circle,
                           loading: saving,
                           onPressed: () async {
                             if (!formKey.currentState!.validate()) return;
-                            if (targetAudience == 'specific' && selectedUserIds.isEmpty) {
+                            if (targetAudience == 'specific' &&
+                                selectedUserIds.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Vui lòng chọn ít nhất 1 khách hàng nhận Voucher.'),
+                                  content: Text(
+                                    'Vui lòng chọn ít nhất 1 khách hàng nhận Voucher.',
+                                  ),
                                 ),
                               );
                               return;
@@ -464,9 +637,18 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
                               AdminVoucherRecord(
                                 code: codeCtrl.text.trim().toUpperCase(),
                                 title: titleCtrl.text.trim(),
-                                percent: int.tryParse(percentCtrl.text.trim()) ?? 0,
-                                maxUsd: double.tryParse(maxUsdCtrl.text.trim()) ?? 0,
-                                minUsd: double.tryParse(minUsdCtrl.text.trim()) ?? 0,
+                                percent: shipping
+                                    ? 0
+                                    : (int.tryParse(percentCtrl.text.trim()) ??
+                                        0),
+                                maxUsd: shipping
+                                    ? 0
+                                    : (double.tryParse(
+                                            maxUsdCtrl.text.trim()) ??
+                                        0),
+                                minUsd:
+                                    double.tryParse(minUsdCtrl.text.trim()) ??
+                                        0,
                                 shipping: shipping,
                                 active: active,
                                 targetAudience: targetAudience,
@@ -500,72 +682,301 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
     minUsdCtrl.dispose();
   }
 
-  Widget _autoRuleCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool enabled,
+  Widget _compactAutoChip({
+    required String label,
     required int percent,
     required int targetCount,
+    required bool enabled,
     required ValueChanged<bool> onToggle,
     required VoidCallback onIssueNow,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: enabled ? AdminColors.sageSoft.withValues(alpha: 0.45) : AdminColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: enabled ? AdminColors.forest.withValues(alpha: 0.25) : AdminColors.border,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AdminColors.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 19, color: AdminColors.forest),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AdminColors.ink,
                 ),
               ),
-              Switch(
+              Text(
+                '-$percent% · $targetCount khách',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AdminColors.inkSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 28,
+            child: FittedBox(
+              child: Switch(
                 value: enabled,
                 activeColor: AdminColors.forest,
                 onChanged: onToggle,
               ),
-            ],
+            ),
           ),
-          Text(
-            subtitle,
-            style: const TextStyle(fontSize: 11.5, color: AdminColors.inkSecondary, height: 1.4),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              AdminBadge(
-                label: 'Giảm $percent% • $targetCount khách',
+          TextButton(
+            onPressed: _autoBusy ? null : onIssueNow,
+            style: TextButton.styleFrom(
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'Phát ngay',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
                 color: AdminColors.forest,
-                bgColor: Colors.white,
               ),
-              TextButton.icon(
-                onPressed: _autoBusy ? null : onIssueNow,
-                icon: const Icon(Iconsax.send_2, size: 15),
-                label: const Text('Phát & Báo ngay', style: TextStyle(fontSize: 12)),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  minimumSize: const Size(0, 32),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Single compact horizontal row per voucher (clean vertical list).
+  Widget _buildCompactVoucherRow(AdminVoucherRecord v) {
+    final expired = v.isExpired;
+    final isLive = v.active && !expired;
+
+    final statusLabel = expired
+        ? 'Hết hạn'
+        : (v.active ? 'Đang chạy' : 'Tạm tắt');
+    final statusColor = expired
+        ? AdminColors.rose
+        : (v.active ? AdminColors.emerald : AdminColors.inkSecondary);
+    final statusBg = expired
+        ? AdminColors.roseBg
+        : (v.active ? AdminColors.emeraldBg : AdminColors.surfaceMuted);
+
+    final minText = v.minUsd > 0
+        ? 'Đơn từ ${widget.controller.formatMoney(v.minUsd)}'
+        : 'Đơn 0đ';
+    final maxText = !v.shipping && v.maxUsd > 0
+        ? 'Tối đa ${widget.controller.formatMoney(v.maxUsd)} · '
+        : '';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          // 1. Compact Type & Value Stub
+          Container(
+            width: 96,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: isLive
+                  ? AdminColors.sageSoft.withValues(alpha: 0.55)
+                  : AdminColors.surfaceMuted,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  v.shipping ? 'FREESHIP' : '-${v.percent}%',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: isLive ? AdminColors.forest : AdminColors.inkMuted,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  v.shipping ? 'Vận chuyển' : 'Sản phẩm',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AdminColors.inkSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // 2. Code, Title & Conditions on 2 tight lines
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      v.code,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        color: AdminColors.ink,
+                      ),
+                    ),
+                    Text(
+                      '· ${v.title}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AdminColors.ink,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '$maxText$minText · Đối tượng: ${v.audienceSummary} · HSD: ${DateFormat('dd/MM/yyyy').format(v.expires)}',
+                  softWrap: true,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AdminColors.inkSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // 3. Single Status Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusBg,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              statusLabel,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: statusColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // 4. Compact Switch + Edit + Delete
+          SizedBox(
+            height: 28,
+            child: FittedBox(
+              child: Switch(
+                value: v.active,
+                activeColor: AdminColors.forest,
+                onChanged: (val) =>
+                    widget.controller.toggleVoucherActive(v, val),
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Chỉnh sửa',
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+            onPressed: () => _openEditor(existing: v),
+            icon: const Icon(
+              Iconsax.edit_2,
+              size: 16,
+              color: AdminColors.inkSecondary,
+            ),
+          ),
+          IconButton(
+            tooltip: 'Xóa voucher',
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+            onPressed: () async {
+              final ok = await showAdminConfirmDialog(
+                context,
+                title: 'Xóa voucher ${v.code}?',
+                message: 'Mã giảm giá này sẽ bị xóa khỏi hệ thống.',
+              );
+              if (ok) {
+                await widget.controller.deleteVoucher(v);
+              }
+            },
+            icon: const Icon(
+              Iconsax.trash,
+              size: 16,
+              color: AdminColors.rose,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListGroupCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required List<AdminVoucherRecord> items,
+  }) {
+    return AdminCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 13, 16, 11),
+            child: Row(
+              children: [
+                Icon(icon, size: 17, color: AdminColors.ink),
+                const SizedBox(width: 8),
+                Text(
+                  '$title (${items.length})',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AdminColors.ink,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AdminColors.inkSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AdminColors.border),
+          if (items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              child: Text(
+                'Chưa có mã nào trong nhóm này.',
+                style: TextStyle(fontSize: 12.5, color: AdminColors.inkMuted),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, color: AdminColors.border),
+              itemBuilder: (_, idx) => _buildCompactVoucherRow(items[idx]),
+            ),
         ],
       ),
     );
@@ -578,24 +989,42 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
       final all = widget.controller.vouchers;
       final cfg = widget.controller.automation.value;
       final q = _query.trim().toLowerCase();
-      final filtered = all.where((v) {
-        if (_audienceFilter != 'all' && v.targetAudience != _audienceFilter) return false;
+
+      final audienceFiltered = all.where((v) {
+        if (_audienceFilter != 'all' && v.targetAudience != _audienceFilter) {
+          return false;
+        }
         if (q.isEmpty) return true;
-        return v.code.toLowerCase().contains(q) || v.title.toLowerCase().contains(q);
+        return v.code.toLowerCase().contains(q) ||
+            v.title.toLowerCase().contains(q);
       }).toList();
 
+      final shippingList =
+          audienceFiltered.where((v) => v.shipping).toList();
+      final productList =
+          audienceFiltered.where((v) => !v.shipping).toList();
+
       final newCount = widget.controller
-          .usersMatchingVoucherAudience(targetAudience: 'newMember', excludeBomHang: true)
+          .usersMatchingVoucherAudience(
+              targetAudience: 'newMember', excludeBomHang: true)
           .length;
       final allCleanCount = widget.controller
-          .usersMatchingVoucherAudience(targetAudience: 'all', excludeBomHang: true)
+          .usersMatchingVoucherAudience(
+              targetAudience: 'all', excludeBomHang: true)
           .length;
       final vipCount = widget.controller
-          .usersMatchingVoucherAudience(targetAudience: 'vip', excludeBomHang: true)
+          .usersMatchingVoucherAudience(
+              targetAudience: 'vip', excludeBomHang: true)
           .length;
 
+      final typeTabs = [
+        ('all', 'Tất cả (${audienceFiltered.length})'),
+        ('shipping', 'Mã Freeship (${shippingList.length})'),
+        ('product', 'Mã Giảm giá SP (${productList.length})'),
+      ];
+
       return SingleChildScrollView(
-        padding: EdgeInsets.all(width < 700 ? 16 : 28),
+        padding: EdgeInsets.all(width < 700 ? 16 : 24),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1440),
@@ -603,357 +1032,256 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AdminSectionToolbar(
-                  title: 'Quản lý Voucher & Ưu đãi tự động (${all.length})',
+                  title: 'Quản lý Voucher (${all.length})',
                   subtitle:
-                      'Phát mã giảm giá theo đúng phân khúc khách hàng (Mới, Lâu năm, VIP, chọn riêng), tự động tránh tài khoản bom hàng và phát dịp Lễ.',
+                      'Chia 2 nhóm độc lập: Mã Miễn phí vận chuyển & Mã Giảm giá sản phẩm (khách được áp tối đa 1 mã mỗi loại).',
                   actions: [
                     AdminSearchField(
-                      hint: 'Tìm mã voucher, tên chương trình...',
-                      width: 240,
+                      hint: 'Tìm mã hoặc tên chương trình...',
+                      width: 230,
                       onChanged: (v) => setState(() => _query = v),
                     ),
+                    OutlinedButton.icon(
+                      onPressed: () => _openEditor(defaultShipping: true),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AdminColors.ink,
+                        side: const BorderSide(color: AdminColors.borderStrong),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: const Icon(Icons.local_shipping_outlined, size: 17),
+                      label: const Text(
+                        '+ Mã Freeship',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                     AdminPrimaryButton(
-                      label: 'Tạo Voucher mới',
+                      label: '+ Mã Giảm giá SP',
                       icon: Iconsax.ticket_discount,
-                      onPressed: () => _openEditor(),
+                      onPressed: () => _openEditor(defaultShipping: false),
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
 
-                // Auto Voucher Panel
-                AdminCard(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // Slim 1-bar Auto-Voucher Strip (compact, zero screen bloat)
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AdminColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AdminColors.border),
+                  ),
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       const Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_awesome_rounded, size: 19, color: AdminColors.forest),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Chế độ Tự động phát Voucher (Ngày lễ · Thành viên mới · Khách VIP)',
-                              style: TextStyle(
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w700,
-                                color: AdminColors.ink,
-                              ),
+                          Icon(
+                            Iconsax.flash_1,
+                            size: 16,
+                            color: AdminColors.forest,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Phát tự động:',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AdminColors.ink,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Bật/tắt tự động hoặc bấm "Phát & Báo ngay" để tự tạo mã, cấp vào Ví Voucher đúng nhóm khách (tự loại bom hàng) và đẩy thông báo tức thì.',
-                        style: TextStyle(fontSize: 12, color: AdminColors.inkSecondary),
+                      _compactAutoChip(
+                        label: 'Thành viên mới',
+                        percent: cfg.welcomePercent,
+                        targetCount: newCount,
+                        enabled: cfg.autoWelcomeVoucher,
+                        onToggle: (v) =>
+                            widget.controller.saveAutomationSettings(
+                          cfg.copyWith(autoWelcomeVoucher: v),
+                        ),
+                        onIssueNow: () async {
+                          setState(() => _autoBusy = true);
+                          await widget.controller
+                              .issueAutoVoucherNow('new_member');
+                          if (mounted) setState(() => _autoBusy = false);
+                        },
                       ),
-                      const SizedBox(height: 14),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final cols = constraints.maxWidth >= 960 ? 3 : 1;
-                          final itemW = (constraints.maxWidth - (cols - 1) * 14) / cols;
-                          return Wrap(
-                            spacing: 14,
-                            runSpacing: 14,
-                            children: [
-                              SizedBox(
-                                width: itemW,
-                                child: _autoRuleCard(
-                                  icon: Iconsax.user_add,
-                                  title: 'Auto Thành viên mới',
-                                  subtitle: 'Tự động tặng mã chào mừng cho khách mới đăng ký chưa có đơn.',
-                                  enabled: cfg.autoWelcomeVoucher,
-                                  percent: cfg.welcomePercent,
-                                  targetCount: newCount,
-                                  onToggle: (v) => widget.controller.saveAutomationSettings(
-                                    cfg.copyWith(autoWelcomeVoucher: v),
-                                  ),
-                                  onIssueNow: () async {
-                                    setState(() => _autoBusy = true);
-                                    await widget.controller.issueAutoVoucherNow('new_member');
-                                    if (mounted) setState(() => _autoBusy = false);
-                                  },
-                                ),
-                              ),
-                              SizedBox(
-                                width: itemW,
-                                child: _autoRuleCard(
-                                  icon: Iconsax.calendar_tick,
-                                  title: 'Auto Voucher Ngày lễ',
-                                  subtitle: 'Tự động phát dịp Lễ VN (Tết, 8/3, 30/4, 2/9, 20/11, Noel...) trừ bom hàng.',
-                                  enabled: cfg.autoHolidayVoucher,
-                                  percent: cfg.holidayPercent,
-                                  targetCount: allCleanCount,
-                                  onToggle: (v) => widget.controller.saveAutomationSettings(
-                                    cfg.copyWith(autoHolidayVoucher: v),
-                                  ),
-                                  onIssueNow: () async {
-                                    setState(() => _autoBusy = true);
-                                    await widget.controller.issueAutoVoucherNow('holiday');
-                                    if (mounted) setState(() => _autoBusy = false);
-                                  },
-                                ),
-                              ),
-                              SizedBox(
-                                width: itemW,
-                                child: _autoRuleCard(
-                                  icon: Iconsax.crown_1,
-                                  title: 'Auto Tri ân Khách VIP',
-                                  subtitle: 'Tặng đặc quyền giảm sâu cho khách VIP đã mua ≥ 3 đơn hoặc chi tiêu cao.',
-                                  enabled: cfg.autoVipVoucher,
-                                  percent: cfg.vipPercent,
-                                  targetCount: vipCount,
-                                  onToggle: (v) => widget.controller.saveAutomationSettings(
-                                    cfg.copyWith(autoVipVoucher: v),
-                                  ),
-                                  onIssueNow: () async {
-                                    setState(() => _autoBusy = true);
-                                    await widget.controller.issueAutoVoucherNow('vip');
-                                    if (mounted) setState(() => _autoBusy = false);
-                                  },
-                                ),
-                              ),
-                            ],
-                          );
+                      _compactAutoChip(
+                        label: 'Dịp Lễ VN',
+                        percent: cfg.holidayPercent,
+                        targetCount: allCleanCount,
+                        enabled: cfg.autoHolidayVoucher,
+                        onToggle: (v) =>
+                            widget.controller.saveAutomationSettings(
+                          cfg.copyWith(autoHolidayVoucher: v),
+                        ),
+                        onIssueNow: () async {
+                          setState(() => _autoBusy = true);
+                          await widget.controller
+                              .issueAutoVoucherNow('holiday');
+                          if (mounted) setState(() => _autoBusy = false);
+                        },
+                      ),
+                      _compactAutoChip(
+                        label: 'Tri ân VIP',
+                        percent: cfg.vipPercent,
+                        targetCount: vipCount,
+                        enabled: cfg.autoVipVoucher,
+                        onToggle: (v) =>
+                            widget.controller.saveAutomationSettings(
+                          cfg.copyWith(autoVipVoucher: v),
+                        ),
+                        onIssueNow: () async {
+                          setState(() => _autoBusy = true);
+                          await widget.controller.issueAutoVoucherNow('vip');
+                          if (mounted) setState(() => _autoBusy = false);
                         },
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
 
-                // Filter chips by target member group
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: Text('Tất cả (${all.length})'),
-                      selected: _audienceFilter == 'all',
-                      onSelected: (_) => setState(() => _audienceFilter = 'all'),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Thành viên mới'),
-                      selected: _audienceFilter == 'newMember',
-                      onSelected: (_) => setState(() => _audienceFilter = 'newMember'),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Khách lâu năm'),
-                      selected: _audienceFilter == 'loyal',
-                      onSelected: (_) => setState(() => _audienceFilter = 'loyal'),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Khách VIP'),
-                      selected: _audienceFilter == 'vip',
-                      onSelected: (_) => setState(() => _audienceFilter = 'vip'),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Tặng riêng từng khách'),
-                      selected: _audienceFilter == 'specific',
-                      onSelected: (_) => setState(() => _audienceFilter = 'specific'),
-                    ),
-                  ],
+                // Colorless underline Type Tabs + Audience Filter on one clean bar
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AdminColors.border),
+                  ),
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 16,
+                    runSpacing: 8,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (var i = 0; i < typeTabs.length; i++) ...[
+                            if (i > 0) const SizedBox(width: 22),
+                            InkWell(
+                              onTap: () =>
+                                  setState(() => _typeFilter = typeTabs[i].$1),
+                              child: Container(
+                                height: 44,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: _typeFilter == typeTabs[i].$1
+                                          ? AdminColors.ink
+                                          : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  typeTabs[i].$2,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: _typeFilter == typeTabs[i].$1
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: _typeFilter == typeTabs[i].$1
+                                        ? AdminColors.ink
+                                        : AdminColors.inkSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _audienceFilter,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AdminColors.ink,
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'all',
+                              child: Text('Đối tượng: Tất cả'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'newMember',
+                              child: Text('Đối tượng: Thành viên mới'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'loyal',
+                              child: Text('Đối tượng: Khách lâu năm'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'vip',
+                              child: Text('Đối tượng: Khách VIP'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'specific',
+                              child: Text('Đối tượng: Tặng riêng'),
+                            ),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _audienceFilter = v ?? 'all'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
 
-                if (filtered.isEmpty)
+                // Compact Vertical Lists separated into 2 clear categories
+                if (audienceFiltered.isEmpty)
                   AdminCard(
                     child: AdminEmptyState(
                       icon: Iconsax.ticket_discount,
-                      title: 'Chưa có voucher nào ở mục này',
+                      title: 'Chưa có voucher nào phù hợp',
                       subtitle:
-                          'Tạo mã giảm giá mới hoặc dùng nút "Phát & Báo ngay" ở khung tự động phía trên.',
+                          'Bấm "+ Mã Freeship" hoặc "+ Mã Giảm giá SP" ở góc trên để tạo mới.',
                       action: AdminPrimaryButton(
-                        label: 'Tạo Voucher mới',
+                        label: '+ Tạo Voucher mới',
                         icon: Iconsax.ticket_discount,
                         onPressed: () => _openEditor(),
                       ),
                     ),
                   )
-                else
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final cols = constraints.maxWidth >= 1100
-                          ? 3
-                          : constraints.maxWidth >= 700
-                              ? 2
-                              : 1;
-                      final cardWidth = (constraints.maxWidth - (cols - 1) * 16) / cols;
-                      return Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
-                        children: filtered.map((v) {
-                          final expired = v.isExpired;
-                          final isLive = v.active && !expired;
-                          return SizedBox(
-                            width: cardWidth,
-                            child: AdminCard(
-                              padding: EdgeInsets.zero,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(18),
-                                    decoration: BoxDecoration(
-                                      color: isLive ? AdminColors.forest : AdminColors.surfaceMuted,
-                                      borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(15),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                v.shipping ? 'MIỄN PHÍ SHIP' : 'GIẢM ${v.percent}%',
-                                                style: TextStyle(
-                                                  fontSize: 21,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: isLive
-                                                      ? AdminColors.sage
-                                                      : AdminColors.inkMuted,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                v.code,
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w700,
-                                                  letterSpacing: 1.4,
-                                                  color: isLive
-                                                      ? Colors.white
-                                                      : AdminColors.inkSecondary,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        AdminBadge(
-                                          label: expired
-                                              ? 'Hết hạn'
-                                              : v.active
-                                                  ? 'Đang chạy'
-                                                  : 'Tạm tắt',
-                                          color: expired
-                                              ? AdminColors.rose
-                                              : v.active
-                                                  ? AdminColors.emerald
-                                                  : AdminColors.inkSecondary,
-                                          bgColor: expired
-                                              ? AdminColors.roseBg
-                                              : v.active
-                                                  ? AdminColors.emeraldBg
-                                                  : Colors.white,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(18),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: [
-                                            AdminBadge(
-                                              label: v.audienceSummary,
-                                              color: AdminColors.forest,
-                                              bgColor: AdminColors.sageSoft,
-                                              icon: Iconsax.people,
-                                            ),
-                                            if (v.autoTag.isNotEmpty)
-                                              const AdminBadge(
-                                                label: 'AUTO',
-                                                color: Color(0xFFB45309),
-                                                bgColor: Color(0xFFFEF3C7),
-                                                icon: Icons.auto_awesome_rounded,
-                                              ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                          v.title,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: AdminColors.ink,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        if (!v.shipping)
-                                          Text(
-                                            'Giảm tối đa: ${widget.controller.formatMoney(v.maxUsd)}',
-                                            style: const TextStyle(
-                                                fontSize: 12.5,
-                                                color: AdminColors.inkSecondary),
-                                          ),
-                                        Text(
-                                          'Đơn tối thiểu: ${v.minUsd > 0 ? widget.controller.formatMoney(v.minUsd) : 'Không yêu cầu'}',
-                                          style: const TextStyle(
-                                              fontSize: 12.5,
-                                              color: AdminColors.inkSecondary),
-                                        ),
-                                        Text(
-                                          'HSD: ${DateFormat('dd/MM/yyyy').format(v.expires)}',
-                                          style: const TextStyle(
-                                              fontSize: 12, color: AdminColors.inkMuted),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        const Divider(height: 1),
-                                        const SizedBox(height: 6),
-                                        Row(
-                                          children: [
-                                            Switch(
-                                              value: v.active,
-                                              activeColor: AdminColors.forest,
-                                              onChanged: (val) => widget.controller
-                                                  .toggleVoucherActive(v, val),
-                                            ),
-                                            const Spacer(),
-                                            IconButton(
-                                              tooltip: 'Chỉnh sửa',
-                                              onPressed: () => _openEditor(existing: v),
-                                              icon: const Icon(Iconsax.edit_2,
-                                                  size: 18, color: AdminColors.forest),
-                                            ),
-                                            IconButton(
-                                              tooltip: 'Xóa voucher',
-                                              onPressed: () async {
-                                                final ok = await showAdminConfirmDialog(
-                                                  context,
-                                                  title: 'Xóa voucher ${v.code}?',
-                                                  message:
-                                                      'Mã giảm giá này sẽ bị xóa khỏi hệ thống.',
-                                                );
-                                                if (ok) {
-                                                  await widget.controller.deleteVoucher(v);
-                                                }
-                                              },
-                                              icon: const Icon(Iconsax.trash,
-                                                  size: 18, color: AdminColors.rose),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
+                else ...[
+                  if (_typeFilter == 'all' || _typeFilter == 'shipping') ...[
+                    _buildListGroupCard(
+                      icon: Icons.local_shipping_outlined,
+                      title: 'Mã Miễn phí vận chuyển (Freeship)',
+                      subtitle: 'Khách áp tối đa 1 mã vận chuyển / đơn',
+                      items: shippingList,
+                    ),
+                    if (_typeFilter == 'all') const SizedBox(height: 14),
+                  ],
+                  if (_typeFilter == 'all' || _typeFilter == 'product')
+                    _buildListGroupCard(
+                      icon: Iconsax.discount_shape,
+                      title: 'Mã Giảm giá sản phẩm',
+                      subtitle: 'Khách áp tối đa 1 mã giảm giá SP / đơn',
+                      items: productList,
+                    ),
+                ],
               ],
             ),
           ),

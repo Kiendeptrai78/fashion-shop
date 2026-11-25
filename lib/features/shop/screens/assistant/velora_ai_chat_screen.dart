@@ -1,3 +1,4 @@
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 import 'package:fashion_business_app/features/personalization/screens/account/coupons_screen.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
@@ -63,12 +64,8 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
       id: 'welcome_0',
       isUser: false,
       text: isEn
-          ? 'Hi! I’m VELORA AI Assistant. Ask me anything — check your live orders, request size exchange/returns, calculate your EU size from cm or height/weight, check shipping time to your city, or find sneakers by exact budget!'
-          : 'Xin chào! Mình là Trợ lý AI thông minh của VELORA. Bạn hỏi gì mình sẽ trả lời đúng trọng tâm vấn đề đó:\n'
-              '• Kiểm tra trực tiếp đơn hàng của bạn đang ở đâu, bao giờ giao & quy định hủy đơn\n'
-              '• Hướng dẫn Đổi size / Đổi mới 1-1 / Hoàn tiền & kết nối Chat 1-1 với VELORA\n'
-              '• Tính size EU chuẩn từ chiều dài chân (cm) hoặc chiều cao + cân nặng\n'
-              '• Lọc giày chuẩn theo mục đích (Chạy bộ, Hằng ngày, Tập gym, Bóng rổ, Địa hình), màu sắc & tầm giá',
+          ? 'Hi, I’m VELORA’s sneaker assistant. Tell me your budget and how you plan to use your next pair. I’ll consult the shop’s current catalog. Gemini processes advice messages; please leave out personal and payment details.'
+          : 'Mình là trợ lý tư vấn giày VELORA. Bạn định mang giày đi đâu và có ngân sách bao nhiêu? Mình sẽ xem dữ liệu sản phẩm hiện có của shop để tư vấn. Gemini xử lý nội dung tư vấn; bạn đừng nhập thông tin cá nhân hoặc thanh toán nhé.',
       showOrdersShortcut: true,
       showSupportChatShortcut: true,
       followUpPrompts: isEn
@@ -205,12 +202,12 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                 ),
               ),
               const SizedBox(width: 11),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ShopText(
+                    const ShopText(
                       'VELORA AI Stylist',
                       style: TextStyle(
                         fontSize: 16,
@@ -219,8 +216,10 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                       ),
                     ),
                     ShopText(
-                      'Smart sneaker finder',
-                      style: TextStyle(
+                      (Get.locale?.languageCode ?? 'vi') == 'en'
+                          ? 'Gemini · Advice from our catalog'
+                          : 'Gemini · Tư vấn từ sản phẩm của shop',
+                      style: const TextStyle(
                         fontSize: 11,
                         color: Color(0xFFDDEABB),
                       ),
@@ -542,12 +541,14 @@ class _VeloraAiChatScreenState extends State<VeloraAiChatScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        msg.text.replaceAll('**', ''),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontSize: 13.5,
-                          height: 1.52,
+                      MarkdownBody(
+                        data: msg.text, selectable: true,
+                        styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+                          p: theme.textTheme.bodyMedium?.copyWith(fontSize: 13.5, height: 1.6),
+                          strong: const TextStyle(fontWeight: FontWeight.w700),
                         ),
+                        onTapLink: (_, __, ___) {},
+                        sizedImageBuilder: (_) => const SizedBox.shrink(),
                       ),
                       if (hasAnyShortcut) ...[
                         const SizedBox(height: 12),

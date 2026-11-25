@@ -1,6 +1,7 @@
 import {initializeApp, applicationDefault} from 'firebase-admin/app';
 import {getFirestore, FieldValue, Timestamp} from 'firebase-admin/firestore';
 import {getMessaging} from 'firebase-admin/messaging';
+import {pendingWatch} from './pending-watch.mjs';
 import {orderNotice, productNotice, inboxNotice, messageFor, topicMessageFor} from './messages.mjs';
 
 initializeApp({credential: applicationDefault()});
@@ -162,7 +163,7 @@ async function processDocument(doc, kind) {
 
 // Per-user subcollection listeners work out-of-the-box without requiring
 // manual Firestore collection-group single-field indexes.
-function watchUser(uid) {
+function watchUser(uid, ignoreExisting = false) {
   if (userStops.has(uid)) return;
   trackedUserIds.add(uid);
   const userRef = db.collection('Users').doc(uid);
@@ -171,11 +172,7 @@ function watchUser(uid) {
     .collection('Notifications')
     .where('pushPending', '==', true)
     .onSnapshot(
-      snapshot => {
-        for (const change of snapshot.docChanges()) {
-          if (change.type !== 'removed') processDocument(change.doc, 'inbox');
-        }
-      },
+      pendingWatch('inbox', newOnly && ignoreExisting, previousQueue, processDocument),
       error => console.error('Notification listener (inbox):', uid, error.code ?? error.message),
     );
 
@@ -183,11 +180,7 @@ function watchUser(uid) {
     .collection('Orders')
     .where('notificationPending', '==', true)
     .onSnapshot(
-      snapshot => {
-        for (const change of snapshot.docChanges()) {
-          if (change.type !== 'removed') processDocument(change.doc, 'order');
-        }
-      },
+      pendingWatch('order', newOnly && ignoreExisting, previousQueue, processDocument),
       error => console.error('Notification listener (order):', uid, error.code ?? error.message),
     );
 
@@ -206,12 +199,14 @@ function unwatchUser(uid) {
   }
 }
 
+let initialUsersSnapshot = true;
 const stopUsers = db.collection('Users').onSnapshot(
   snapshot => {
     for (const change of snapshot.docChanges()) {
       if (change.type === 'removed') unwatchUser(change.doc.id);
-      else watchUser(change.doc.id);
+      else watchUser(change.doc.id, initialUsersSnapshot);
     }
+    initialUsersSnapshot = false;
     console.info(`VELORA Push Worker active • watching ${trackedUserIds.size} user(s)`);
   },
   error => console.error('Users listener error:', error.code ?? error.message),
@@ -221,11 +216,7 @@ const stopProducts = db
   .collection('Products')
   .where('notificationPending', '==', true)
   .onSnapshot(
-    snapshot => {
-      for (const change of snapshot.docChanges()) {
-        if (change.type !== 'removed') processDocument(change.doc, 'product');
-      }
-    },
+    pendingWatch('product', newOnly, previousQueue, processDocument),
     error => console.error('Notification listener (product):', error.code ?? error.message),
   );
 
@@ -233,13 +224,19 @@ const stopProducts = db
 const recovery = setInterval(async () => {
   try {
     const prodSnap = await db.collection('Products').where('notificationPending', '==', true).get();
-    for (const doc of prodSnap.docs) await processDocument(doc, 'product');
+    for (const doc of prodSnap.docs) {
+        if (!previousQueue.has(doc.ref.path)) await processDocument(doc, 'product');
+      }
     for (const uid of trackedUserIds) {
       const userRef = db.collection('Users').doc(uid);
       const notifSnap = await userRef.collection('Notifications').where('pushPending', '==', true).get();
-      for (const doc of notifSnap.docs) await processDocument(doc, 'inbox');
+      for (const doc of notifSnap.docs) {
+        if (!previousQueue.has(doc.ref.path)) await processDocument(doc, 'inbox');
+      }
       const orderSnap = await userRef.collection('Orders').where('notificationPending', '==', true).get();
-      for (const doc of orderSnap.docs) await processDocument(doc, 'order');
+      for (const doc of orderSnap.docs) {
+        if (!previousQueue.has(doc.ref.path)) await processDocument(doc, 'order');
+      }
     }
   } catch (error) {
     console.error('Notification recovery:', error.code ?? error.message);

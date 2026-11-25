@@ -1,4 +1,8 @@
 import 'dart:math';
+import 'package:intl/intl.dart';
+import '../models/velora_ai_reply.dart';
+import 'velora_gemini_assistant.dart';
+export '../models/velora_ai_reply.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
@@ -9,37 +13,19 @@ import 'package:fashion_business_app/features/shop/models/return_request_model.d
 import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
+import 'package:fashion_business_app/utils/localization/shop_translations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_ai/firebase_ai.dart' show FirebaseAIException;
 import 'package:get/get.dart';
 
-class VeloraAiReply {
-  const VeloraAiReply({
-    required this.text,
-    this.products = const [],
-    this.showVoucherShortcut = false,
-    this.showOrdersShortcut = false,
-    this.showReturnsShortcut = false,
-    this.showSupportChatShortcut = false,
-    this.showCartShortcut = false,
-    this.followUpPrompts = const [],
-  });
-
-  final String text;
-  final List<ProductModel> products;
-  final bool showVoucherShortcut;
-  final bool showOrdersShortcut;
-  final bool showReturnsShortcut;
-  final bool showSupportChatShortcut;
-  final bool showCartShortcut;
-  final List<String> followUpPrompts;
-}
-
 class VeloraAiService {
-  VeloraAiService({FirebaseFirestore? db})
-      : _db = db ?? FirebaseFirestore.instance;
+  VeloraAiService({FirebaseFirestore? db, this.loadUserOrders}) : _firestore = db;
 
-  final FirebaseFirestore _db;
+  final FirebaseFirestore? _firestore;
+  FirebaseFirestore get _db => _firestore ?? FirebaseFirestore.instance;
+  final Future<List<OrderModel>?> Function()? loadUserOrders;
+  final _gemini = VeloraGeminiAssistant();
   List<ProductModel>? _cachedProducts;
   DateTime? _cacheTime;
 
@@ -59,7 +45,7 @@ class VeloraAiService {
     'Gợi ý giày đi du lịch đi bộ cả ngày không đau chân',
     'Tư vấn quà tặng giày cho người yêu',
     'Giày chân bè đi không bị đau mũi',
-    'Cao 1m72 nặng 68kg thường đi size mấy?',
+    'Chọn size thế nào khi chân mình hơi bè?',
     'Giày thoáng khí cho mùa hè không bí chân',
     'Tầm giá từ 2 đến 3 triệu có đôi nào đẹp?',
     'Giày màu đen dễ vệ sinh đi mưa',
@@ -148,7 +134,7 @@ class VeloraAiService {
       final ch = lower[i];
       buf.write(map[ch] ?? ch);
     }
-    return buf.toString();
+    return buf.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   static double _effectivePrice(ProductModel p) =>
@@ -371,6 +357,181 @@ class VeloraAiService {
   }
 
   Future<VeloraAiReply> ask(String query, {String language = 'vi'}) async {
+    final text = query.trim();
+    if (text.isEmpty) return _askLocal(text, language: language);
+    final norm = _normalize(text);
+    if (_isOrderQuery(norm) && !_isReturnQuery(norm)) {
+      _gemini.clearHistory();
+      return _answerOrders(norm, language: language);
+    }
+    if (VeloraGeminiAssistant.containsPersonalData(text)) {
+      return VeloraAiReply(text: language == 'en'
+          ? 'Please leave out personal or payment details. I only need your preferred style, budget and shoe size.'
+          : 'Bạn không cần gửi thông tin cá nhân hoặc thanh toán. Mình chỉ cần biết kiểu giày, ngân sách và size bạn đang tìm.',
+          showSupportChatShortcut: true);
+    }
+    if (handlesLocally(text)) {
+      _gemini.clearHistory();
+      return _askLocal(text, language: language);
+    }
+    try {
+      final norm = _normalize(text);
+      Query<Map<String, dynamic>> query = _db.collection('Products');
+      final category = _categoryAliases.entries.where((entry) =>
+          entry.value.any((alias) => norm.contains(alias))).firstOrNull?.key;
+      if (category != null) {
+        final categories = await _db.collection('Categories').limit(40).get();
+        final match = categories.docs.where((doc) {
+          final name = _normalize((doc.data()['Name'] ?? '').toString());
+          return name == _normalize(category) || name == _normalize(_viCat(category));
+        }).firstOrNull;
+        if (match != null) query = query.where('CategoryId', isEqualTo: match.id);
+      }
+      final snapshot = await query.limit(41).get();
+      final recentIds = _gemini.recentProductIds;
+      final recent = recentIds.isEmpty ? <ProductModel>[] :
+          (await _db.collection('Products').where(FieldPath.documentId, whereIn: recentIds).get())
+              .docs.map(ProductModel.fromSnapshot).toList();
+      final products = [...recent,
+        ...snapshot.docs.map(ProductModel.fromSnapshot).where((p) => !recentIds.contains(p.id)),
+      ].take(40).toList();
+      final reply = await _gemini.ask(text, language: language, products: products,
+          catalogIsPartial: snapshot.docs.length > 40 || category != null);
+      if (reply.products.isNotEmpty) {
+        _recordUserInterest(query: text,
+            categories: reply.products.map((p) => p.categoryName).toSet().toList(),
+            categoryIds: reply.products.map((p) => p.categoryId).where((id) => id.isNotEmpty).toSet().toList(),
+            colors: const [], maxBudgetUsd: null);
+      }
+      return reply;
+    } catch (error) {
+      if (error is FirebaseAIException &&
+          RegExp(r'quota|resource_exhausted|429', caseSensitive: false).hasMatch(error.message)) {
+        return VeloraAiReply(text: language == 'en'
+            ? 'The assistant has reached its request limit. Please try again later or chat with VELORA support.'
+            : 'Trợ lý đang đạt giới hạn lượt tư vấn. Bạn quay lại sau hoặc nhắn CSKH VELORA nhé.',
+            showSupportChatShortcut: true);
+      }
+      return VeloraAiReply(text: language == 'en'
+          ? 'I couldn’t connect to the assistant right now. Please try again or chat with VELORA support.'
+          : 'Mình chưa kết nối được trợ lý lúc này. Bạn thử lại hoặc nhắn CSKH VELORA nhé.',
+          showSupportChatShortcut: true);
+    }
+  }
+
+  static bool _isOrderQuery(String norm) => const [
+    'don hang', 'don cua', 'don nay', 'don do', 'don ay', 'kiem tra don', 'huy don',
+    'don gan nhat', 'don moi nhat', 'don vua dat', 'don vua mua', 'don cuoi', 'don gan day',
+    'my order', 'current order', 'latest order', 'last order', 'most recent order',
+    'recent order', 'that order', 'order details', 'order information', 'order info',
+    'order status', 'track order', 'cancel order', 'show orders', 'all orders',
+    'last purchase', 'latest purchase',
+  ].any(norm.contains) || norm.trim() == 'orders' || norm.trim() == 'order';
+
+  static bool _isReturnQuery(String norm) => const [
+    'doi tra', 'doi size', 'doi giay', 'tra hang', 'hoan tien', 'bao hanh', 'giao sai',
+    'giay loi', 'bi loi', 'bi chat', 'bi rong', 'return', 'exchange', 'refund',
+  ].any(norm.contains);
+
+  static bool handlesLocally(String query) {
+    final norm = _normalize(query);
+    return _isOrderQuery(norm) || _isReturnQuery(norm) || const [
+      'gio hang', 'trong gio', 'cart', 'thanh toan', 'chuyen khoan', 'ship cod', 'ngan hang',
+      'so tai khoan', 'mat khau', 'dia chi cua', 'ship', 'giao hang', 'voucher', 'ma giam',
+      'coupon', 'freeship',
+    ].any(norm.contains);
+  }
+
+  Future<List<OrderModel>?> _readUserOrders() async {
+    if (loadUserOrders != null) return loadUserOrders!();
+    final user = Firebase.apps.isNotEmpty ? FirebaseAuth.instance.currentUser : null;
+    if (user == null) return null;
+    final snapshot = await _db.collection('Users').doc(user.uid).collection('Orders')
+        .get(const GetOptions(source: Source.server));
+    return snapshot.docs.map(OrderModel.fromSnapshot).toList();
+  }
+
+  Future<VeloraAiReply> _answerOrders(String norm, {required String language}) async {
+    final isEn = language == 'en';
+    List<OrderModel>? records;
+    try {
+      records = await _readUserOrders().timeout(const Duration(seconds: 15));
+    } catch (_) {
+      return VeloraAiReply(text: isEn
+          ? 'I couldn’t load your orders right now. Please try again or open My Orders.'
+          : 'Mình chưa đọc được dữ liệu đơn hàng của bạn lúc này. Bạn thử lại hoặc mở mục Đơn hàng của tôi nhé.',
+          showOrdersShortcut: true);
+    }
+    if (records == null) {
+      return VeloraAiReply(text: isEn
+          ? 'Please sign in to view your most recent order.'
+          : 'Bạn cần đăng nhập để mình xem đơn hàng gần nhất trong tài khoản của bạn.');
+    }
+    if (records.isEmpty) {
+      return VeloraAiReply(text: isEn
+          ? 'Your account does not have any orders yet.'
+          : 'Tài khoản của bạn hiện chưa có đơn hàng nào.', showOrdersShortcut: true);
+    }
+    final orders = List<OrderModel>.of(records)
+      ..sort((a, b) => b.orderDate.compareTo(a.orderDate));
+    final latest = const ['gan nhat', 'moi nhat', 'vua dat', 'vua mua', 'cuoi cung',
+      'latest', 'last order', 'most recent', 'last purchase'].any(norm.contains);
+    final wantsList = !latest && const ['tat ca', 'danh sach', 'cac don', 'lich su',
+      'all orders', 'my orders', 'list', 'history'].any(norm.contains);
+    final buffer = StringBuffer();
+    if (wantsList) {
+      final recent = orders.take(3).toList();
+      buffer.writeln(isEn
+          ? '**${recent.length} most recent orders** out of ${orders.length}:'
+          : '**${recent.length} đơn hàng gần nhất** trong tổng số ${orders.length} đơn:');
+      for (final order in recent) {
+        buffer.writeln('\n**#${order.id}** · ${DateFormat('dd/MM/yyyy HH:mm').format(order.orderDate)}\n'
+          '${order.itemsSummary(english: isEn)}\n'
+          '${order.orderStatusLabel(english: isEn)} · **${formatShopMoney(order.totalAmount, language: language)}**');
+      }
+      buffer.writeln(isEn ? '\nOpen My Orders below to view the full list.'
+          : '\nBạn mở mục Đơn hàng của tôi bên dưới để xem toàn bộ danh sách.');
+    } else {
+      final order = orders.first;
+      buffer.writeln(isEn ? '**Your most recent order**' : '**Đơn hàng gần nhất của bạn**');
+      buffer.writeln('\n${isEn ? 'Order ID' : 'Mã đơn'}: **${order.id}**');
+      buffer.writeln('${isEn ? 'Placed' : 'Ngày đặt'}: ${DateFormat('dd/MM/yyyy HH:mm').format(order.orderDate)}');
+      buffer.writeln('${isEn ? 'Status' : 'Trạng thái'}: **${order.orderStatusLabel(english: isEn)}**');
+      buffer.writeln(isEn ? '\n**Items**' : '\n**Sản phẩm**');
+      for (final item in order.items) {
+        buffer.writeln('- **${item.title}** ×${item.quantity} · ${formatShopMoney(item.price * item.quantity, language: language)}');
+        final options = (item.selectedVariation?.entries ?? const <MapEntry<String, String>>[])
+            .map((entry) => '${shopTranslate(entry.key, language: language)}: ${entry.value}').join(' · ');
+        if (options.isNotEmpty) buffer.writeln('  $options');
+      }
+      buffer.writeln('\n**${isEn ? 'Order total' : 'Tổng thanh toán'}: ${formatShopMoney(order.totalAmount, language: language)}**');
+      if (order.discountAmount > 0 && order.couponCode.trim().isNotEmpty) {
+        buffer.writeln('${isEn ? 'Voucher' : 'Ưu đãi'}: ${order.couponCode} (-${formatShopMoney(order.discountAmount, language: language)})');
+      }
+      if (order.paymentMethod.trim().isNotEmpty) {
+        buffer.writeln('${isEn ? 'Payment method' : 'Phương thức thanh toán'}: ${shopTranslate(order.paymentMethod, language: language)}');
+      }
+      final address = order.address;
+      if (address != null) {
+        final destination = [address.street, address.state, address.city, address.country]
+            .where((part) => part.trim().isNotEmpty).join(', ');
+        if (destination.isNotEmpty) buffer.writeln('${isEn ? 'Delivery address' : 'Giao đến'}: $destination');
+      }
+      if (norm.contains('huy') || RegExp(r'\bcancel\b').hasMatch(norm)) {
+        buffer.writeln(order.status == OrderStatus.pending
+            ? (isEn ? '\nTo cancel this order, open its details in My Orders and choose Cancel order.'
+                : '\nĐể hủy đơn này, bạn mở chi tiết trong Đơn hàng của tôi và chọn Hủy đơn.')
+            : (isEn ? '\nThis order can no longer be cancelled in the app at its current status.'
+                : '\nVới trạng thái hiện tại, đơn này không còn hủy được trong app.'));
+      }
+    }
+    return VeloraAiReply(text: buffer.toString().trim(), showOrdersShortcut: true,
+      followUpPrompts: isEn
+          ? const ['Show all my orders', 'How do I return or exchange a pair?']
+          : const ['Xem tất cả đơn hàng của tôi', 'Đổi trả sản phẩm như thế nào?']);
+  }
+
+  Future<VeloraAiReply> _askLocal(String query, {String language = 'vi'}) async {
     final trimmed = query.trim();
     final isEn = language == 'en';
     if (trimmed.isEmpty) {
@@ -389,130 +550,9 @@ class VeloraAiService {
         activeProducts.isNotEmpty ? activeProducts : allProducts;
 
     // =========================================================================
-    // 1. LIVE ORDER TRACKING / MY ORDERS / CANCELLATION INQUIRIES
-    // =========================================================================
-    if (norm.contains('don hang') ||
-        norm.contains('don cua toi') ||
-        norm.contains('don cua minh') ||
-        norm.contains('kiem tra don') ||
-        norm.contains('huy don') ||
-        norm.contains('my order') ||
-        norm.contains('cancel order') ||
-        norm.contains('track order')) {
-      final user = Firebase.apps.isNotEmpty
-          ? FirebaseAuth.instance.currentUser
-          : null;
-      if (user != null) {
-        try {
-          final snap = await _db
-              .collection('Users')
-              .doc(user.uid)
-              .collection('Orders')
-              .get();
-          final orders = snap.docs
-              .map(OrderModel.fromSnapshot)
-              .toList()
-            ..sort((a, b) => b.orderDate.compareTo(a.orderDate));
-
-          if (norm.contains('huy don') || norm.contains('cancel')) {
-            final pendingOrders =
-                orders.where((o) => o.status == OrderStatus.pending).toList();
-            final shippingOrders = orders
-                .where((o) =>
-                    o.status == OrderStatus.processing ||
-                    o.status == OrderStatus.shipped)
-                .toList();
-            final buf = StringBuffer();
-            buf.writeln(
-              '📌 Quy định hủy đơn tại VELORA: Bạn **chỉ có thể hủy đơn hàng khi đơn đang ở trạng thái "Chờ xác nhận"**.',
-            );
-            buf.writeln(
-              'Khi đơn đã chuyển sang **Đang đóng gói** hoặc **Đang vận chuyển**, đơn đã xuất kho nên không thể hủy nữa.',
-            );
-            if (pendingOrders.isNotEmpty) {
-              buf.writeln(
-                '\n• Hiện bạn có **${pendingOrders.length} đơn đang Chờ xác nhận** (${pendingOrders.first.itemsSummary()}) — bạn có thể bấm vào Chi tiết đơn hàng để hủy ngay nếu muốn.',
-              );
-            } else if (shippingOrders.isNotEmpty) {
-              buf.writeln(
-                '\n• Đơn hàng hiện tại của bạn (${shippingOrders.first.itemsSummary()}) đã ở bước **${shippingOrders.first.orderStatusLabel()}** nên không thể hủy. Sau khi nhận hàng, nếu cần đổi size hoặc trả hàng bạn có thể tạo yêu cầu **Đổi trả & Bảo hành** miễn phí nhé!',
-              );
-            }
-            return VeloraAiReply(
-              text: buf.toString().trim(),
-              showOrdersShortcut: true,
-              showSupportChatShortcut: true,
-              followUpPrompts: const [
-                'Kiểm tra đơn hàng của tôi đến đâu rồi?',
-                'Mình muốn đổi size / đổi trả giày thì làm thế nào?',
-              ],
-            );
-          }
-
-          if (orders.isEmpty) {
-            return VeloraAiReply(
-              text:
-                  'Mình vừa kiểm tra tài khoản của bạn: hiện bạn chưa có đơn hàng nào tại VELORA. Bạn muốn mình gợi ý một vài mẫu giày đang giảm giá tốt để đặt thử không?',
-              products: poolProducts.take(3).toList(),
-              followUpPrompts: const [
-                'Mẫu nào đang giảm giá sâu nhất?',
-                'Giày chạy bộ dưới 2.5 triệu',
-              ],
-            );
-          }
-
-          final buf = StringBuffer();
-          buf.writeln(
-            '📦 Mình vừa tra cứu trực tiếp **${orders.length} đơn hàng** trong tài khoản của bạn:',
-          );
-          for (final o in orders.take(3)) {
-            final eta = ShippingRouteHelper.estimateForAddress(o.address);
-            final total = formatShopMoney(o.totalAmount, language: language);
-            buf.writeln(
-              '\n• **${o.itemsSummary()}** ($total)\n'
-              '  Trạng thái: **${o.orderStatusLabel()}** — ${o.orderStatusSubtitle()}\n'
-              '  Lộ trình: Tổng Kho Hà Nội → ${eta.destinationCity} (dự kiến ${eta.minDays}–${eta.maxDays} ngày)',
-            );
-          }
-          buf.writeln(
-            '\nBạn có thể bấm nút bên dưới để mở danh sách Đơn hàng hoặc Chat riêng với VELORA nếu cần hỗ trợ về đơn nhé!',
-          );
-          return VeloraAiReply(
-            text: buf.toString().trim(),
-            showOrdersShortcut: true,
-            showSupportChatShortcut: true,
-            followUpPrompts: const [
-              'Mình muốn đổi size / đổi trả giày thì làm thế nào?',
-              'Quy định hủy đơn hàng như thế nào?',
-            ],
-          );
-        } catch (_) {}
-      }
-      return VeloraAiReply(
-        text:
-            'Bạn có thể theo dõi bản đồ hành trình đơn hàng trực tiếp trong mục **Đơn hàng của tôi**. Lưu ý: Đơn hàng chỉ có thể hủy khi đang ở trạng thái **Chờ xác nhận**; khi đã đóng gói hoặc đang giao hàng sẽ không hủy được nữa.',
-        showOrdersShortcut: true,
-        showSupportChatShortcut: true,
-      );
-    }
-
-    // =========================================================================
     // 2. RETURN / EXCHANGE / DEFECTIVE SHOE / WRONG SIZE / WARRANTY INQUIRIES
     // =========================================================================
-    if (norm.contains('doi tra') ||
-        norm.contains('doi size') ||
-        norm.contains('doi giay') ||
-        norm.contains('tra hang') ||
-        norm.contains('hoan tien') ||
-        norm.contains('bao hanh') ||
-        norm.contains('giao sai') ||
-        norm.contains('giay loi') ||
-        norm.contains('bi loi') ||
-        norm.contains('bi chat') ||
-        norm.contains('bi rong') ||
-        norm.contains('return') ||
-        norm.contains('exchange') ||
-        norm.contains('refund')) {
+    if (_isReturnQuery(norm)) {
       final user = Firebase.apps.isNotEmpty
           ? FirebaseAuth.instance.currentUser
           : null;

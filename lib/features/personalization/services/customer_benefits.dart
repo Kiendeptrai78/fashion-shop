@@ -59,10 +59,14 @@ List<ShopCoupon> couponsIssuedOn(DateTime date, {required bool newCustomer}) {
 }
 
 class CheckoutQuote {
-  CheckoutQuote({required this.subtotal, this.discount = 0})
-      : shipping = TPricingCalculator.getShippingCost('US'),
+  CheckoutQuote({
+    required this.subtotal,
+    this.discount = 0,
+    this.productDiscount = 0,
+    this.shippingDiscount = 0,
+  })  : shipping = TPricingCalculator.getShippingCost('US'),
         tax = TPricingCalculator.getTaxRateForLocation('US');
-  final double subtotal, discount, shipping, tax;
+  final double subtotal, discount, productDiscount, shippingDiscount, shipping, tax;
   double get total => max(0, subtotal + shipping + tax - discount);
   int get totalVnd => (total * usdToVnd).round();
 }
@@ -167,11 +171,108 @@ class CustomerBenefits extends GetxController {
   }
   final revision = 0.obs;
   final busy = false.obs;
+  final selectedProductCoupon = Rxn<ShopCoupon>();
+  final selectedShippingCoupon = Rxn<ShopCoupon>();
+  Rxn<ShopCoupon> get selectedCartCoupon => selectedProductCoupon;
+
+  void saveCouponSelection(ShopCoupon coupon) {
+    if (coupon.shipping) {
+      selectedShippingCoupon.value = coupon;
+    } else {
+      selectedProductCoupon.value = coupon;
+    }
+  }
   Map<String, dynamic> _state = {};
   int get balanceVnd { revision.value; return (_state['balance'] as num? ?? 10000000).toInt(); }
   List<ShopCoupon> get coupons {
     revision.value;
     return (_state['coupons'] as List? ?? []).map((data) => ShopCoupon.fromJson(Map<String, dynamic>.from(data))).toList();
+  }
+  List<ShopCoupon> get availableCoupons => coupons
+      .where((c) => !used.contains(c.id) && now().isBefore(c.expires))
+      .toList();
+
+  /// Sorts available coupons Shopee/Grab style:
+  /// - Eligible coupons first, ranked by highest actual savings descending
+  /// - Ineligible coupons below, ranked by smallest remaining spend needed
+  List<ShopCoupon> sortedAvailableFor(double? subtotal) {
+    final list = List<ShopCoupon>.from(availableCoupons);
+    final sub = subtotal ?? 0;
+    list.sort((a, b) {
+      if (sub > 0) {
+        final aOk = eligible(a, sub);
+        final bOk = eligible(b, sub);
+        if (aOk != bOk) return aOk ? -1 : 1;
+        if (aOk && bOk) {
+          final diff = b.discount(sub).compareTo(a.discount(sub));
+          if (diff != 0) return diff;
+          return a.expires.compareTo(b.expires);
+        }
+        final gapA = a.minUsd - sub;
+        final gapB = b.minUsd - sub;
+        final gapDiff = gapA.compareTo(gapB);
+        if (gapDiff != 0) return gapDiff;
+      }
+      // Browse mode (no subtotal): prioritize zero/low minUsd & higher discount value
+      final scoreA = a.shipping ? 12.0 : (a.percent.toDouble() + (a.minUsd == 0 ? 5 : 0));
+      final scoreB = b.shipping ? 12.0 : (b.percent.toDouble() + (b.minUsd == 0 ? 5 : 0));
+      final sDiff = scoreB.compareTo(scoreA);
+      if (sDiff != 0) return sDiff;
+      return a.expires.compareTo(b.expires);
+    });
+    return list;
+  }
+
+  /// Returns the single best recommended coupon for [subtotal] (or top value
+  /// coupon when browsing with `subtotal == null`).
+  ShopCoupon? bestCouponFor(double? subtotal) {
+    final sorted = sortedAvailableFor(subtotal);
+    if (sorted.isEmpty) return null;
+    if (subtotal != null && subtotal > 0) {
+      final first = sorted.first;
+      return eligible(first, subtotal) && first.discount(subtotal) > 0
+          ? first
+          : null;
+    }
+    return sorted.first;
+  }
+
+  List<ShopCoupon> sortedShippingCouponsFor(double? subtotal) =>
+      sortedAvailableFor(subtotal).where((c) => c.shipping).toList();
+
+  List<ShopCoupon> sortedProductCouponsFor(double? subtotal) =>
+      sortedAvailableFor(subtotal).where((c) => !c.shipping).toList();
+
+  ShopCoupon? bestShippingCouponFor(double? subtotal) {
+    final list = sortedShippingCouponsFor(subtotal);
+    if (list.isEmpty) return null;
+    if (subtotal != null && subtotal > 0) {
+      final first = list.first;
+      return eligible(first, subtotal) && first.discount(subtotal) > 0
+          ? first
+          : null;
+    }
+    return list.first;
+  }
+
+  ShopCoupon? bestProductCouponFor(double? subtotal) {
+    final list = sortedProductCouponsFor(subtotal);
+    if (list.isEmpty) return null;
+    if (subtotal != null && subtotal > 0) {
+      final first = list.first;
+      return eligible(first, subtotal) && first.discount(subtotal) > 0
+          ? first
+          : null;
+    }
+    return list.first;
+  }
+
+  ShopCoupon? findAvailableByCode(String rawCode) {
+    final norm = rawCode.trim().toUpperCase();
+    if (norm.isEmpty) return null;
+    return availableCoupons.firstWhereOrNull(
+      (c) => c.id.trim().toUpperCase() == norm,
+    );
   }
   Set<String> get seen => Set<String>.from(_state['seenCoupons'] as List? ?? []);
   int get newCouponCount => coupons.where((coupon) => !seen.contains(coupon.id)
@@ -258,35 +359,122 @@ class CustomerBenefits extends GetxController {
     } finally { busy.value = false; }
   }
 
-  CheckoutQuote quote(double subtotal, ShopCoupon? coupon) => CheckoutQuote(subtotal: subtotal,
-      discount: coupon != null && eligible(coupon, subtotal) ? coupon.discount(subtotal) : 0);
+  CheckoutQuote quote(double subtotal, ShopCoupon? coupon) => CheckoutQuote(
+        subtotal: subtotal,
+        discount: coupon != null && eligible(coupon, subtotal)
+            ? coupon.discount(subtotal)
+            : 0,
+        productDiscount:
+            coupon != null && !coupon.shipping && eligible(coupon, subtotal)
+                ? coupon.discount(subtotal)
+                : 0,
+        shippingDiscount:
+            coupon != null && coupon.shipping && eligible(coupon, subtotal)
+                ? coupon.discount(subtotal)
+                : 0,
+      );
+
+  /// Stackable quote: up to 1 Product Discount coupon + 1 Freeship coupon.
+  CheckoutQuote quoteDual(
+    double subtotal, {
+    ShopCoupon? productCoupon,
+    ShopCoupon? shippingCoupon,
+  }) {
+    final prodOff = (productCoupon != null &&
+            !productCoupon.shipping &&
+            eligible(productCoupon, subtotal))
+        ? productCoupon.discount(subtotal)
+        : 0.0;
+    final shipOff = (shippingCoupon != null &&
+            shippingCoupon.shipping &&
+            eligible(shippingCoupon, subtotal))
+        ? shippingCoupon.discount(subtotal)
+        : 0.0;
+    return CheckoutQuote(
+      subtotal: subtotal,
+      discount: prodOff + shipOff,
+      productDiscount: prodOff,
+      shippingDiscount: shipOff,
+    );
+  }
 
   /// One stable order ID prevents duplicate documents when a checkout is retried.
-  Future<CheckoutQuote> purchase({required String orderId, required double subtotal,
-    required bool bank, ShopCoupon? coupon,
-    required Future<void> Function(CheckoutQuote quote) saveOrder}) async {
+  Future<CheckoutQuote> purchase({
+    required String orderId,
+    required double subtotal,
+    required bool bank,
+    ShopCoupon? coupon,
+    ShopCoupon? shippingCoupon,
+    required Future<void> Function(CheckoutQuote quote) saveOrder,
+  }) async {
     if (busy.value) throw StateError('A checkout is already in progress.');
     busy.value = true;
     try {
       final receipts = Map<String, dynamic>.from(_state['receipts'] as Map? ?? {});
-      final result = quote(subtotal, coupon);
+      final prodC = (coupon != null && !coupon.shipping) ? coupon : null;
+      final shipC = shippingCoupon ?? ((coupon != null && coupon.shipping) ? coupon : null);
+      final result = quoteDual(
+        subtotal,
+        productCoupon: prodC,
+        shippingCoupon: shipC,
+      );
       if (receipts.containsKey(orderId)) {
         final receipt = Map<String, dynamic>.from(receipts[orderId]);
-        return CheckoutQuote(subtotal: (receipt['subtotal'] as num).toDouble(),
-            discount: (receipt['discount'] as num).toDouble());
+        return CheckoutQuote(
+          subtotal: (receipt['subtotal'] as num).toDouble(),
+          discount: (receipt['discount'] as num).toDouble(),
+          productDiscount: (receipt['productDiscount'] as num? ?? 0).toDouble(),
+          shippingDiscount: (receipt['shippingDiscount'] as num? ?? 0).toDouble(),
+        );
       }
       if (subtotal <= 0) throw StateError('Your bag is empty.');
-      if (coupon != null && !eligible(coupon, subtotal)) throw StateError('This coupon is no longer available.');
-      if (bank && balanceVnd < result.totalVnd) throw StateError('Not enough demo balance.');
+      if (prodC != null && !eligible(prodC, subtotal)) {
+        throw StateError('This coupon is no longer available.');
+      }
+      if (shipC != null && !eligible(shipC, subtotal)) {
+        throw StateError('This shipping voucher is no longer available.');
+      }
+      if (bank && balanceVnd < result.totalVnd) {
+        throw StateError('Not enough demo balance.');
+      }
       await saveOrder(result);
       final entries = ledger.reversed.toList();
-      if (bank) entries.add({'id': orderId, 'amount': -result.totalVnd,
-        'date': now().toUtc().toIso8601String(), 'title': 'Demo payment'});
-      await _save({..._state, 'balance': balanceVnd - (bank ? result.totalVnd : 0),
-        'used': {...used, if (coupon != null) coupon.id}.toList(),
-        'receipts': {...receipts, orderId: {'subtotal': result.subtotal, 'discount': result.discount}},
-        'ledger': entries});
+      if (bank) {
+        entries.add({
+          'id': orderId,
+          'amount': -result.totalVnd,
+          'date': now().toUtc().toIso8601String(),
+          'title': 'Demo payment',
+        });
+      }
+      await _save({
+        ..._state,
+        'balance': balanceVnd - (bank ? result.totalVnd : 0),
+        'used': {
+          ...used,
+          if (prodC != null) prodC.id,
+          if (shipC != null) shipC.id,
+        }.toList(),
+        'receipts': {
+          ...receipts,
+          orderId: {
+            'subtotal': result.subtotal,
+            'discount': result.discount,
+            'productDiscount': result.productDiscount,
+            'shippingDiscount': result.shippingDiscount,
+          },
+        },
+        'ledger': entries,
+      });
+      if (prodC != null && selectedProductCoupon.value?.id == prodC.id) {
+        selectedProductCoupon.value = null;
+      }
+      if (shipC != null && selectedShippingCoupon.value?.id == shipC.id) {
+        selectedShippingCoupon.value = null;
+      }
       return result;
-    } finally { busy.value = false; }
+    } finally {
+      busy.value = false;
+    }
   }
 }
