@@ -1,3 +1,6 @@
+import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
+import 'package:fashion_business_app/common/widgets/product/badges/shop_status_badge.dart';
+import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 import 'package:fashion_business_app/data/repositories/orders/orders_repository.dart';
@@ -15,7 +18,8 @@ import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
 class OrderScreen extends StatefulWidget {
-  const OrderScreen({super.key});
+  const OrderScreen({super.key, this.loadOrders});
+  final Future<List<OrderModel>> Function()? loadOrders;
   @override
   State<OrderScreen> createState() => _OrderScreenState();
 }
@@ -36,11 +40,11 @@ class _OrderScreenState extends State<OrderScreen> {
   @override
   void initState() {
     super.initState();
-    _orders = OrderRepository().fetchUserOrders();
+    _orders = widget.loadOrders?.call() ?? OrderRepository().fetchUserOrders();
   }
 
   Future<void> _reload() async {
-    final request = OrderRepository().fetchUserOrders();
+    final request = widget.loadOrders?.call() ?? OrderRepository().fetchUserOrders();
     setState(() {
       _orders = request;
     });
@@ -72,73 +76,30 @@ class _OrderScreenState extends State<OrderScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Clean, colorless underline tabs (zero rainbow chips)
           Container(
             color: Colors.white,
-            height: 44,
+            height: 60,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               itemCount: _tabs.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 20),
-              itemBuilder: (_, index) => Obx(() {
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (_, index) {
                 final activity = AccountActivity.current;
-                final count = switch (index) {
-                  1 => activity?.counts['pending'] ?? 0,
-                  2 => activity?.counts['processing'] ?? 0,
-                  3 => activity?.counts['shipped'] ?? 0,
-                  4 => activity?.counts['received'] ?? 0,
-                  5 => activity?.counts['cancelled'] ?? 0,
-                  _ => activity?.orderCount ?? 0,
-                };
-                final selected = _filter == index;
-                return InkWell(
+                Widget tab(int count) => ShopFilterTab(
+                  label: _tabs[index], count: count, selected: _filter == index,
                   onTap: () => setState(() => _filter = index),
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: selected
-                              ? const Color(0xFF111827)
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ShopText(
-                          _tabs[index],
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight:
-                                selected ? FontWeight.w700 : FontWeight.w500,
-                            color: selected
-                                ? const Color(0xFF111827)
-                                : const Color(0xFF64748B),
-                          ),
-                        ),
-                        if (count > 0) ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            '($count)',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight:
-                                  selected ? FontWeight.w700 : FontWeight.w500,
-                              color: selected
-                                  ? const Color(0xFF111827)
-                                  : const Color(0xFF94A3B8),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
                 );
-              }),
+                if (activity == null) return tab(0);
+                return Obx(() => tab(switch (index) {
+                  1 => activity.counts['pending'] ?? 0,
+                  2 => activity.counts['processing'] ?? 0,
+                  3 => activity.counts['shipped'] ?? 0,
+                  4 => activity.counts['received'] ?? 0,
+                  5 => activity.counts['cancelled'] ?? 0,
+                  _ => activity.orderCount,
+                }));
+              },
             ),
           ),
           const Divider(height: 1, color: Color(0xFFE5E7EB)),
@@ -151,7 +112,7 @@ class _OrderScreenState extends State<OrderScreen> {
                   return const Center(
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(0xFF111827),
+                      color: TColors.primaryColor,
                     ),
                   );
                 }
@@ -174,7 +135,7 @@ class _OrderScreenState extends State<OrderScreen> {
 
                 return RefreshIndicator(
                   onRefresh: _reload,
-                  color: const Color(0xFF111827),
+                  color: TColors.primaryColor,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -195,7 +156,7 @@ class _OrderScreenState extends State<OrderScreen> {
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF111827),
+                                  color: TColors.primaryColor,
                                 ),
                               ),
                               const SizedBox(height: 6),
@@ -219,33 +180,15 @@ class _OrderScreenState extends State<OrderScreen> {
     );
   }
 
-  /// Minimal status badge: strictly ONE per order item representing its status.
-  Widget _buildSingleStatusBadge(OrderModel order, bool isEn) {
-    final isCancelled = order.status == OrderStatus.cancelled;
-    final isReceived = order.status == OrderStatus.received;
-    final Color textColor = isCancelled
-        ? const Color(0xFFB91C1C)
-        : (isReceived ? const Color(0xFF15803D) : const Color(0xFF1E293B));
-    final Color bgColor = isCancelled
-        ? const Color(0xFFFEF2F2)
-        : (isReceived ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9));
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        order.orderStatusLabel(english: isEn),
-        style: TextStyle(
-          color: textColor,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
+  Widget _buildSingleStatusBadge(OrderModel order, bool isEn) => ShopStatusBadge(
+    label: order.orderStatusLabel(english: isEn),
+    tone: switch (order.status) {
+      OrderStatus.pending => ShopStatusTone.pending,
+      OrderStatus.received => ShopStatusTone.success,
+      OrderStatus.cancelled => ShopStatusTone.error,
+      _ => ShopStatusTone.progress,
+    },
+  );
 
   Widget _orderCard(OrderModel order) {
     final locale = Localizations.localeOf(context).languageCode;
@@ -259,35 +202,36 @@ class _OrderScreenState extends State<OrderScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         onTap: () async {
           await Get.to(() => OrderDetail(order: order));
           if (mounted) _reload();
         },
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top row: Date on left, strictly ONE status badge on right
-              Row(
+              SizedBox(width: double.infinity, child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12, runSpacing: 10,
                 children: [
-                  Text(
-                    DateFormat('dd/MM/yyyy · HH:mm').format(order.orderDate),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const Spacer(),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('${isEn ? 'Order' : 'Đơn'} #${order.id.length > 12 ? order.id.substring(order.id.length - 8) : order.id}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                        color: TColors.primaryColor)),
+                    const SizedBox(height: 4),
+                    Text(DateFormat('dd/MM/yyyy · HH:mm').format(order.orderDate),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF52635C))),
+                  ]),
                   _buildSingleStatusBadge(order, isEn),
                 ],
-              ),
+              )),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 10),
                 child: Divider(height: 1, color: Color(0xFFF1F5F9)),
@@ -320,8 +264,8 @@ class _OrderScreenState extends State<OrderScreen> {
                               ),
                               child: TRoundedImage(
                                 imageUrl: item.image ?? '',
-                                width: 62,
-                                height: 62,
+                                width: 72,
+                                height: 72,
                                 borderRadius: 8,
                                 isNetworkImage: true,
                               ),
@@ -336,8 +280,9 @@ class _OrderScreenState extends State<OrderScreen> {
                                     softWrap: true,
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: const Color(0xFF111827),
+                                      fontSize: 14.5,
+                                      height: 1.4,
+                                      color: TColors.primaryColor,
                                       decoration: unavailable
                                           ? TextDecoration.lineThrough
                                           : null,
@@ -349,8 +294,8 @@ class _OrderScreenState extends State<OrderScreen> {
                                         ? '$variationText · x${item.quantity}'
                                         : 'x${item.quantity}',
                                     style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF64748B),
+                                      fontSize: 13, height: 1.4,
+                                      color: Color(0xFF52635C),
                                     ),
                                   ),
                                 ],
@@ -365,7 +310,7 @@ class _OrderScreenState extends State<OrderScreen> {
                               style: const TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF111827),
+                                color: TColors.primaryColor,
                               ),
                             ),
                           ],
@@ -390,65 +335,56 @@ class _OrderScreenState extends State<OrderScreen> {
                 ),
 
               if (!isCancelled && !isReceived)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    isEn
-                        ? 'Estimated delivery to ${eta.destinationCity}: ${eta.minDays}–${eta.maxDays} days'
-                        : 'Dự kiến giao đến ${eta.destinationCity}: ${eta.minDays}–${eta.maxDays} ngày',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: const Color(0xFFF3F7F4),
+                    borderRadius: BorderRadius.circular(10)),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Icon(Icons.local_shipping_outlined, size: 17, color: TColors.primaryColor),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(
+                      isEn
+                          ? 'Estimated delivery to ${eta.destinationCity}: ${eta.minDays}–${eta.maxDays} days'
+                          : 'Dự kiến giao đến ${eta.destinationCity}: ${eta.minDays}–${eta.maxDays} ngày',
+                      style: const TextStyle(fontSize: 13, height: 1.45, color: Color(0xFF52635C)),
+                    )),
+                  ]),
                 ),
 
               const Divider(height: 1, color: Color(0xFFF1F5F9)),
               const SizedBox(height: 10),
 
-              // Summary line: item count + voucher text (plain, no extra badge) + total
               Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Expanded(
-                    child: Text(
-                      order.discountAmount > 0 &&
-                              order.couponCode.trim().isNotEmpty
-                          ? (isEn
-                              ? '$totalQty item(s) · Voucher ${order.couponCode.trim().toUpperCase()}'
-                              : '$totalQty sản phẩm · Đã áp mã ${order.couponCode.trim().toUpperCase()}')
-                          : (isEn
-                              ? '$totalQty item(s)'
-                              : '$totalQty sản phẩm'),
-                      softWrap: true,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    isEn ? 'Total: ' : 'Thành tiền: ',
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: Color(0xFF475569),
-                    ),
-                  ),
-                  Text(
-                    formatShopMoney(order.totalAmount, language: locale),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15.5,
-                      color: Color(0xFF111827),
-                    ),
-                  ),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(isEn ? '$totalQty item(s)' : '$totalQty sản phẩm',
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF52635C))),
+                    if (order.discountAmount > 0 && order.couponCode.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text('${isEn ? 'Voucher' : 'Mã ưu đãi'}: ${order.couponCode.trim().toUpperCase()}',
+                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, height: 1.4, color: TColors.primaryColor)),
+                    ],
+                  ])),
+                  const SizedBox(width: 12),
+                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Text(isEn ? 'Order total' : 'Thành tiền',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF52635C))),
+                    const SizedBox(height: 4),
+                    Text(formatShopMoney(order.totalAmount, language: locale),
+                      style: const TextStyle(fontWeight: FontWeight.w700,
+                        fontSize: 17, color: TColors.primaryColor)),
+                  ]),
                 ],
               ),
 
-              // Clean single-row actions for delivered orders
+              // Delivered-order actions wrap when the available width is narrow.
               if (isReceived && order.items.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  alignment: WrapAlignment.end, spacing: 8, runSpacing: 8,
                   children: [
                     OutlinedButton(
                       onPressed: () => ProductAvailabilityHelper
@@ -456,7 +392,7 @@ class _OrderScreenState extends State<OrderScreen> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF111827),
                         side: const BorderSide(color: Color(0xFFCBD5E1)),
-                        minimumSize: const Size(0, 34),
+                        minimumSize: const Size(0, 40),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 7,
@@ -474,7 +410,6 @@ class _OrderScreenState extends State<OrderScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     FilledButton(
                       onPressed: () {
                         if (order.items.length == 1) {
@@ -490,9 +425,9 @@ class _OrderScreenState extends State<OrderScreen> {
                         }
                       },
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF111827),
+                        backgroundColor: TColors.primaryColor,
                         foregroundColor: Colors.white,
-                        minimumSize: const Size(0, 34),
+                        minimumSize: const Size(0, 40),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 7,

@@ -3,6 +3,7 @@ import 'package:fashion_business_app/features/shop/controllers/product/checkout_
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
 import 'package:fashion_business_app/features/shop/models/cart_item_model.dart';
 import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
+import 'package:fashion_business_app/features/personalization/screens/account/coupons_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -85,5 +86,52 @@ void main() {
     final pinned = AddressModel.fromMap({...data, 'Latitude':21.0285, 'Longitude':105.8542});
     expect(pinned.toJson()['Latitude'], 21.0285);
     expect(pinned.toJson()['Longitude'], 105.8542);
+  });
+
+  testWidgets('checkout receives both vouchers and a replaced discount when leaving the picker', (tester) async {
+    Get.put<AddressController>(_Addresses());
+    Get.put<CartController>(_Cart());
+    Get.put(CheckoutController());
+    Map<String, dynamic>? saved;
+    final benefits = Get.put(CustomerBenefits(read: () => saved, write: (data) async { saved = data; },
+        now: () => DateTime(2026, 11, 20, 12)));
+    await benefits.initialize();
+    benefits.saveCouponSelection(benefits.coupons.firstWhere((c) => c.id == 'LE-2026-11-20'));
+    await tester.pumpWidget(const GetMaterialApp(locale: Locale('en'), home: CheckoutScreen()));
+    await tester.pumpAndSettle();
+    final shippingSlot = find.text('Free Shipping');
+    await tester.ensureVisible(shippingSlot);
+    await tester.tap(shippingSlot);
+    await tester.pumpAndSettle();
+    for (final code in ['WELCOME10', 'SHIPNEW']) {
+      await tester.enterText(find.byType(TextField), code);
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+      expect(find.byType(CouponsScreen), findsOneWidget);
+    }
+    await tester.tap(find.byType(IconButton).first);
+    await tester.pumpAndSettle();
+    expect(find.byType(CouponsScreen), findsNothing);
+    expect(find.text('WELCOME10'), findsOneWidget);
+    expect(find.text('SHIPNEW'), findsOneWidget);
+    expect(find.text('LE-2026-11-20'), findsNothing);
+    await tester.ensureVisible(find.text('SHIPNEW'));
+    await tester.tap(find.text('SHIPNEW'));
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 2; i++) {
+      final remove = find.widgetWithText(OutlinedButton, 'Remove').first;
+      await tester.ensureVisible(remove);
+      await tester.tap(remove);
+      await tester.pumpAndSettle();
+      expect(find.byType(CouponsScreen), findsOneWidget);
+    }
+    expect(find.widgetWithText(OutlinedButton, 'Remove'), findsNothing);
+    await tester.tap(find.byType(IconButton).first);
+    await tester.pumpAndSettle();
+    expect(benefits.selectedProductCoupon.value, isNull);
+    expect(benefits.selectedShippingCoupon.value, isNull);
+    expect(find.text('WELCOME10'), findsNothing);
+    expect(find.text('SHIPNEW'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 }

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/product/badges/shop_status_badge.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/dialogs/velora_confirm_dialog.dart';
@@ -160,33 +161,15 @@ class _OrderDetailState extends State<OrderDetail> {
     );
   }
 
-  /// Strictly ONE status badge representing this order's status.
-  Widget _buildSingleStatusBadge(bool isEn) {
-    final cancelled = order.status == OrderStatus.cancelled;
-    final received = order.status == OrderStatus.received;
-    final textColor = cancelled
-        ? const Color(0xFFB91C1C)
-        : (received ? const Color(0xFF15803D) : const Color(0xFF111827));
-    final bgColor = cancelled
-        ? const Color(0xFFFEF2F2)
-        : (received ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9));
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        order.orderStatusLabel(english: isEn),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: textColor,
-        ),
-      ),
-    );
-  }
+  Widget _buildSingleStatusBadge(bool isEn) => ShopStatusBadge(
+    label: order.orderStatusLabel(english: isEn),
+    tone: switch (order.status) {
+      OrderStatus.pending => ShopStatusTone.pending,
+      OrderStatus.received => ShopStatusTone.success,
+      OrderStatus.cancelled => ShopStatusTone.error,
+      _ => ShopStatusTone.progress,
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +220,9 @@ class _OrderDetailState extends State<OrderDetail> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  SizedBox(width: double.infinity, child: Wrap(
+                    alignment: WrapAlignment.spaceBetween, spacing: 12, runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         DateFormat('dd/MM/yyyy · HH:mm').format(order.orderDate),
@@ -246,10 +231,9 @@ class _OrderDetailState extends State<OrderDetail> {
                           color: Color(0xFF64748B),
                         ),
                       ),
-                      const Spacer(),
                       _buildSingleStatusBadge(isEn),
                     ],
-                  ),
+                  )),
                   const SizedBox(height: 12),
                   Text(
                     order.customerOrderTitle(english: isEn),

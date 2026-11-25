@@ -76,7 +76,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     double subtotal, {
     required bool focusShippingFirst,
   }) async {
-    final picked = await Get.to<dynamic>(
+    await Get.to<void>(
       () => CouponsScreen(
         subtotal: subtotal,
         currentlyAppliedProductCode: _productCoupon?.id,
@@ -84,13 +84,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         focusShippingFirst: focusShippingFirst,
       ),
     );
-    if (picked is ShopCoupon && mounted) {
+    if (mounted) {
       setState(() {
-        if (picked.shipping) {
-          _shippingCoupon = picked;
-        } else {
-          _productCoupon = picked;
-        }
+        _productCoupon = _benefits.selectedProductCoupon.value;
+        _shippingCoupon = _benefits.selectedShippingCoupon.value;
       });
     }
   }

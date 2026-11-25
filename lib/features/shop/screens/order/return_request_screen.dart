@@ -1,3 +1,6 @@
+import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
+import 'package:fashion_business_app/common/widgets/product/badges/shop_status_badge.dart';
+import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
@@ -375,7 +378,7 @@ class _ReturnRequestComposerSheetState
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF111827),
+                          color: TColors.primaryColor,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -427,7 +430,7 @@ class _ReturnRequestComposerSheetState
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
-                            color: Color(0xFF111827),
+                            color: TColors.primaryColor,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -453,7 +456,7 @@ class _ReturnRequestComposerSheetState
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
+                color: TColors.primaryColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -473,7 +476,7 @@ class _ReturnRequestComposerSheetState
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: _type == t
-                            ? const Color(0xFF111827)
+                            ? TColors.primaryColor
                             : const Color(0xFFE2E8F0),
                         width: _type == t ? 1.5 : 1,
                       ),
@@ -492,7 +495,7 @@ class _ReturnRequestComposerSheetState
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13.5,
-                                  color: Color(0xFF111827),
+                                  color: TColors.primaryColor,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -513,7 +516,7 @@ class _ReturnRequestComposerSheetState
                         Radio<ReturnRequestType>(
                           value: t,
                           groupValue: _type,
-                          activeColor: const Color(0xFF111827),
+                          activeColor: TColors.primaryColor,
                           materialTapTargetSize:
                               MaterialTapTargetSize.shrinkWrap,
                           onChanged: (v) {
@@ -533,7 +536,7 @@ class _ReturnRequestComposerSheetState
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF111827),
+                  color: TColors.primaryColor,
                 ),
               ),
               const SizedBox(height: 8),
@@ -551,11 +554,11 @@ class _ReturnRequestComposerSheetState
                         vertical: 7,
                       ),
                       decoration: BoxDecoration(
-                        color: sel ? const Color(0xFF111827) : Colors.white,
+                        color: sel ? TColors.primaryColor : Colors.white,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: sel
-                              ? const Color(0xFF111827)
+                              ? TColors.primaryColor
                               : const Color(0xFFCBD5E1),
                         ),
                       ),
@@ -564,7 +567,7 @@ class _ReturnRequestComposerSheetState
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: sel ? Colors.white : const Color(0xFF111827),
+                          color: sel ? Colors.white : TColors.primaryColor,
                         ),
                       ),
                     ),
@@ -580,7 +583,7 @@ class _ReturnRequestComposerSheetState
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
+                color: TColors.primaryColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -598,11 +601,11 @@ class _ReturnRequestComposerSheetState
                       vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      color: sel ? const Color(0xFF111827) : Colors.white,
+                      color: sel ? TColors.primaryColor : Colors.white,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: sel
-                            ? const Color(0xFF111827)
+                            ? TColors.primaryColor
                             : const Color(0xFFCBD5E1),
                       ),
                     ),
@@ -638,7 +641,7 @@ class _ReturnRequestComposerSheetState
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
+                color: TColors.primaryColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -680,7 +683,7 @@ class _ReturnRequestComposerSheetState
             ),
             if (_uploading) ...[
               const SizedBox(height: 10),
-              const LinearProgressIndicator(color: Color(0xFF111827)),
+              const LinearProgressIndicator(color: TColors.primaryColor),
             ],
             if (_imageUrls.isNotEmpty || _videoUrls.isNotEmpty) ...[
               const SizedBox(height: 10),
@@ -735,7 +738,7 @@ class _ReturnRequestComposerSheetState
                               width: 72,
                               height: 72,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF111827),
+                                color: TColors.primaryColor,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Center(
@@ -781,7 +784,7 @@ class _ReturnRequestComposerSheetState
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
+                color: TColors.primaryColor,
               ),
             ),
             const SizedBox(height: 8),
@@ -814,7 +817,7 @@ class _ReturnRequestComposerSheetState
               child: FilledButton(
                 onPressed: _submitting ? null : _submit,
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF111827),
+                  backgroundColor: TColors.primaryColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -842,7 +845,9 @@ class _ReturnRequestComposerSheetState
 
 /// Customer screen listing all Return & Exchange requests with clean minimal UI.
 class MyReturnRequestsScreen extends StatefulWidget {
-  const MyReturnRequestsScreen({super.key, this.highlightRequestId});
+  const MyReturnRequestsScreen({super.key, this.highlightRequestId, this.requests});
+
+  final Stream<List<ReturnRequestModel>>? requests;
 
   final String? highlightRequestId;
 
@@ -852,11 +857,15 @@ class MyReturnRequestsScreen extends StatefulWidget {
 
 class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
   String _filter = 'all'; // 'all' | 'pending' | 'active' | 'completed'
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _returnsStream;
+  Stream<List<ReturnRequestModel>>? _returnsStream;
 
   @override
   void initState() {
     super.initState();
+    if (widget.requests != null) {
+      _returnsStream = widget.requests;
+      return;
+    }
     final user = Firebase.apps.isNotEmpty
         ? FirebaseAuth.instance.currentUser
         : null;
@@ -864,7 +873,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
       _returnsStream = FirebaseFirestore.instance
           .collection('ReturnRequests')
           .where('userId', isEqualTo: user.uid)
-          .snapshots();
+          .snapshots().map((snapshot) => snapshot.docs.map(ReturnRequestModel.fromSnapshot).toList());
     }
   }
 
@@ -959,9 +968,6 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = Firebase.apps.isNotEmpty
-        ? FirebaseAuth.instance.currentUser
-        : null;
     final locale = Localizations.localeOf(context).languageCode;
     final isEn = locale == 'en';
 
@@ -970,7 +976,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
       appBar: TAppbar(
         showBackArrow: true,
         title: Text(
-          isEn ? 'Returns & Exchanges' : 'Đổi trả & Bảo hành',
+          isEn ? 'Returns' : 'Đổi trả',
           style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
         ),
         actions: [
@@ -986,9 +992,9 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
           ),
         ],
       ),
-      body: user == null || _returnsStream == null
+      body: _returnsStream == null
           ? const Center(child: Text('Vui lòng đăng nhập để xem đổi trả.'))
-          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          : StreamBuilder<List<ReturnRequestModel>>(
               stream: _returnsStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting &&
@@ -996,13 +1002,18 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                   return const Center(
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(0xFF111827),
+                      color: TColors.primaryColor,
                     ),
                   );
                 }
-                final all = (snapshot.data?.docs ?? const [])
-                    .map(ReturnRequestModel.fromSnapshot)
-                    .toList()
+                if (snapshot.hasError) {
+                  return Center(child: Padding(padding: const EdgeInsets.all(24),
+                    child: Text(isEn ? 'Couldn’t load return requests. Please try again.'
+                      : 'Chưa tải được yêu cầu đổi trả. Vui lòng thử lại.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF52635C)))));
+                }
+                final all = List<ReturnRequestModel>.of(snapshot.data ?? const [])
                   ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
                 final pendingCount = all
@@ -1043,46 +1054,19 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
 
                 return Column(
                   children: [
-                    // Colorless underline tabs
                     Container(
                       color: Colors.white,
-                      height: 44,
+                      height: 60,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: tabs.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 22),
+                        separatorBuilder: (_, __) => const SizedBox(width: 6),
                         itemBuilder: (_, idx) {
                           final (key, label, count) = tabs[idx];
-                          final selected = _filter == key;
-                          return InkWell(
-                            onTap: () => setState(() => _filter = key),
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: selected
-                                        ? const Color(0xFF111827)
-                                        : Colors.transparent,
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                              child: Text(
-                                count > 0 ? '$label ($count)' : label,
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: selected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  color: selected
-                                      ? const Color(0xFF111827)
-                                      : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ),
-                          );
+                          return ShopFilterTab(label: label, count: count,
+                            selected: _filter == key,
+                            onTap: () => setState(() => _filter = key));
                         },
                       ),
                     ),
@@ -1092,11 +1076,11 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                         children: [
-                          // Clean white policy & create card (no dark gradient)
+                          // Return policy and the action to create a request.
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: const Color(0xFFEAF2ED),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: const Color(0xFFE5E7EB),
@@ -1116,7 +1100,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                         style: const TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w700,
-                                          color: Color(0xFF111827),
+                                          color: TColors.primaryColor,
                                         ),
                                       ),
                                       const SizedBox(height: 3),
@@ -1125,9 +1109,8 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                             ? 'Free size exchange or 100% refund for delivered orders.'
                                             : 'Đổi size EU 38–44, đổi mới 1-1 hoặc hoàn tiền từ đơn đã nhận.',
                                         style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xFF64748B),
-                                          height: 1.35,
+                                          fontSize: 13, height: 1.45,
+                                          color: Color(0xFF52635C),
                                         ),
                                       ),
                                     ],
@@ -1137,7 +1120,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                 OutlinedButton(
                                   onPressed: _openCreateFromOrderPicker,
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: const Color(0xFF111827),
+                                    foregroundColor: TColors.primaryColor,
                                     side: const BorderSide(
                                       color: Color(0xFFCBD5E1),
                                     ),
@@ -1154,7 +1137,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                   child: Text(
                                     isEn ? 'New request' : 'Tạo yêu cầu',
                                     style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 13, height: 1.45,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -1182,7 +1165,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFF111827),
+                                      color: TColors.primaryColor,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
@@ -1217,10 +1200,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
   }
 }
 
-/// Clean commercial Return / Exchange Card:
-/// - Neutral white card
-/// - Strictly ONE status badge representing the request's status
-/// - Single-color monochrome 4-step progress tracker
+/// A return request with its current status and four-step tracking history.
 class ReturnRequestTrackingCard extends StatelessWidget {
   const ReturnRequestTrackingCard({
     super.key,
@@ -1231,32 +1211,21 @@ class ReturnRequestTrackingCard extends StatelessWidget {
   final ReturnRequestModel request;
   final bool highlighted;
 
-  Widget _singleStatusBadge(bool isEn) {
-    final rejected = request.status == ReturnRequestStatus.rejected;
-    final completed = request.status == ReturnRequestStatus.completed;
-    final textColor = rejected
-        ? const Color(0xFFB91C1C)
-        : (completed ? const Color(0xFF15803D) : const Color(0xFF1E293B));
-    final bgColor = rejected
-        ? const Color(0xFFFEF2F2)
-        : (completed ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9));
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        request.statusLabel(english: isEn),
-        style: TextStyle(
-          color: textColor,
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
+  Widget _singleStatusBadge(bool isEn) => ShopStatusBadge(
+    label: switch (request.status) {
+      ReturnRequestStatus.pending => isEn ? 'Awaiting review' : 'Chờ duyệt',
+      ReturnRequestStatus.approvedPickup => isEn ? 'Awaiting pickup' : 'Chờ lấy hàng',
+      ReturnRequestStatus.inspecting => isEn ? 'Inspecting' : 'Đang kiểm tra',
+      ReturnRequestStatus.completed => isEn ? 'Completed' : 'Hoàn tất',
+      ReturnRequestStatus.rejected => isEn ? 'Declined' : 'Từ chối',
+    },
+    tone: switch (request.status) {
+      ReturnRequestStatus.pending => ShopStatusTone.pending,
+      ReturnRequestStatus.completed => ShopStatusTone.success,
+      ReturnRequestStatus.rejected => ShopStatusTone.error,
+      _ => ShopStatusTone.progress,
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -1277,13 +1246,13 @@ class ReturnRequestTrackingCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: highlighted
-              ? const Color(0xFF111827)
+              ? TColors.primaryColor
               : const Color(0xFFE5E7EB),
           width: highlighted ? 1.5 : 1.0,
         ),
@@ -1291,27 +1260,27 @@ class ReturnRequestTrackingCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top row: Date on left + strictly ONE status badge on right
-          Row(
+          SizedBox(width: double.infinity, child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12, runSpacing: 10,
             children: [
-              Expanded(
-                child: Text(
-                  DateFormat('dd/MM/yyyy · HH:mm').format(request.createdAt),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(request.id, style: const TextStyle(fontSize: 13,
+                  fontWeight: FontWeight.w700, color: TColors.primaryColor)),
+                const SizedBox(height: 4),
+                Text(DateFormat('dd/MM/yyyy · HH:mm').format(request.createdAt),
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF52635C))),
+              ]),
               _singleStatusBadge(isEn),
             ],
-          ),
+          )),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 10),
             child: Divider(height: 1, color: Color(0xFFF1F5F9)),
           ),
 
-          // Product & Type Info (plain clean typography, zero extra badges)
+          // Product and requested exchange details.
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1323,8 +1292,8 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                 ),
                 child: TRoundedImage(
                   imageUrl: request.productThumbnail,
-                  width: 58,
-                  height: 58,
+                  width: 72,
+                  height: 72,
                   borderRadius: 8,
                   isNetworkImage: true,
                 ),
@@ -1338,9 +1307,9 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                       request.productTitle,
                       softWrap: true,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 15, height: 1.5,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF111827),
+                        color: TColors.primaryColor,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1348,7 +1317,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                       typeAndDetail,
                       softWrap: true,
                       style: const TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w500,
                         color: Color(0xFF475569),
                       ),
@@ -1359,44 +1328,35 @@ class ReturnRequestTrackingCard extends StatelessWidget {
             ],
           ),
 
-          // Single-color monochrome 4-step progress bar
           if (!rejected) ...[
-            const SizedBox(height: 14),
-            Row(
-              children: List.generate(4, (i) {
-                final active = (i + 1) <= step;
-                final current = (i + 1) == step;
-                return Expanded(
-                  child: Column(
-                    children: [
-                      Container(
-                        height: 3.5,
-                        margin: EdgeInsets.only(right: i < 3 ? 6 : 0),
-                        decoration: BoxDecoration(
-                          color: active
-                              ? const Color(0xFF111827)
-                              : const Color(0xFFE2E8F0),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        stepLabels[i],
-                        textAlign: TextAlign.center,
-                        softWrap: true,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight:
-                              current ? FontWeight.w700 : FontWeight.w500,
-                          color: active
-                              ? const Color(0xFF111827)
-                              : const Color(0xFF94A3B8),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              decoration: BoxDecoration(color: const Color(0xFFF3F7F4),
+                borderRadius: BorderRadius.circular(12)),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start,
+                children: List.generate(4, (i) {
+                  final active = (i + 1) <= step;
+                  final current = (i + 1) == step;
+                  final done = active && (!current || request.status == ReturnRequestStatus.completed);
+                  return Expanded(child: Column(children: [
+                    Container(width: 26, height: 26,
+                      decoration: BoxDecoration(shape: BoxShape.circle,
+                        color: active ? TColors.primaryColor : Colors.white,
+                        border: Border.all(color: active ? TColors.primaryColor : const Color(0xFFD4DFD7))),
+                      alignment: Alignment.center,
+                      child: done ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                        : Text('${i + 1}', style: TextStyle(fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: active ? Colors.white : const Color(0xFF52635C)))),
+                    const SizedBox(height: 7),
+                    Text(stepLabels[i], textAlign: TextAlign.center, softWrap: true,
+                      style: TextStyle(fontSize: 11.5, height: 1.4,
+                        fontWeight: current ? FontWeight.w700 : FontWeight.w500,
+                        color: active ? TColors.primaryColor : const Color(0xFF52635C))),
+                  ]));
+                }),
+              ),
             ),
           ],
 
@@ -1405,20 +1365,20 @@ class ReturnRequestTrackingCard extends StatelessWidget {
             child: Divider(height: 1, color: Color(0xFFF1F5F9)),
           ),
           Text(
-            'Lý do: ${request.reasonCategory}'
+            '${isEn ? 'Reason' : 'Lý do'}: ${request.reasonCategory}'
             '${request.description.isNotEmpty && request.description != request.reasonCategory ? ' — ${request.description}' : ''}',
             style: const TextStyle(
-              fontSize: 12.5,
+              fontSize: 13.5,
               color: Color(0xFF334155),
-              height: 1.4,
+              height: 1.5,
             ),
           ),
           if (request.pickupAddress.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'Địa chỉ nhận đổi: ${request.pickupAddress}',
+              '${isEn ? 'Pickup address' : 'Địa chỉ nhận đổi'}: ${request.pickupAddress}',
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 13, height: 1.5,
                 color: Color(0xFF64748B),
               ),
             ),
@@ -1450,7 +1410,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                       height: 60,
                       margin: const EdgeInsets.only(right: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF111827),
+                        color: TColors.primaryColor,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Center(
@@ -1466,35 +1426,35 @@ class ReturnRequestTrackingCard extends StatelessWidget {
             ),
           ],
 
-          // Clean neutral Admin response box
+          // Latest response from customer support.
           if (request.hasAdminResponse) ...[
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(11),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: const Color(0xFFEAF2ED),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Phản hồi từ VELORA',
-                    style: TextStyle(
-                      fontSize: 11.5,
+                  Text(
+                    isEn ? 'Reply from VELORA' : 'Phản hồi từ VELORA',
+                    style: const TextStyle(
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827),
+                      color: TColors.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     request.adminResponse,
                     style: const TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13.5,
                       color: Color(0xFF475569),
-                      height: 1.4,
+                      height: 1.5,
                     ),
                   ),
                 ],
@@ -1509,7 +1469,8 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                 () => VeloraSupportChatScreen(initialReturnRequest: request),
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF111827),
+                foregroundColor: TColors.primaryColor,
+                minimumSize: const Size(0, 44),
                 side: const BorderSide(color: Color(0xFFCBD5E1)),
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 shape: RoundedRectangleBorder(
@@ -1522,7 +1483,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                     ? 'Contact VELORA Support'
                     : 'Liên hệ CSKH về yêu cầu này',
                 style: const TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),

@@ -46,6 +46,8 @@ class _CouponsScreenState extends State<CouponsScreen> {
   final _codeInput = TextEditingController();
   int _tab = 0;
   String? _selectedProductCouponId;
+  bool _productCouponCleared = false;
+  bool _shippingCouponCleared = false;
   String? _inputMessage;
   bool _inputError = false;
   Future<List<ProductModel>>? _productsFuture;
@@ -178,9 +180,6 @@ class _CouponsScreenState extends State<CouponsScreen> {
         });
         return;
       }
-      _benefits.saveCouponSelection(matchAny);
-      Navigator.of(context).pop<ShopCoupon?>(matchAny);
-      return;
     }
 
     _benefits.saveCouponSelection(matchAny);
@@ -216,6 +215,11 @@ class _CouponsScreenState extends State<CouponsScreen> {
 
   bool _isCouponCurrentlyActive(ShopCoupon coupon, bool isPickerMode) {
     final code = coupon.id.toUpperCase();
+    final selected = coupon.shipping
+        ? _benefits.selectedShippingCoupon.value
+        : _benefits.selectedProductCoupon.value;
+    if (selected != null) return selected.id.toUpperCase() == code;
+    if (coupon.shipping ? _shippingCouponCleared : _productCouponCleared) return false;
     if (isPickerMode) {
       if (coupon.shipping) {
         final s = widget.currentlyAppliedShippingCode?.toUpperCase() ?? '';
@@ -975,7 +979,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                     ),
                   ),
 
-                  // 3. Direct single-tap Apply button (no extra "Đồng ý" bar needed)
+                  // Applying a voucher keeps the picker open for the other voucher type.
                   if (isAvailableTab)
                     Padding(
                       padding: const EdgeInsets.only(right: 10),
@@ -984,9 +988,20 @@ class _CouponsScreenState extends State<CouponsScreen> {
                             ? OutlinedButton(
                                 onPressed: canUse
                                     ? () {
-                                        _benefits.saveCouponSelection(coupon);
-                                        Navigator.of(context)
-                                            .pop<ShopCoupon?>(coupon);
+                                        if (isCurrentlyApplied) {
+                                          setState(() {
+                                            if (coupon.shipping) {
+                                              _benefits.selectedShippingCoupon.value = null;
+                                              _shippingCouponCleared = true;
+                                            } else {
+                                              _benefits.selectedProductCoupon.value = null;
+                                              _selectedProductCouponId = null;
+                                              _productCouponCleared = true;
+                                            }
+                                          });
+                                        } else {
+                                          _benefits.saveCouponSelection(coupon);
+                                        }
                                       }
                                     : null,
                                 style: OutlinedButton.styleFrom(
@@ -1017,7 +1032,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                                 ),
                                 child: isCurrentlyApplied
                                     ? Text(
-                                        isEn ? 'Applied' : 'Đang dùng',
+                                        isEn ? 'Remove' : 'Bỏ áp dụng',
                                         style: const TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
