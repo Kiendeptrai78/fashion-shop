@@ -365,122 +365,122 @@ class _OrderDetailState extends State<OrderDetail> {
                             borderRadius: BorderRadius.circular(8),
                             onTap: () => ProductAvailabilityHelper
                                 .openProductDetailFromCartItem(context, item),
-                            child: Opacity(
-                              opacity: unavailable ? 0.55 : 1.0,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF8FAFC),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: const Color(0xFFF1F5F9),
-                                          ),
-                                        ),
-                                        child: TRoundedImage(
-                                          imageUrl: item.image ?? '',
-                                          width: 68,
-                                          height: 68,
-                                          borderRadius: 8,
-                                          isNetworkImage: true,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: const Color(0xFFF1F5F9),
                                         ),
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              item.title,
-                                              softWrap: true,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 14,
-                                                color: const Color(0xFF111827),
-                                                decoration: unavailable
-                                                    ? TextDecoration.lineThrough
-                                                    : null,
-                                              ),
+                                      child: TRoundedImage(
+                                        imageUrl: item.image ?? '',
+                                        width: 68,
+                                        height: 68,
+                                        borderRadius: 8,
+                                        isNetworkImage: true,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.title,
+                                            softWrap: true,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                              color: Color(0xFF333333),
                                             ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            varText.isNotEmpty
+                                                ? '$varText · x${item.quantity}'
+                                                : 'x${item.quantity}',
+                                            style: const TextStyle(
+                                              fontSize: 13, height: 1.4,
+                                              color: Color(0xFF46524B),
+                                            ),
+                                          ),
+                                          if (unavailable) ...[
                                             const SizedBox(height: 4),
-                                            Text(
-                                              varText.isNotEmpty
-                                                  ? '$varText · x${item.quantity}'
-                                                  : 'x${item.quantity}',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: Color(0xFF64748B),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              formatShopMoney(
-                                                item.price * item.quantity,
-                                                language: locale,
-                                              ),
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 14,
-                                                color: Color(0xFF111827),
-                                              ),
-                                            ),
+                                            Text(isEn ? 'Currently discontinued' : 'Hiện đã ngừng bán',
+                                              style: const TextStyle(fontSize: 12, height: 1.4,
+                                                fontWeight: FontWeight.w600, color: Color(0xFF46524B))),
                                           ],
-                                        ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            formatShopMoney(
+                                              item.price * item.quantity,
+                                              language: locale,
+                                            ),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 14,
+                                              color: Color(0xFF111827),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                  // Uniform neutral action buttons when delivered
-                                  if (received) ...[
-                                    const SizedBox(height: 10),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        if (!unavailable)
-                                          _neutralActionBtn(
-                                            label: isEn
-                                                ? 'Buy again'
-                                                : 'Mua lại',
-                                            onTap: () =>
-                                                ProductAvailabilityHelper
-                                                    .buyAgainFromCartItem(
-                                                        context, item),
-                                          ),
-                                        _neutralActionBtn(
-                                          label: returnEligible
-                                              ? (isEn
-                                                  ? 'Return / Exchange (${daysLeft}d)'
-                                                  : 'Đổi / Trả (còn $daysLeft ngày)')
-                                              : (isEn
-                                                  ? 'Return expired'
-                                                  : 'Quá hạn đổi trả'),
-                                          onTap: returnEligible
-                                              ? () => openReturnRequestComposer(
-                                                    context,
-                                                    order: order,
-                                                    item: item,
-                                                  )
-                                              : null,
-                                        ),
-                                        if (!unavailable)
-                                          _neutralActionBtn(
-                                            label: isEn
-                                                ? 'Review'
-                                                : 'Đánh giá',
-                                            onTap: () => _openReviewItem(item),
-                                          ),
-                                      ],
                                     ),
                                   ],
+                                ),
+                                // Uniform neutral action buttons when delivered
+                                if (received) ...[
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      if (!unavailable)
+                                        _neutralActionBtn(
+                                          label: isEn
+                                              ? 'Buy again'
+                                              : 'Mua lại',
+                                          onTap: () =>
+                                              ProductAvailabilityHelper
+                                                  .buyAgainFromCartItem(
+                                                      context, item),
+                                        ),
+                                      _neutralActionBtn(
+                                        label: returnEligible
+                                            ? (isEn
+                                                ? 'Return / Exchange (${daysLeft}d)'
+                                                : 'Đổi / Trả (còn $daysLeft ngày)')
+                                            : (isEn
+                                                ? 'Return expired'
+                                                : 'Quá hạn đổi trả'),
+                                        onTap: returnEligible
+                                            ? () => openReturnRequestComposer(
+                                                  context,
+                                                  order: order,
+                                                  item: item,
+                                                )
+                                            : null,
+                                      ),
+                                      if (!unavailable)
+                                        _neutralActionBtn(
+                                          label: isEn
+                                              ? 'Review'
+                                              : 'Đánh giá',
+                                          onTap: () => _openReviewItem(item),
+                                        ),
+                                    ],
+                                  ),
                                 ],
-                              ),
+                              ],
                             ),
                           );
                         },

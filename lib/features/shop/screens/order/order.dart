@@ -160,10 +160,10 @@ class _OrderScreenState extends State<OrderScreen> {
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              ShopText(
+                              const ShopText(
                                 'Your purchases will appear here.',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.grey.shade600),
+                                style: TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF46524B)),
                               ),
                             ],
                           ),
@@ -224,10 +224,10 @@ class _OrderScreenState extends State<OrderScreen> {
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text('${isEn ? 'Order' : 'Đơn'} #${order.id.length > 12 ? order.id.substring(order.id.length - 8) : order.id}',
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                        color: TColors.primaryColor)),
+                        color: TColors.textPrimary)),
                     const SizedBox(height: 4),
                     Text(DateFormat('dd/MM/yyyy · HH:mm').format(order.orderDate),
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF52635C))),
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: Color(0xFF46524B))),
                   ]),
                   _buildSingleStatusBadge(order, isEn),
                 ],
@@ -249,72 +249,72 @@ class _OrderScreenState extends State<OrderScreen> {
                             .join(' · ');
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: Opacity(
-                        opacity: unavailable ? 0.55 : 1.0,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(0xFFF1F5F9),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFFF1F5F9),
+                              ),
+                            ),
+                            child: TRoundedImage(
+                              imageUrl: item.image ?? '',
+                              width: 72,
+                              height: 72,
+                              borderRadius: 8,
+                              isNetworkImage: true,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.title,
+                                  softWrap: true,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    height: 1.4,
+                                    color: TColors.textPrimary,
+                                  ),
                                 ),
-                              ),
-                              child: TRoundedImage(
-                                imageUrl: item.image ?? '',
-                                width: 72,
-                                height: 72,
-                                borderRadius: 8,
-                                isNetworkImage: true,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.title,
-                                    softWrap: true,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14.5,
-                                      height: 1.4,
-                                      color: TColors.primaryColor,
-                                      decoration: unavailable
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                    ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  variationText.isNotEmpty
+                                      ? '$variationText · x${item.quantity}'
+                                      : 'x${item.quantity}',
+                                  style: const TextStyle(
+                                    fontSize: 13, height: 1.4, fontWeight: FontWeight.w500,
+                                    color: Color(0xFF46524B),
                                   ),
+                                ),
+                                if (unavailable) ...[
                                   const SizedBox(height: 4),
-                                  Text(
-                                    variationText.isNotEmpty
-                                        ? '$variationText · x${item.quantity}'
-                                        : 'x${item.quantity}',
-                                    style: const TextStyle(
-                                      fontSize: 13, height: 1.4,
-                                      color: Color(0xFF52635C),
-                                    ),
-                                  ),
+                                  Text(isEn ? 'Currently discontinued' : 'Hiện đã ngừng bán',
+                                    style: const TextStyle(fontSize: 12, height: 1.4,
+                                      fontWeight: FontWeight.w600, color: Color(0xFF46524B))),
                                 ],
-                              ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              formatShopMoney(
-                                item.price * item.quantity,
-                                language: locale,
-                              ),
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: TColors.primaryColor,
-                              ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            formatShopMoney(
+                              item.price * item.quantity,
+                              language: locale,
                             ),
-                          ],
-                        ),
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: TColors.textPrimary,
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -329,7 +329,7 @@ class _OrderScreenState extends State<OrderScreen> {
                         : 'Xem thêm ${order.items.length - 2} sản phẩm khác',
                     style: const TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF64748B),
+                      color: Color(0xFF46524B),
                     ),
                   ),
                 ),
@@ -341,13 +341,13 @@ class _OrderScreenState extends State<OrderScreen> {
                   decoration: BoxDecoration(color: const Color(0xFFF3F7F4),
                     borderRadius: BorderRadius.circular(10)),
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Icon(Icons.local_shipping_outlined, size: 17, color: TColors.primaryColor),
+                    const Icon(Icons.local_shipping_outlined, size: 17, color: TColors.textPrimary),
                     const SizedBox(width: 8),
                     Expanded(child: Text(
                       isEn
                           ? 'Estimated delivery to ${eta.destinationCity}: ${eta.minDays}–${eta.maxDays} days'
                           : 'Dự kiến giao đến ${eta.destinationCity}: ${eta.minDays}–${eta.maxDays} ngày',
-                      style: const TextStyle(fontSize: 13, height: 1.45, color: Color(0xFF52635C)),
+                      style: const TextStyle(fontSize: 13, height: 1.45, color: Color(0xFF46524B)),
                     )),
                   ]),
                 ),
@@ -360,22 +360,22 @@ class _OrderScreenState extends State<OrderScreen> {
                 children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(isEn ? '$totalQty item(s)' : '$totalQty sản phẩm',
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF52635C))),
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF46524B))),
                     if (order.discountAmount > 0 && order.couponCode.trim().isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text('${isEn ? 'Voucher' : 'Mã ưu đãi'}: ${order.couponCode.trim().toUpperCase()}',
                         maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, height: 1.4, color: TColors.primaryColor)),
+                        style: const TextStyle(fontSize: 12, height: 1.4, color: TColors.textPrimary)),
                     ],
                   ])),
                   const SizedBox(width: 12),
                   Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Text(isEn ? 'Order total' : 'Thành tiền',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF52635C))),
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: Color(0xFF46524B))),
                     const SizedBox(height: 4),
                     Text(formatShopMoney(order.totalAmount, language: locale),
                       style: const TextStyle(fontWeight: FontWeight.w700,
-                        fontSize: 17, color: TColors.primaryColor)),
+                        fontSize: 17, color: TColors.textPrimary)),
                   ]),
                 ],
               ),
@@ -390,8 +390,8 @@ class _OrderScreenState extends State<OrderScreen> {
                       onPressed: () => ProductAvailabilityHelper
                           .buyAgainFromCartItem(context, order.items.first),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF111827),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        foregroundColor: const Color(0xFF173E32),
+                        side: const BorderSide(color: Color(0xFF4D6A5C)),
                         minimumSize: const Size(0, 40),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
@@ -425,7 +425,7 @@ class _OrderScreenState extends State<OrderScreen> {
                         }
                       },
                       style: FilledButton.styleFrom(
-                        backgroundColor: TColors.primaryColor,
+                        backgroundColor: const Color(0xFF173E32),
                         foregroundColor: Colors.white,
                         minimumSize: const Size(0, 40),
                         padding: const EdgeInsets.symmetric(

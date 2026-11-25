@@ -95,6 +95,11 @@ void main() {
     await tester.pumpWidget(app(OrderScreen(loadOrders: () async => orders)));
     await tester.pumpAndSettle();
     expect(find.byType(ShopStatusBadge), findsNWidgets(3));
+    for (final order in orders) {
+      final title = find.text(order.items.first.title);
+      expect(find.ancestor(of: title, matching: find.byType(Opacity)), findsNothing);
+      expect(tester.widget<Text>(title).style?.decoration, isNot(TextDecoration.lineThrough));
+    }
     expect(find.byType(ShopCountBadge), findsWidgets);
     for (final badge in tester.widgetList<Badge>(find.byType(Badge))) {
       expect(badge.backgroundColor, const Color(0xFFD92D3E));

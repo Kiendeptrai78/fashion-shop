@@ -378,7 +378,7 @@ class _ReturnRequestComposerSheetState
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: TColors.primaryColor,
+                          color: TColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -430,7 +430,7 @@ class _ReturnRequestComposerSheetState
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
-                            color: TColors.primaryColor,
+                            color: TColors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -456,7 +456,7 @@ class _ReturnRequestComposerSheetState
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: TColors.primaryColor,
+                color: TColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -495,7 +495,7 @@ class _ReturnRequestComposerSheetState
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13.5,
-                                  color: TColors.primaryColor,
+                                  color: TColors.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -536,7 +536,7 @@ class _ReturnRequestComposerSheetState
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: TColors.primaryColor,
+                  color: TColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -567,7 +567,7 @@ class _ReturnRequestComposerSheetState
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: sel ? Colors.white : TColors.primaryColor,
+                          color: sel ? Colors.white : TColors.textPrimary,
                         ),
                       ),
                     ),
@@ -583,7 +583,7 @@ class _ReturnRequestComposerSheetState
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: TColors.primaryColor,
+                color: TColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -641,7 +641,7 @@ class _ReturnRequestComposerSheetState
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: TColors.primaryColor,
+                color: TColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -683,7 +683,7 @@ class _ReturnRequestComposerSheetState
             ),
             if (_uploading) ...[
               const SizedBox(height: 10),
-              const LinearProgressIndicator(color: TColors.primaryColor),
+              const LinearProgressIndicator(color: TColors.textPrimary),
             ],
             if (_imageUrls.isNotEmpty || _videoUrls.isNotEmpty) ...[
               const SizedBox(height: 10),
@@ -738,7 +738,7 @@ class _ReturnRequestComposerSheetState
                               width: 72,
                               height: 72,
                               decoration: BoxDecoration(
-                                color: TColors.primaryColor,
+                                color: TColors.textPrimary,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Center(
@@ -784,7 +784,7 @@ class _ReturnRequestComposerSheetState
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: TColors.primaryColor,
+                color: TColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -817,7 +817,7 @@ class _ReturnRequestComposerSheetState
               child: FilledButton(
                 onPressed: _submitting ? null : _submit,
                 style: FilledButton.styleFrom(
-                  backgroundColor: TColors.primaryColor,
+                  backgroundColor: const Color(0xFF173E32),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -1080,7 +1080,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEAF2ED),
+                              color: const Color(0xFFF6F8F6),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: const Color(0xFFE5E7EB),
@@ -1100,7 +1100,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                         style: const TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w700,
-                                          color: TColors.primaryColor,
+                                          color: TColors.textPrimary,
                                         ),
                                       ),
                                       const SizedBox(height: 3),
@@ -1110,7 +1110,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                             : 'Đổi size EU 38–44, đổi mới 1-1 hoặc hoàn tiền từ đơn đã nhận.',
                                         style: const TextStyle(
                                           fontSize: 13, height: 1.45,
-                                          color: Color(0xFF52635C),
+                                          color: Color(0xFF3E4943),
                                         ),
                                       ),
                                     ],
@@ -1120,9 +1120,9 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                 OutlinedButton(
                                   onPressed: _openCreateFromOrderPicker,
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: TColors.primaryColor,
+                                    foregroundColor: const Color(0xFF173E32),
                                     side: const BorderSide(
-                                      color: Color(0xFFCBD5E1),
+                                      color: Color(0xFF4D6A5C),
                                     ),
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -1165,7 +1165,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
-                                      color: TColors.primaryColor,
+                                      color: TColors.textPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
@@ -1176,7 +1176,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                       fontSize: 13,
-                                      color: Color(0xFF64748B),
+                                      color: Color(0xFF46524B),
                                     ),
                                   ),
                                 ],
@@ -1267,10 +1267,10 @@ class ReturnRequestTrackingCard extends StatelessWidget {
             children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(request.id, style: const TextStyle(fontSize: 13,
-                  fontWeight: FontWeight.w700, color: TColors.primaryColor)),
+                  fontWeight: FontWeight.w700, color: TColors.textPrimary)),
                 const SizedBox(height: 4),
                 Text(DateFormat('dd/MM/yyyy · HH:mm').format(request.createdAt),
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF52635C))),
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: Color(0xFF46524B))),
               ]),
               _singleStatusBadge(isEn),
             ],
@@ -1308,8 +1308,8 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                       softWrap: true,
                       style: const TextStyle(
                         fontSize: 15, height: 1.5,
-                        fontWeight: FontWeight.w600,
-                        color: TColors.primaryColor,
+                        fontWeight: FontWeight.w700,
+                        color: TColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1318,8 +1318,8 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                       softWrap: true,
                       style: const TextStyle(
                         fontSize: 13.5,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF34413A),
                       ),
                     ),
                   ],
@@ -1342,18 +1342,18 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                   return Expanded(child: Column(children: [
                     Container(width: 26, height: 26,
                       decoration: BoxDecoration(shape: BoxShape.circle,
-                        color: active ? TColors.primaryColor : Colors.white,
+                        color: active ? const Color(0xFF173E32) : Colors.white,
                         border: Border.all(color: active ? TColors.primaryColor : const Color(0xFFD4DFD7))),
                       alignment: Alignment.center,
                       child: done ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
                         : Text('${i + 1}', style: TextStyle(fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: active ? Colors.white : const Color(0xFF52635C)))),
+                            color: active ? Colors.white : const Color(0xFF46524B)))),
                     const SizedBox(height: 7),
                     Text(stepLabels[i], textAlign: TextAlign.center, softWrap: true,
                       style: TextStyle(fontSize: 11.5, height: 1.4,
-                        fontWeight: current ? FontWeight.w700 : FontWeight.w500,
-                        color: active ? TColors.primaryColor : const Color(0xFF52635C))),
+                        fontWeight: current ? FontWeight.w700 : FontWeight.w600,
+                        color: current ? const Color(0xFF173E32) : active ? TColors.textPrimary : const Color(0xFF64736B))),
                   ]));
                 }),
               ),
@@ -1369,7 +1369,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
             '${request.description.isNotEmpty && request.description != request.reasonCategory ? ' — ${request.description}' : ''}',
             style: const TextStyle(
               fontSize: 13.5,
-              color: Color(0xFF334155),
+              color: Color(0xFF333333),
               height: 1.5,
             ),
           ),
@@ -1379,7 +1379,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
               '${isEn ? 'Pickup address' : 'Địa chỉ nhận đổi'}: ${request.pickupAddress}',
               style: const TextStyle(
                 fontSize: 13, height: 1.5,
-                color: Color(0xFF64748B),
+                color: Color(0xFF46524B),
               ),
             ),
           ],
@@ -1410,7 +1410,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                       height: 60,
                       margin: const EdgeInsets.only(right: 8),
                       decoration: BoxDecoration(
-                        color: TColors.primaryColor,
+                        color: TColors.textPrimary,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Center(
@@ -1445,15 +1445,15 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: TColors.primaryColor,
+                      color: TColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     request.adminResponse,
                     style: const TextStyle(
-                      fontSize: 13.5,
-                      color: Color(0xFF475569),
+                      fontSize: 13.5, fontWeight: FontWeight.w500,
+                      color: TColors.textPrimary,
                       height: 1.5,
                     ),
                   ),
@@ -1469,9 +1469,9 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                 () => VeloraSupportChatScreen(initialReturnRequest: request),
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: TColors.primaryColor,
+                foregroundColor: const Color(0xFF173E32),
                 minimumSize: const Size(0, 44),
-                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                side: const BorderSide(color: Color(0xFF4D6A5C)),
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),

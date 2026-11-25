@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../utils/constants/colors.dart';
 import '../../../utils/localization/shop_locale.dart';
 import '../product/badges/shop_count_badge.dart';
 
@@ -24,8 +23,8 @@ class ShopFilterTab extends StatelessWidget {
           border: Border.all(color: selected ? const Color(0xFFD0E1D7) : Colors.transparent)),
         child: ShopCountBadge(count: count, inline: true, child: ShopText(label,
           style: TextStyle(fontSize: 14, height: 1.3,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? TColors.primaryColor : const Color(0xFF475569)))),
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            color: selected ? const Color(0xFF173E32) : const Color(0xFF38453D)))),
       ),
     )),
   );
