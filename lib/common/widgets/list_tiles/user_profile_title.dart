@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -27,11 +28,10 @@ class TUserProfileTile extends StatelessWidget {
               width: 50, height: 50, fit: BoxFit.cover,
               isNetworkImage: controller.user.value.profilePicture.isNotEmpty,
             ),
-      title: Text(
-        controller.user.value.fullName.trim().isEmpty
-            ? 'Your account' : controller.user.value.fullName,
-        style: const TextStyle(fontSize: 16, color: TColors.white),
-      ),
+      title: controller.user.value.fullName.trim().isEmpty
+          ? const ShopText('Your account', style: TextStyle(fontSize: 16, color: TColors.white))
+          : Text(controller.user.value.fullName,
+              style: const TextStyle(fontSize: 16, color: TColors.white)),
       subtitle: Text(
         controller.user.value.email,
         style: const TextStyle(fontSize: 12, color: TColors.white),

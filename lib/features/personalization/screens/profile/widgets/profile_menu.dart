@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
@@ -26,13 +27,13 @@ class TProfileMenu extends StatelessWidget {
           children: [
             Expanded(
               flex: 4,
-              child: Text(title,
+              child: ShopText(title,
                   style: Theme.of(context).textTheme.bodySmall,
                   overflow: TextOverflow.ellipsis),
             ),
             Expanded(
               flex: 5,
-              child: Text(
+              child: ShopText(
                 value,
                 style: Theme.of(context).textTheme.bodyMedium,
                 overflow: TextOverflow.ellipsis,

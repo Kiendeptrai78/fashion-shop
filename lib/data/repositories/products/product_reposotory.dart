@@ -1,7 +1,6 @@
 import 'package:fashion_business_app/features/shop/models/brand_model.dart';
 import 'package:fashion_business_app/features/shop/models/category_model.dart';
 import 'package:fashion_business_app/features/shop/models/catalog_query.dart';
-import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +17,11 @@ class ProductRepository extends GetxController {
 
   ///firebase instance of database interactions
   final _db = FirebaseFirestore.instance;
+
+  Future<ProductModel?> fetchProductById(String id) async {
+    final snapshot = await _db.collection('Products').doc(id).get();
+    return snapshot.exists ? ProductModel.fromSnapshot(snapshot) : null;
+  }
 
   Future<List<ProductModel>> fetchSimilarProducts(ProductModel product) async {
     if (product.categoryId.isEmpty) return [];
@@ -85,7 +89,8 @@ class ProductRepository extends GetxController {
   /// Thêm sản phẩm mới
   Future<void> addProduct(ProductModel product) async {
     try {
-      await _db.collection('Products').add(product.toJson());
+      await _db.collection('Products').add({...product.toJson(),
+        'notificationPending': true, 'createdAt': FieldValue.serverTimestamp()});
     } catch (e) {
       throw 'Failed to add product: $e';
     }
@@ -301,12 +306,13 @@ class ProductRepository extends GetxController {
             variation.image = url;
           }
         }
-        await _db.collection('Products').doc(product.id).set(product.toJson());
+        final ref = _db.collection('Products').doc(product.id);
+        final existing = await ref.get();
+        await ref.set({...product.toJson(), if (!existing.exists) ...{
+          'notificationPending': true, 'createdAt': FieldValue.serverTimestamp()}});
       }
     } on FirebaseException catch (e) {
       throw e.message!;
-    } on SocketException catch (e) {
-      throw e.message;
     } on PlatformException catch (e) {
       throw e.message!;
     } catch (e) {

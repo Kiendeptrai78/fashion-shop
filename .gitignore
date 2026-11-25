@@ -46,3 +46,11 @@ app.*.map.json
 
 # Local image upload configuration
 /cloudinary.config.json
+
+# Push worker dependencies and server credentials
+server/push/node_modules/
+server/push/.env
+**/*service-account*.json
+
+# Apple authentication private keys stay outside source control
+**/*.p8

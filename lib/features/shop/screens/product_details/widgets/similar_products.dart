@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 import 'package:fashion_business_app/data/repositories/products/product_reposotory.dart';
@@ -31,18 +32,18 @@ class _SimilarProductsState extends State<SimilarProducts> {
       }
       if (snapshot.hasError) {
         return Row(children: [
-          const Expanded(child: Text('Similar pairs couldn’t load.')),
-          TextButton(onPressed: () => setState(() => _products =
-              ProductRepository.instance.fetchSimilarProducts(widget.product)), child: const Text('Retry')),
+          const Expanded(child: ShopText('Similar pairs couldn’t load.')),
+          TextButton(onPressed: () => setState(() { _products =
+              ProductRepository.instance.fetchSimilarProducts(widget.product); }), child: const ShopText('Retry')),
         ]);
       }
       final products = snapshot.data ?? [];
       if (products.isEmpty) return const SizedBox.shrink();
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('More your style', style: TextStyle(fontSize: 24,
+        const ShopText('More your style', style: TextStyle(fontSize: 24,
             fontWeight: FontWeight.w600, letterSpacing: -0.8)),
         const SizedBox(height: 6),
-        Text('Explore more from the ${widget.product.categoryName.toLowerCase()} collection.',
+        ShopText('Explore more from the ${widget.product.categoryName.toLowerCase()} collection.',
             style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 20),
         SizedBox(height: 240, child: ListView.separated(
@@ -57,12 +58,12 @@ class _SimilarProductsState extends State<SimilarProducts> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 TRoundedImage(imageUrl: product.thumbnail, isNetworkImage: true, width: 155, height: 145),
                 const SizedBox(height: 12),
-                Text(product.brand?.name ?? '', style: Theme.of(context).textTheme.bodySmall),
+                ShopText(product.brand?.name ?? '', style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 4),
-                Text(product.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                ShopText(product.title, maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
-                Text('\$${ProductController.instance.getProductPrice(product)}',
+                ShopText(formatShopPrice(ProductController.instance.getProductPrice(product), language: Localizations.localeOf(context).languageCode),
                     style: const TextStyle(fontWeight: FontWeight.w700)),
               ]),
             ));

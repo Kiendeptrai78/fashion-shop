@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -29,7 +30,7 @@ class TSortableProduct extends StatelessWidget {
             controller.sortProducts(value!);
           },
           items: ['Name','Higher Price','Lower Price','Sale','Newest','Popularity']
-              .map((option) => DropdownMenuItem(value: option, child: Text(option))).toList(),
+              .map((option) => DropdownMenuItem(value: option, child: ShopText(option))).toList(),
         ),
         const SizedBox(height: TSizes.spaceBtwSections,),
 

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
@@ -25,7 +26,7 @@ class SubCategoriesScreen extends StatelessWidget {
     final dark = THelperFunctions.isDarkMode(context);
     return Scaffold(
       appBar: TAppbar(
-        title: Text(category.name,
+        title: ShopText(category.name,
             style: TextStyle(
                 fontSize: 20, color: dark ? TColors.white : TColors.dark)),
         showBackArrow: true,

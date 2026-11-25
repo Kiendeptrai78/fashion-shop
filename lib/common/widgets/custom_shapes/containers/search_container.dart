@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
@@ -44,7 +45,7 @@ class TSearchContainer extends StatelessWidget {
             const SizedBox(
               width: TSizes.spaceBtwItems,
             ),
-            Expanded(child: Text(
+            Expanded(child: ShopText(
               text,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall,

@@ -1,14 +1,14 @@
+import 'package:fashion_business_app/features/personalization/services/account_activity.dart';
+import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
+import 'package:fashion_business_app/common/widgets/product/badges/shop_count_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/features/personalization/screens/settings/setting_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/home/home_screen.dart';
-import 'package:fashion_business_app/features/shop/screens/store/store_screen.dart';
-import 'package:fashion_business_app/features/shop/screens/wishlist/wishlish_screen.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
+import 'package:fashion_business_app/features/shop/screens/reels/velora_reels_screen.dart';
+import 'package:fashion_business_app/features/shop/screens/support_chat/velora_support_chat_screen.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
-
-import 'features/shop/screens/cart/cart_screen.dart';
 
 class NavigationMenu extends StatelessWidget {
   const NavigationMenu({super.key});
@@ -16,25 +16,99 @@ class NavigationMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(NavigationController());
+    WidgetsBinding.instance.addPostFrameCallback((_) => AccountActivity.current?.handleInitialPush());
     final darkMode = THelperFunctions.isDarkMode(context);
+    final activeColor = darkMode ? const Color(0xFFDDEABB) : const Color(0xFF173E32);
+    final inactiveColor = darkMode ? Colors.white60 : const Color(0xFF6B7770);
+
+    final mq = MediaQuery.of(context);
+    final navOccupiedHeight = 74.0 + mq.viewPadding.bottom;
+    final adjustedBottomInset =
+        (mq.viewInsets.bottom - navOccupiedHeight).clamp(0.0, double.infinity);
+
     return Scaffold(
-      bottomNavigationBar: Obx(
-            () => NavigationBar(
-          height: 80,
-          elevation: 0,
-          selectedIndex: controller.selectedIndex.value,
-          onDestinationSelected: (index) => controller.selectedIndex.value = index,
-          backgroundColor: darkMode ? TColors.black : TColors.white,
-          indicatorColor: darkMode ? TColors.white.withOpacity(0.1) : TColors.black.withOpacity(0.1),
-          destinations: const [
-            NavigationDestination(icon: Icon(Iconsax.home), label: 'Home'),
-            NavigationDestination(icon: Icon(Iconsax.shopping_bag), label: 'Cart'),
-            NavigationDestination(icon: Icon(Iconsax.heart), label: 'Wishlist'),
-            NavigationDestination(icon: Icon(Iconsax.user), label: 'Profile'),
-          ],
+      resizeToAvoidBottomInset: false,
+      bottomNavigationBar: Obx(() {
+        final chatUnread = AccountActivity.current?.chatUnread.value ?? 0;
+        final profileCount = (AccountActivity.current?.activeOrders ?? 0) +
+            (AccountActivity.current?.unread ?? 0) +
+            (Get.isRegistered<CustomerBenefits>() ? CustomerBenefits.instance.newCouponCount : 0);
+
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: darkMode ? const Color(0xFF111C17) : Colors.white,
+            border: Border(
+              top: BorderSide(
+                color: darkMode ? Colors.white.withValues(alpha: 0.08) : const Color(0xFF173E32).withValues(alpha: 0.08),
+              ),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: darkMode ? 0.25 : 0.05),
+                blurRadius: 18,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: NavigationBarTheme(
+            data: NavigationBarThemeData(
+              labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                final selected = states.contains(WidgetState.selected);
+                return TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? activeColor : inactiveColor,
+                );
+              }),
+              iconTheme: WidgetStateProperty.resolveWith((states) {
+                final selected = states.contains(WidgetState.selected);
+                return IconThemeData(
+                  size: 23,
+                  color: selected ? activeColor : inactiveColor,
+                );
+              }),
+            ),
+            child: NavigationBar(
+              height: 74,
+              elevation: 0,
+              selectedIndex: controller.selectedIndex.value.clamp(0, 3),
+              onDestinationSelected: (index) => controller.selectedIndex.value = index,
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              indicatorColor: darkMode ? const Color(0xFF1F382E) : const Color(0xFFE7F0EA),
+              indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              destinations: [
+                NavigationDestination(
+                  icon: const Icon(Iconsax.home),
+                  selectedIcon: const Icon(Iconsax.home_15),
+                  label: 'Home'.tr,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.play_circle_outline_rounded),
+                  selectedIcon: const Icon(Icons.play_circle_filled_rounded),
+                  label: 'Featured'.tr,
+                ),
+                NavigationDestination(
+                  icon: ShopCountBadge(count: chatUnread, child: const Icon(Iconsax.message_text_1)),
+                  selectedIcon: ShopCountBadge(count: chatUnread, child: const Icon(Iconsax.message_text5)),
+                  label: 'Chat',
+                ),
+                NavigationDestination(
+                  icon: ShopCountBadge(count: profileCount, child: const Icon(Iconsax.user)),
+                  selectedIcon: ShopCountBadge(count: profileCount, child: const Icon(Iconsax.user_octagon)),
+                  label: 'Profile'.tr,
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+      body: MediaQuery(
+        data: mq.copyWith(
+          viewInsets: mq.viewInsets.copyWith(bottom: adjustedBottomInset),
         ),
+        child: Obx(() => controller.screens[controller.selectedIndex.value.clamp(0, 3)]),
       ),
-      body: Obx(() => controller.screens[controller.selectedIndex.value]),
     );
   }
 }
@@ -43,8 +117,8 @@ class NavigationController extends GetxController {
   final Rx<int> selectedIndex = 0.obs;
   final screens = [
     const HomeScreen(),
-    const CartScreen(),
-    const WishList(),
+    const VeloraReelsScreen(),
+    const VeloraSupportChatScreen(embeddedInNav: true),
     const SettingScreen()
   ];
 }

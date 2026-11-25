@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 
 import 'rating_progress_indicator.dart';
@@ -11,7 +12,7 @@ class TOverallProductRating extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(flex: 3,child:  Text('4.8', style: Theme.of(context).textTheme.displayLarge,)),
+        Expanded(flex: 3,child:  ShopText('4.8', style: Theme.of(context).textTheme.displayLarge,)),
         const Expanded(
           flex: 7,
           child: Column(

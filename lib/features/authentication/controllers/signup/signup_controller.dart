@@ -9,6 +9,7 @@ import 'package:fashion_business_app/data/repositories/users/user_repository.dar
 import 'package:fashion_business_app/features/authentication/controllers/signup/network_manager.dart';
 import 'package:fashion_business_app/features/authentication/models/user_model.dart';
 import 'package:fashion_business_app/features/authentication/screens/signup/verify_email.dart';
+import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:fashion_business_app/utils/constants/image_strings.dart';
 import 'package:fashion_business_app/utils/constants/text_strings.dart';
 import 'package:fashion_business_app/utils/popups/full_screen_loader.dart';
@@ -69,14 +70,16 @@ class SignupController extends GetxController {
       );
 
       // Lưu dữ liệu người dùng đã xác thực trong Firestore
+      final trimmedEmail = email.text.trim();
       final newUser = UserModel(
           id: userCredential.user!.uid,
-          email: email.text.trim(),
+          email: trimmedEmail,
           firstName: firstName.text.trim(),
           username: userName.text.trim(),
           lastName: lastName.text.trim(),
           phoneNumber: phoneNumber.text.trim(),
-          profilePicture: '', role: 'Client'
+          profilePicture: '',
+          role: AdminConfig.roleForEmail(trimmedEmail),
       );
 
       final userRepository = Get.put(UserRepository());

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/common/widgets/icon/circular_icon.dart';
@@ -32,7 +33,7 @@ class TProductQuantityWithAddRemoveButton extends StatelessWidget {
         ),
 
         const SizedBox(width: TSizes.spaceBtwItems,),
-        Text(quantity.toString(),style: Theme.of(context).textTheme.titleSmall,),
+        ShopText(quantity.toString(),style: Theme.of(context).textTheme.titleSmall,),
         const SizedBox(width: TSizes.spaceBtwItems,),
 
         /// add button

@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fashion_business_app/common/widgets/dialogs/velora_confirm_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
 import 'package:fashion_business_app/data/repositories/authentication/authentication_repository.dart';
@@ -12,6 +14,7 @@ import 'package:fashion_business_app/features/authentication/models/user_model.d
 import 'package:fashion_business_app/features/authentication/screens/login/login.dart';
 import 'package:fashion_business_app/features/personalization/screens/profile/widgets/re_auth_user_login_form.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/order_controller.dart';
+import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:fashion_business_app/utils/constants/image_strings.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
 import 'package:fashion_business_app/utils/popups/full_screen_loader.dart';
@@ -59,11 +62,55 @@ class UserController extends GetxController {
   ///fetch user record
   Future<void> fetchUserRecord() async {
     try {
+      final authUser = FirebaseAuth.instance.currentUser;
+      if (authUser == null) {
+        user(UserModel.empty());
+        return;
+      }
       profileLoading.value = true;
-      final user = await userRepository.fetchUserDetail();
-      this.user(user);
+      var loaded = await userRepository.fetchUserDetail();
+      if (loaded.id.isEmpty) {
+        final display = (authUser.displayName ?? '').trim();
+        final email = (authUser.email ?? '').trim();
+        final fallbackName = display.isNotEmpty
+            ? display
+            : (email.contains('@') ? email.split('@').first : 'Khách hàng VELORA');
+        final parts = UserModel.nameParts(fallbackName);
+        loaded = UserModel(
+          id: authUser.uid,
+          email: email,
+          firstName: parts.isNotEmpty ? parts.first : fallbackName,
+          lastName: parts.length > 1 ? parts.sublist(1).join(' ') : '',
+          username: UserModel.generateUsername(fallbackName),
+          phoneNumber: authUser.phoneNumber ?? '',
+          profilePicture: authUser.photoURL ?? '',
+          role: AdminConfig.roleForEmail(email),
+        );
+        try {
+          await userRepository.saveUserRecord(loaded);
+        } catch (_) {}
+      }
+      user(loaded);
+      user.refresh();
     } catch (e) {
-      user(UserModel.empty());
+      final authUser = FirebaseAuth.instance.currentUser;
+      if (authUser != null) {
+        final email = authUser.email ?? '';
+        final display = (authUser.displayName ?? '').trim();
+        final fallback = display.isNotEmpty ? display : email.split('@').first;
+        user(UserModel(
+          id: authUser.uid,
+          email: email,
+          firstName: fallback,
+          lastName: '',
+          username: UserModel.generateUsername(fallback),
+          phoneNumber: authUser.phoneNumber ?? '',
+          profilePicture: authUser.photoURL ?? '',
+          role: AdminConfig.roleForEmail(email),
+        ));
+      } else {
+        user(UserModel.empty());
+      }
     } finally {
       profileLoading.value = false;
     }
@@ -128,16 +175,18 @@ class UserController extends GetxController {
               userCredentials.user!.displayName ?? '');
 
           //map data
+          final userEmail = userCredentials.user!.email ?? '';
           final user = UserModel(
               id: userCredentials.user!.uid,
-              email: userCredentials.user!.email ?? '',
+              email: userEmail,
               firstName: nameParts[0],
               username: userName,
               lastName: nameParts.length > 1
                   ? nameParts.sublist(1).join(' ')
                   : '',
               phoneNumber: userCredentials.user!.phoneNumber ?? '',
-              profilePicture: userCredentials.user!.photoURL ?? '', role: 'Client'
+              profilePicture: userCredentials.user!.photoURL ?? '',
+              role: AdminConfig.roleForEmail(userEmail),
           );
 
           //save user data
@@ -166,16 +215,18 @@ class UserController extends GetxController {
               userCredentials.user!.displayName ?? '');
 
           //map data
+          final userEmail = userCredentials.user!.email ?? '';
           final user = UserModel(
               id: userCredentials.user!.uid,
-              email: userCredentials.user!.email ?? '',
+              email: userEmail,
               firstName: nameParts[0],
               username: userName,
               lastName: nameParts.length > 1
                   ? nameParts.sublist(1).join(' ')
                   : '',
               phoneNumber: userCredentials.user!.phoneNumber ?? '',
-              profilePicture: userCredentials.user!.photoURL ?? '', role: 'Admin'
+              profilePicture: userCredentials.user!.photoURL ?? '',
+              role: AdminConfig.roleForEmail(userEmail),
           );
 
           //save user data
@@ -191,24 +242,21 @@ class UserController extends GetxController {
 
 
   // Existing delete account warning popup
-  void deleteAccountWarningPopup() {
-    Get.defaultDialog(
-      contentPadding: const EdgeInsets.all(TSizes.md),
+  void deleteAccountWarningPopup() async {
+    final ctx = Get.context;
+    if (ctx == null) return;
+    final confirmed = await showVeloraConfirmDialog(
+      ctx,
       title: 'Delete Account',
-      middleText: 'Are you sure you want to delete your account permanently? This action is not reversible and all of your data will be removed permanently.',
-      confirm: ElevatedButton(
-        onPressed: () async => deleteUserAccount(),
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: TSizes.lg),
-          child: Text('Delete'),
-        ),
-      ),
-      cancel: OutlinedButton(
-        onPressed: () => Navigator.of(Get.overlayContext!).pop(),
-        child: const Text('Cancel'),
-      ),
+      message: 'Are you sure you want to delete your account permanently? This action is not reversible and all of your data will be removed permanently.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true,
+      icon: Iconsax.user_remove,
     );
+    if (confirmed == true) {
+      deleteUserAccount();
+    }
   }
 
   // Existing delete user account method with added functionality to store orders in a temporary collection

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="VELORA Admin Portal — Quản trị sản phẩm, đơn hàng, thương hiệu, banner, người dùng và thông báo.">
+  <meta name="theme-color" content="#173E32">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="VELORA Admin">
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/Icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="icon" type="image/png" sizes="64x64" href="favicon.png"/>
+  <link rel="shortcut icon" href="favicon.png"/>
+
+  <title>VELORA Admin — Quản trị cửa hàng</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #173E32;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #web-loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 80% 20%, #235345 0%, #173E32 60%, #102B23 100%);
+      color: #ffffff;
+      z-index: 9999;
+      transition: opacity 0.3s ease;
+    }
+    .loader-mark {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      background: rgba(221, 234, 187, 0.14);
+      border: 1px solid rgba(221, 234, 187, 0.32);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 700;
+      color: #DDEABB;
+      letter-spacing: -2px;
+      margin-bottom: 18px;
+    }
+    .loader-title {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 4px;
+      margin-bottom: 8px;
+    }
+    .loader-sub {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.65);
+      margin-bottom: 24px;
+    }
+    .loader-bar {
+      width: 140px;
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.15);
+      overflow: hidden;
+    }
+    .loader-bar::after {
+      content: "";
+      display: block;
+      width: 45%;
+      height: 100%;
+      background: #DDEABB;
+      border-radius: 999px;
+      animation: slide 1.1s infinite ease-in-out;
+    }
+    @keyframes slide {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(320%); }
+    }
+  </style>
+</head>
+<body>
+  <div id="web-loader">
+    <div class="loader-mark">V</div>
+    <div class="loader-title">VELORA ADMIN</div>
+    <div class="loader-sub">Đang tải bảng điều khiển quản trị...</div>
+    <div class="loader-bar"></div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var loader = document.getElementById('web-loader');
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(function () { loader.remove(); }, 300);
+      }
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

@@ -1,12 +1,23 @@
+import 'package:fashion_business_app/features/personalization/models/address_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
+import 'package:fashion_business_app/data/repositories/authentication/authentication_repository.dart';
+import 'package:fashion_business_app/features/personalization/services/customer_benefits.dart';
+import 'package:fashion_business_app/features/personalization/screens/account/coupons_screen.dart';
+import 'package:fashion_business_app/features/shop/models/order_model.dart';
+import 'package:fashion_business_app/features/shop/models/product_availability_helper.dart';
+import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
+import 'package:fashion_business_app/features/shop/screens/checkout/vnpay_sandbox_screen.dart';
+import 'package:fashion_business_app/features/shop/services/vnpay_sandbox_service.dart';
+import 'package:fashion_business_app/utils/constants/enums.dart';
+import 'widgets/checkout_complete_screen.dart';
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
-import 'package:fashion_business_app/features/shop/controllers/product/order_controller.dart';
 import 'package:fashion_business_app/features/shop/screens/checkout/widgets/billing_amount_section.dart';
-import 'package:fashion_business_app/utils/helpers/pricing_caculator.dart';
-import '../../../../data/repositories/payment/payment.dart';
 import '../../controllers/product/checkout_controller.dart';
 import 'widgets/billing_address_section.dart';
 import 'widgets/billing_payment_section.dart';
@@ -21,151 +32,415 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  static const EventChannel eventChannel =
-  EventChannel('flutter.native/eventPayOrder');
-  static const MethodChannel platform =
-  MethodChannel('flutter.native/channelPayOrder');
-  String zpTransToken = "";
-  String payResult = "";
-  bool showResult = false;
+  final _checkoutController = CheckoutController.instance;
+  final _benefits = CustomerBenefits.instance;
+  final _orderId = const Uuid().v4();
+  ShopCoupon? _coupon;
+  String? _error;
 
-  final CheckoutController _checkoutController = CheckoutController.instance;
-
-
-  Future<void> _createOrderAndPay(String amount) async {
-    int parsedAmount = (double.parse(amount) * 22222).toInt(); // Update the amount conversion
-    if (parsedAmount < 1000 || parsedAmount > 100000000) {
-      setState(() {
-        zpTransToken = "Invalid Amount";
-      });
-      return;
-    }
-    // Hiển thị vòng quay loading
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      },
-    );
-
-    // Tạo đơn hàng
-    var result = await createOrder(parsedAmount);
-    Navigator.pop(context); // Tắt vòng quay loading
-
-    if (result != null) {
-      zpTransToken = result.zptranstoken;
-      setState(() {
-        zpTransToken = result.zptranstoken;
-        showResult = true;
-      });
-
-      // Tiến hành thanh toán
-      String response = "";
-      try {
-        final String result =
-        await platform.invokeMethod('payOrder', {"zptoken": zpTransToken});
-        response = result;
-        print("payOrder Result: '$result'.");
-        if (response == "Payment Success") {
-          _processOrder(); // Call order processing method on successful payment
-        }
-      } on PlatformException catch (e) {
-        print("Failed to Invoke: '${e.message}'.");
-        response = "Thanh toán thất bại";
-      }
-      print(response);
-      setState(() {
-        payResult = response;
-      });
+  @override
+  void initState() {
+    super.initState();
+    final addresses = AddressController.instance;
+    if (addresses.selectedAddress.value.id.isEmpty) {
+      addresses.getAllUserAddresses().catchError((_) => <AddressModel>[]);
     }
   }
 
-  void _processOrder() {
-    final orderController = Get.put(OrderController());
-    final cartController = CartController.instance;
-    final subTotal = cartController.totalCartPrice.value;
-    final totalAmount = TPricingCalculator.calculateTotalPrice(subTotal, 'US');
+  Future<void> _submit() async {
+    if (_benefits.busy.value) return;
+    final address = AddressController.instance.selectedAddress.value;
+    if (address.id.isEmpty) {
+      await AddressController.instance.selectNewAddressPopup(context);
+      return;
+    }
+    final cart = CartController.instance;
+    final isVnPay = _checkoutController.isVnPaySelected;
+    setState(() => _error = null);
 
-    orderController.processOrder(totalAmount);
+    VnPayTransactionResult? vnpayResult;
+    if (isVnPay) {
+      final quote = _benefits.quote(cart.totalCartPrice.value, _coupon);
+      final summaryInfo = cart.cartItems.isNotEmpty
+          ? 'Thanh toan ${cart.cartItems.first.title} VELORA'
+          : 'Thanh toan don hang VELORA';
+      vnpayResult = await Get.to<VnPayTransactionResult>(
+        () => VnPaySandboxScreen(
+          orderId: _orderId,
+          amountVnd: quote.totalVnd,
+          orderInfo: summaryInfo,
+        ),
+      );
+      if (!mounted) return;
+      if (vnpayResult == null || !vnpayResult.isSuccess) {
+        setState(() {
+          _error = vnpayResult?.statusDescription ??
+              'Bạn đã hủy giao dịch thanh toán VNPay. Bạn có thể thử lại hoặc chọn Thanh toán khi nhận hàng.';
+        });
+        return;
+      }
+    }
+
+    try {
+      await _benefits.purchase(
+        orderId: _orderId,
+        subtotal: cart.totalCartPrice.value,
+        bank: false,
+        coupon: _coupon,
+        saveOrder: (quote) async {
+          final uid = AuthenticationRepository.instance.authUser.uid;
+          final date = DateTime.now();
+          final eta = ShippingRouteHelper.estimateForAddress(address);
+          final methodLabel = vnpayResult != null
+              ? 'VNPay (${vnpayResult.bankCode})'
+              : CheckoutController.codMethodName;
+          final order = OrderModel(
+            id: _orderId,
+            userId: uid,
+            status: OrderStatus.pending,
+            totalAmount: quote.total,
+            orderDate: date,
+            searchDate: date,
+            paymentMethod: methodLabel,
+            address: address,
+            deliveryDate: eta.latestDeliveryDate(date),
+            items: cart.cartItems.toList(),
+          );
+          final db = FirebaseFirestore.instance;
+          final user = db.collection('Users').doc(uid);
+          final batch = db.batch();
+          batch.set(user.collection('Orders').doc(_orderId), {
+            ...order.toJson(),
+            'discountAmount': quote.discount,
+            'couponCode': _coupon?.id ?? '',
+            'paymentStatus':
+                vnpayResult != null ? 'vnpay_paid' : 'pay_on_delivery',
+            if (vnpayResult != null) ...{
+              'vnpayTxnRef': vnpayResult.txnRef,
+              'vnpayTransactionNo': vnpayResult.transactionNo,
+              'vnpayBankCode': vnpayResult.bankCode,
+              'vnpayResponseCode': vnpayResult.responseCode,
+              'vnpayPayDate': vnpayResult.payDate,
+            },
+            'notificationPending': true,
+          });
+          final summaryVi = order.itemsSummary(english: false);
+          final summaryEn = order.itemsSummary(english: true);
+          batch.set(
+            user.collection('Notifications').doc('order-$_orderId-pending'),
+            {
+              'kind': 'order',
+              'targetId': _orderId,
+              'read': false,
+              'pushPending': true,
+              'titleVi': vnpayResult != null
+                  ? 'Đã thanh toán VNPay cho đơn $summaryVi'
+                  : 'Đơn hàng $summaryVi của bạn đã được tiếp nhận',
+              'titleEn': vnpayResult != null
+                  ? 'VNPay payment confirmed for $summaryEn'
+                  : 'Your order for $summaryEn has been received',
+              'bodyVi': vnpayResult != null
+                  ? 'Giao dịch VNPay #${vnpayResult.transactionNo} (${vnpayResult.bankCode}) thành công. Tổng Kho Hà Nội đang xác nhận gửi hàng.'
+                  : 'Cửa hàng đang xác nhận đơn hàng. Bạn có thể theo dõi tiến trình trong Đơn hàng của tôi.',
+              'bodyEn': vnpayResult != null
+                  ? 'VNPay transaction #${vnpayResult.transactionNo} (${vnpayResult.bankCode}) succeeded. VELORA is confirming your order.'
+                  : 'We are confirming your order. Track its progress in My Orders.',
+              'createdAt': FieldValue.serverTimestamp(),
+            },
+          );
+          await batch.commit();
+        },
+      );
+      cart.clearCart();
+      if (!mounted) return;
+      await Get.off(() => CheckoutCompleteScreen(vnpayResult: vnpayResult));
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = error is StateError
+              ? error.message.toString()
+              : 'Couldn’t place the order. Please try again.',
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final cart = CartController.instance;
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: const TAppbar(showBackArrow: true, title: Text('Checkout',
+    return PopScope(canPop: !_benefits.busy.value, child: Scaffold(
+      appBar: const TAppbar(showBackArrow: true, title: ShopText('Checkout',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, letterSpacing: -0.6))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('The final details.', style: TextStyle(fontSize: 28,
+          const ShopText('The final details.', style: TextStyle(fontSize: 28,
               fontWeight: FontWeight.w600, letterSpacing: -1)),
           const SizedBox(height: 8),
-          Text('Review your pairs and choose how to pay.', style: theme.textTheme.bodySmall),
+          ShopText('Review your pairs and choose how to pay.', style: theme.textTheme.bodySmall),
           const SizedBox(height: 28),
           const TBillingAddressSection(),
+          const SizedBox(height: 12),
+          Obx(() {
+            final selectedAddr = AddressController.instance.selectedAddress.value;
+            final eta = ShippingRouteHelper.estimateForAddress(selectedAddr);
+            final isEn = Localizations.localeOf(context).languageCode == 'en';
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F9FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBAE6FD)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.local_shipping_outlined,
+                      size: 18, color: Color(0xFF0284C7)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      eta.customerEtaHeadline(english: isEn),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0C4A6E),
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
           const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(height: 1)),
           const TBillingPaymentSection(),
+          Obx(() {
+            if (!_checkoutController.isVnPaySelected) {
+              return const SizedBox.shrink();
+            }
+            final isEn = Localizations.localeOf(context).languageCode == 'en';
+            return Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF005BAA).withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Iconsax.shield_tick,
+                      size: 18,
+                      color: Color(0xFF005BAA),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        isEn
+                            ? 'VNPay Sandbox Test Gateway: supports VNPAY-QR, NCB test card (9704198526191432198, OTP 123456) and Visa/Mastercard with HMAC-SHA512 signing.'
+                            : 'Cổng thanh toán VNPay Sandbox Test: hỗ trợ quét VNPAY-QR, thẻ ATM NCB (9704198526191432198, OTP 123456) hoặc Visa/Mastercard ký số HMAC-SHA512.',
+                        softWrap: true,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF003E78),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
           const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(height: 1)),
           Row(children: [
-            const Expanded(child: Text('Your pairs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
-            TextButton(onPressed: () => Get.back(), child: const Text('Edit bag')),
+            const Expanded(child: ShopText('Your pairs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+            TextButton(onPressed: () => Get.back(), child: const ShopText('Edit bag')),
           ]),
           const SizedBox(height: 12),
-          Obx(() => Column(children: [for (final item in cart.cartItems)
-            Padding(padding: const EdgeInsets.only(bottom: 20), child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start, children: [
-                TRoundedImage(imageUrl: item.image ?? '', width: 84, height: 84, isNetworkImage: true),
-                const SizedBox(width: 16),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(item.brandName ?? '', style: theme.textTheme.bodySmall),
-                  const SizedBox(height: 4),
-                  Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  Text((item.selectedVariation?.entries ?? []).map((e) => '${e.key}: ${e.value}').join(' · '),
-                      style: theme.textTheme.bodySmall),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 12, children: [Text('Qty ${item.quantity}', style: theme.textTheme.bodySmall),
-                    Text('\$${(item.price * item.quantity).toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.w600))]),
-                ])),
+          Obx(() => Column(children: [
+                for (final item in cart.cartItems)
+                  FutureBuilder<ProductAvailabilityResult>(
+                    future: ProductAvailabilityHelper.checkCartItem(item),
+                    builder: (context, availSnap) {
+                      final unavailable =
+                          availSnap.data?.isUnavailable == true;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => ProductAvailabilityHelper
+                              .openProductDetailFromCartItem(context, item),
+                          child: Opacity(
+                            opacity: unavailable ? 0.55 : 1.0,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                TRoundedImage(
+                                  imageUrl: item.image ?? '',
+                                  width: 84,
+                                  height: 84,
+                                  isNetworkImage: true,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      ShopText(
+                                        item.brandName ?? '',
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      ShopText(
+                                        item.title,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          decoration: unavailable
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                        ),
+                                      ),
+                                      if (unavailable) ...[
+                                        const SizedBox(height: 5),
+                                        const DiscontinuedProductBadge(
+                                            compact: true),
+                                      ],
+                                      const SizedBox(height: 6),
+                                      ShopText(
+                                        (item.selectedVariation?.entries ?? [])
+                                            .map((e) => '${e.key}: ${e.value}')
+                                            .join(' · '),
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 12,
+                                        children: [
+                                          ShopText(
+                                            'Qty ${item.quantity}',
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                          ShopText(
+                                            formatShopMoney(
+                                              item.price * item.quantity,
+                                              language: Localizations.localeOf(
+                                                      context)
+                                                  .languageCode,
+                                            ),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
               ])),
-          ])),
           const Divider(height: 32),
-          const Text('Order summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          ListTile(contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.local_offer_outlined),
+            title: const ShopText('My Coupons'),
+            subtitle: _coupon == null ? const ShopText('Choose a coupon') : Text(_coupon!.id),
+            trailing: _coupon == null ? const Icon(Icons.chevron_right) : IconButton(
+                tooltip: 'Remove coupon'.tr, onPressed: () => setState(() => _coupon = null),
+                icon: const Icon(Icons.close, size: 18)),
+            onTap: () async {
+              final coupon = await Get.to<ShopCoupon>(() => CouponsScreen(subtotal: cart.totalCartPrice.value));
+              if (coupon != null && mounted) setState(() => _coupon = coupon);
+            },
+          ),
+          const Divider(height: 32),
+          const ShopText('Order summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 20),
-          const TBillingAmountSection(),
+          TBillingAmountSection(discount: _benefits.quote(cart.totalCartPrice.value, _coupon).discount),
+          if (_error != null) Padding(padding: const EdgeInsets.only(top: 16),
+              child: ShopText(_error!, style: TextStyle(color: theme.colorScheme.error))),
         ]),
       ),
       bottomNavigationBar: Obx(() {
         final subtotal = cart.totalCartPrice.value;
-        final total = TPricingCalculator.calculateTotalPrice(subtotal, 'US');
-        final zalo = _checkoutController.selectedPaymentMethod.value.name == 'ZaloPay';
-        return SafeArea(top: false, child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 18),
-          decoration: BoxDecoration(border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.15)))),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('Total to pay'),
-              Text('\$${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
-            ]),
-            const SizedBox(height: 14),
-            SizedBox(width: double.infinity, child: ElevatedButton(
-              onPressed: subtotal <= 0 ? null : () {
-                if (AddressController.instance.selectedAddress.value.id.isEmpty) {
-                  AddressController.instance.selectNewAddressPopup(context);
-                  return;
-                }
-                if (zalo) { _createOrderAndPay(total.toString()); } else { _processOrder(); }
-              },
-              child: Text(zalo ? 'Pay with ZaloPay' : 'Place order · Pay on delivery'),
-            )),
-          ]),
-        ));
+        final total = _benefits.quote(subtotal, _coupon).total;
+        final isVnPay = _checkoutController.isVnPaySelected;
+        final busy = _benefits.busy.value;
+        final isEn = Localizations.localeOf(context).languageCode == 'en';
+        return SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 18),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.15),
+                ),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const ShopText('Total to pay'),
+                    ShopText(
+                      formatShopMoney(
+                        total,
+                        language: Localizations.localeOf(context).languageCode,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: isVnPay
+                        ? ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF005BAA),
+                            foregroundColor: Colors.white,
+                          )
+                        : null,
+                    onPressed: subtotal <= 0 || busy ? null : _submit,
+                    child: busy
+                        ? const ShopText('Placing your order...')
+                        : (isVnPay
+                            ? Text(
+                                isEn
+                                    ? 'Pay online via VNPay (Sandbox)'
+                                    : 'Thanh toán trực tuyến qua VNPay',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              )
+                            : const ShopText('Place order · Pay on delivery')),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       }),
-    );
+    ));
   }
 }

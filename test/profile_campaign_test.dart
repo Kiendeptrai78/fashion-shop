@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/features/personalization/screens/profile/profile_screen.dart';
 import 'package:fashion_business_app/common/widgets/list_tiles/user_profile_title.dart';
 import 'package:fashion_business_app/features/authentication/models/user_model.dart';
 import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
@@ -28,6 +29,18 @@ void main() {
     await tester.pump();
     expect(find.text('Sneaker Fan'), findsOneWidget);
     expect(find.text('shop@example.com'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('profile displays account data without fake demographic values', (tester) async {
+    final controller = Get.put<UserController>(_User());
+    controller.user.value = UserModel(id: 'id', email: 'buyer@example.com', firstName: 'Buyer',
+        lastName: 'One', username: 'buyer', phoneNumber: '', profilePicture: '', role: 'Client');
+    await tester.pumpWidget(const GetMaterialApp(home: ProfileScreen()));
+    await tester.pumpAndSettle();
+    expect(find.text('Buyer One'), findsOneWidget);
+    expect(find.text('buyer@example.com'), findsOneWidget);
+    expect(find.text('Male'), findsNothing);
+    expect(find.text('April 15, 2002'), findsNothing);
     expect(tester.takeException(), isNull);
   });
   test('legacy banners and campaign metadata roundtrip', () {

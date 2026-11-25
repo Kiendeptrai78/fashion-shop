@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
 
@@ -18,7 +19,7 @@ class TSectionHeading2 extends StatelessWidget {
     return const Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
+        ShopText(
           'Popular Categories',
           style:  TextStyle(color: TColors.white,fontSize: 18),
           maxLines: 1,

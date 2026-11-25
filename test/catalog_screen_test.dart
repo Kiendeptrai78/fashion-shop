@@ -7,6 +7,10 @@ import 'package:fashion_business_app/features/shop/models/catalog_query.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
 import 'package:fashion_business_app/features/shop/screens/home/home_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:fashion_business_app/features/shop/models/category_model.dart';
+import 'package:fashion_business_app/utils/localization/shop_translations.dart';
 import 'package:get/get.dart';
 
 class _Prices extends GetxController implements ProductController {
@@ -30,6 +34,32 @@ class _Favourites extends FavouritesController {
 
 void main() {
   tearDown(() => Get.reset());
+
+  testWidgets('home editorial CTA reaches the catalog on a small Vietnamese phone', (tester) async {
+    tester.view.physicalSize = const Size(320, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    Get.put<CartController>(_Cart());
+    final controller = CatalogController(
+      loadFacets: () async => CatalogFacets(categories: [
+        CategoryModel(id: 'running', name: 'Running', image: '', isFeatured: true),
+      ]),
+      loadPage: ({required filter, cursor}) async => const CatalogPage(products: [], hasNext: false, totalCount: 0),
+    );
+    await tester.pumpWidget(GetMaterialApp(locale: const Locale('vi'), translations: ShopTranslations(),
+        supportedLocales: const [Locale('vi'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        home: HomeScreen(catalog: controller, campaigns: Future.value([]))));
+    await tester.pumpAndSettle();
+    expect(find.text('VELORA'), findsOneWidget);
+    await tester.ensureVisible(find.text('Tìm đôi giày của bạn'));
+    await tester.tap(find.text('Tìm đôi giày của bạn'));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.text('Những đôi giày đáng khám phá')).dy, lessThan(200));
+    expect(controller.filter.categoryId, isNull);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('catalog shows 10, 10, then 4 products and supports previous page', (tester) async {
     Get.put<ProductController>(_Prices());

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/common/widgets/images/circular_image.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
@@ -48,7 +49,7 @@ class TVerticalImageText extends StatelessWidget {
             Expanded(child: SizedBox(
               width: 55,
               child: Center(
-                child: Text(
+                child: ShopText(
                   title,
                   style: Theme.of(context)
                       .textTheme

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/common/widgets/custom_shapes/containers/rounded_container.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
@@ -44,7 +45,7 @@ class TCouponCode extends StatelessWidget {
                   backgroundColor: TColors.grey.withOpacity(0.2),
                   side: BorderSide(color: TColors.grey.withOpacity(0.1))
               ),
-              child: const Text('Apply'),
+              child: const ShopText('Apply'),
             ),
           )
         ],

@@ -21,4 +21,21 @@ class TRoutes{
   static const resetPassword = '/reset-password';
   static const forgetPassWord = '/forget-password';
   static const onBoarding = '/on-boarding';
+
+  // Admin Web clean named routes
+  static const adminLogin = '/admin/login';
+  static const adminDashboard = '/admin/dashboard';
+  static const adminFinance = '/admin/finance';
+  static const adminOrders = '/admin/orders';
+  static const adminReturns = '/admin/returns';
+  static const adminSupportChat = '/admin/support-chat';
+  static const adminProducts = '/admin/products';
+  static const adminFeatured = '/admin/featured';
+  static const adminVouchers = '/admin/vouchers';
+  static const adminBrands = '/admin/brands';
+  static const adminCategories = '/admin/categories';
+  static const adminBanners = '/admin/banners';
+  static const adminUsers = '/admin/users';
+  static const adminReviews = '/admin/reviews';
+  static const adminNotifications = '/admin/notifications';
 }

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
@@ -27,7 +28,7 @@ class TAnimationLoaderWidget extends StatelessWidget {
           Lottie.asset(animation,width: MediaQuery.of(context).size.width * 0.6),
           const SizedBox(height: TSizes.defaultSpace,),
 
-          Text(
+          ShopText(
             text,
             style: Theme.of(context).textTheme.bodyMedium,
             textAlign: TextAlign.center,
@@ -40,7 +41,7 @@ class TAnimationLoaderWidget extends StatelessWidget {
               onPressed: onActionPressed,
               style: OutlinedButton.styleFrom(
                   backgroundColor: TColors.dark),
-              child: Text(
+              child: ShopText(
                 actionText!,
                 style: Theme.of(context)
                     .textTheme

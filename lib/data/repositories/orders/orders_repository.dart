@@ -9,6 +9,84 @@ import 'package:fashion_business_app/utils/constants/enums.dart';
 class OrderRepository extends GetxController{
   static OrderRepository get instance => Get.find();
 
+  Future<void> updateCustomerStatus(OrderModel order, OrderStatus next) async {
+    final uid = AuthenticationRepository.instance.authUser.uid;
+    final result = await _db.collection('Users').doc(uid).collection('Orders')
+        .where('id', isEqualTo: order.id).limit(1).get();
+    if (result.docs.isEmpty) throw StateError('Order no longer exists.');
+    final ref = result.docs.single.reference;
+    await _db.runTransaction((transaction) async {
+      final current = (await transaction.get(ref)).data();
+      final status = current?['status'];
+      final canCancel =
+          next == OrderStatus.cancelled && status == OrderStatus.pending.toString();
+      final canReceive = next == OrderStatus.received && status == OrderStatus.shipped.toString();
+      if (!canCancel && !canReceive) throw StateError('Order status has changed. Refresh and try again.');
+      transaction.update(ref, {'status': next.toString(), 'notificationPending': true});
+    });
+    await _writeCustomerOrderNotification(uid: uid, order: order, status: next);
+  }
+
+  Future<void> _writeCustomerOrderNotification({
+    required String uid,
+    required OrderModel order,
+    required OrderStatus status,
+  }) async {
+    try {
+      final viItems = order.itemsSummary(english: false);
+      final enItems = order.itemsSummary(english: true);
+      final thumb = order.items.isNotEmpty ? (order.items.first.image ?? '') : '';
+      final (titleVi, titleEn, bodyVi, bodyEn) = switch (status) {
+        OrderStatus.pending => (
+            'Đặt hàng thành công: $viItems',
+            'Order placed: $enItems',
+            'Đơn hàng của bạn đã được gửi tới VELORA và đang chờ xác nhận.',
+            'Your order has been sent to VELORA and is awaiting confirmation.',
+          ),
+        OrderStatus.processing => (
+            'Đơn hàng $viItems của bạn đang được chuẩn bị',
+            'Your order for $enItems is being prepared',
+            'VELORA đang kiểm tra và đóng gói sản phẩm cho bạn.',
+            'VELORA is checking and packing your items.',
+          ),
+        OrderStatus.shipped => (
+            'Đơn hàng $viItems của bạn đang trên đường giao',
+            'Your order for $enItems is on the way',
+            'Đơn hàng đã bàn giao cho đơn vị vận chuyển.',
+            'Your order has been handed to the carrier.',
+          ),
+        OrderStatus.received => (
+            'Bạn đã nhận đơn hàng $viItems',
+            'You received your order for $enItems',
+            'Cảm ơn bạn đã mua sắm tại VELORA! Hãy đánh giá sản phẩm để nhận thêm gợi ý chuẩn gu nhé.',
+            'Thank you for shopping with VELORA! You can now review your pair.',
+          ),
+        OrderStatus.cancelled => (
+            'Đơn hàng $viItems của bạn đã hủy',
+            'Your order for $enItems was cancelled',
+            'Đơn hàng đã chuyển sang trạng thái hủy.',
+            'Your order has been cancelled.',
+          ),
+      };
+      final notifId = 'order-${order.id}-${status.name}';
+      await _db.collection('Users').doc(uid).collection('Notifications').doc(notifId).set({
+        'id': notifId,
+        'kind': 'order',
+        'targetId': order.id,
+        'imageUrl': thumb,
+        'titleVi': titleVi,
+        'titleEn': titleEn,
+        'bodyVi': bodyVi,
+        'bodyEn': bodyEn,
+        'read': false,
+        'pushPending': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {
+      // Non-blocking notification write.
+    }
+  }
+
   ///variable
   final _db = FirebaseFirestore.instance;
 
@@ -143,12 +221,14 @@ class OrderRepository extends GetxController{
       final querySnapshot = await orderRef.where('id', isEqualTo: order.id).get();
       if (querySnapshot.docs.isEmpty) {
         // Nếu đơn hàng chưa tồn tại, thêm mới đơn hàng
-        final docRef = await orderRef.add(order.toJson());
+        final docRef = await orderRef.add({...order.toJson(), 'notificationPending': true});
+        await _writeCustomerOrderNotification(uid: clientUserId, order: order, status: order.status);
         return docRef.id;
       } else {
         // Nếu đơn hàng đã tồn tại, cập nhật đơn hàng
         final orderId = querySnapshot.docs.first.id;
-        await orderRef.doc(orderId).update(order.toJson());
+        await orderRef.doc(orderId).update({...order.toJson(), 'notificationPending': true});
+        await _writeCustomerOrderNotification(uid: clientUserId, order: order, status: order.status);
         return orderId;
       }
     } catch (e) {

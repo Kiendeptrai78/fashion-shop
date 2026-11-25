@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/common/widgets/custom_shapes/containers/rounded_container.dart';
 import 'package:fashion_business_app/common/widgets/images/circular_image.dart';
@@ -45,7 +46,7 @@ class TBrandCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                  TBrandTitleWithVerifiedIcon(title: brand.name,brandTextSizes: TextSizes.large,),
-                Text('Products',overflow: TextOverflow.ellipsis,style: Theme.of(context).textTheme.labelMedium,)
+                ShopText('Products',overflow: TextOverflow.ellipsis,style: Theme.of(context).textTheme.labelMedium,)
               ],
             ))
           ],

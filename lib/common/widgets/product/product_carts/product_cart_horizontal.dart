@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -62,7 +63,7 @@ class TProductCartHorizontal extends StatelessWidget {
                           backgroundColor: TColors.secondary.withOpacity(0.8),
                           padding: const EdgeInsets.symmetric(
                               horizontal: TSizes.sm, vertical: TSizes.xs),
-                          child: Text(
+                          child: ShopText(
                             '$salePercentage%',
                             style: Theme.of(context)
                                 .textTheme
@@ -108,7 +109,7 @@ class TProductCartHorizontal extends StatelessWidget {
                             if(product.productType == ProductType.single.toString() && product.salePrice > 0)
                               Padding(
                                   padding: const EdgeInsets.only(left: TSizes.sm),
-                                  child: Text(product.price.toString(),style: Theme.of(context).textTheme.labelMedium!.apply(decoration: TextDecoration.lineThrough),)
+                                  child: ShopText(product.price.toString(),style: Theme.of(context).textTheme.labelMedium!.apply(decoration: TextDecoration.lineThrough),)
                               ) ,
                             Padding(
                                 padding: const EdgeInsets.only(left: TSizes.sm),

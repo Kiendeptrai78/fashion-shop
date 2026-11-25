@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -42,7 +43,7 @@ class VerifyEmailScreen extends StatelessWidget {
               ),
 
               ///title & subtitle
-              Text(
+              ShopText(
                 TTexts.confirmEmail,
                 style: Theme.of(context).textTheme.headlineMedium,
                 textAlign: TextAlign.center,
@@ -50,7 +51,7 @@ class VerifyEmailScreen extends StatelessWidget {
               const SizedBox(
                 height: TSizes.spaceBtwItems,
               ),
-              Text(
+              ShopText(
                 email ?? '',
                 style: Theme.of(context).textTheme.labelLarge,
                 textAlign: TextAlign.center,
@@ -58,7 +59,7 @@ class VerifyEmailScreen extends StatelessWidget {
               const SizedBox(
                 height: TSizes.spaceBtwItems,
               ),
-              Text(
+              ShopText(
                 TTexts.confirmEmailSubTitle,
                 style: Theme.of(context).textTheme.labelMedium,
                 textAlign: TextAlign.center,
@@ -72,7 +73,7 @@ class VerifyEmailScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () => controller.checkEmailVerificationStatus(),
-                  child: const Text(TTexts.continues),
+                  child: const ShopText(TTexts.continues),
                 ),
               ),
               const SizedBox(
@@ -82,7 +83,7 @@ class VerifyEmailScreen extends StatelessWidget {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () => controller.sendEmailVerification(),
-                  child: const Text(TTexts.resendEmail),
+                  child: const ShopText(TTexts.resendEmail),
                 ),
               ),
             ],

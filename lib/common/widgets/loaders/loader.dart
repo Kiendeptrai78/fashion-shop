@@ -1,3 +1,5 @@
+import 'package:fashion_business_app/utils/localization/shop_translations.dart';
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
@@ -22,7 +24,7 @@ class TLoaders {
               : TColors.grey.withOpacity(0.9),
         ),
         child: Center(
-          child: Text(
+          child: ShopText(
             message,
             style: Theme.of(Get.context!).textTheme.labelLarge,
           ),
@@ -32,22 +34,25 @@ class TLoaders {
   }
 
   static successSnackBar({required title, message = '', duration = 3}) {
-    Get.snackbar(title, message,
+    Get.snackbar(shopTranslate(title, language: Get.locale?.languageCode ?? 'vi'),
+        shopTranslate(message, language: Get.locale?.languageCode ?? 'vi'),
         isDismissible: true,
         shouldIconPulse: true,
-        backgroundColor: TColors.black,
+        backgroundColor: const Color(0xFF173E32),
         colorText: TColors.white,
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
+        borderRadius: 16,
         duration: Duration(seconds: duration),
-        margin: const EdgeInsets.all(10),
+        margin: const EdgeInsets.all(14),
         icon: const Icon(
-          Icons.check,
-          color: TColors.white,
+          Icons.check_circle_rounded,
+          color: Color(0xFFDDEABB),
         ));
   }
 
   static warningSnackBar({required title, message = ''}) {
-    Get.snackbar(title, message,
+    Get.snackbar(shopTranslate(title, language: Get.locale?.languageCode ?? 'vi'),
+        shopTranslate(message, language: Get.locale?.languageCode ?? 'vi'),
         isDismissible: true,
         shouldIconPulse: true,
         colorText: TColors.white,
@@ -62,7 +67,8 @@ class TLoaders {
   }
 
   static errorSnackBar({required title, message = ''}) {
-    Get.snackbar(title, message,
+    Get.snackbar(shopTranslate(title, language: Get.locale?.languageCode ?? 'vi'),
+        shopTranslate(message, language: Get.locale?.languageCode ?? 'vi'),
         isDismissible: true,
         shouldIconPulse: true,
         colorText: TColors.white,

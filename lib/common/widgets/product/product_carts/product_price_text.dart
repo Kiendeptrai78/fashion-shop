@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 
 class TProductPriceText extends StatelessWidget {
@@ -17,10 +18,9 @@ class TProductPriceText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      currencySign + price,
-      maxLines: maxLines,
-      overflow: TextOverflow.ellipsis,
+    return ShopText(
+      formatShopPrice(price, language: Localizations.localeOf(context).languageCode),
+      softWrap: true,
       style: isLarge
           ? Theme.of(context).textTheme.headlineMedium!.apply(
               decoration: lineThrough ? TextDecoration.lineThrough : null)

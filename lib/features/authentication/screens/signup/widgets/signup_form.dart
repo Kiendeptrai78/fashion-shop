@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -30,8 +31,8 @@ class TSignupForm extends StatelessWidget {
                     validator: (value) =>
                         TValidator.validateEmptyText('First name', value),
                     expands: false,
-                    decoration: const InputDecoration(
-                        labelText: TTexts.firstName,
+                    decoration: InputDecoration(
+                        labelText: TTexts.firstName.tr,
                         prefixIcon: Icon(Iconsax.user)),
                   ),
                 ),
@@ -47,8 +48,8 @@ class TSignupForm extends StatelessWidget {
                     validator: (value) =>
                         TValidator.validateEmptyText('Last name', value),
                     expands: false,
-                    decoration: const InputDecoration(
-                        labelText: TTexts.lastName,
+                    decoration: InputDecoration(
+                        labelText: TTexts.lastName.tr,
                         prefixIcon: Icon(Iconsax.user)),
                   ),
                 ),
@@ -65,8 +66,8 @@ class TSignupForm extends StatelessWidget {
               validator: (value) =>
                   TValidator.validateEmptyText('Username', value),
               expands: false,
-              decoration: const InputDecoration(
-                  labelText: TTexts.username,
+              decoration: InputDecoration(
+                  labelText: TTexts.username.tr,
                   prefixIcon: Icon(Iconsax.user_edit)),
             ),
 
@@ -79,8 +80,8 @@ class TSignupForm extends StatelessWidget {
               controller: controller.email,
               validator: (value) => TValidator.validateEmail(value),
               expands: false,
-              decoration: const InputDecoration(
-                  labelText: TTexts.email, prefixIcon: Icon(Iconsax.direct)),
+              decoration: InputDecoration(
+                  labelText: TTexts.email.tr, prefixIcon: Icon(Iconsax.direct)),
             ),
 
             const SizedBox(
@@ -92,8 +93,8 @@ class TSignupForm extends StatelessWidget {
               controller: controller.phoneNumber,
               validator: (value) => TValidator.validatePhoneNumber(value),
               expands: false,
-              decoration: const InputDecoration(
-                  labelText: TTexts.phone, prefixIcon: Icon(Iconsax.call)),
+              decoration: InputDecoration(
+                  labelText: TTexts.phone.tr, prefixIcon: Icon(Iconsax.call)),
             ),
 
             const SizedBox(
@@ -115,7 +116,7 @@ class TSignupForm extends StatelessWidget {
               obscureText: controller.hidePassword.value,
               expands: false,
               decoration:  InputDecoration(
-                  labelText: TTexts.password,
+                  labelText: TTexts.password.tr,
                   prefixIcon: const Icon(Iconsax.password_check),
                   suffixIcon: IconButton(
                       onPressed: () => controller.hidePassword.value = !controller.hidePassword.value,
@@ -139,7 +140,7 @@ class TSignupForm extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => controller.signup(),
-                child: const Text(TTexts.createAccount),
+                child: const ShopText(TTexts.createAccount),
               ),
             )
           ],

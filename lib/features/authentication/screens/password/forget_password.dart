@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -29,13 +30,13 @@ class ForgetPassword extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ///headings
-            Text(
+            ShopText(
               TTexts.forgetPassword,
               style: Theme.of(context).textTheme.headlineMedium,
               textAlign: TextAlign.start,
             ),
             const SizedBox(height: TSizes.spaceBtwItems,),
-            Text(
+            ShopText(
               TTexts.forgetPasswordSubTitle,
               style: Theme.of(context).textTheme.labelMedium,
               textAlign: TextAlign.start,
@@ -48,13 +49,13 @@ class ForgetPassword extends StatelessWidget {
               child: TextFormField(
                 controller: controller.email,
                 validator: TValidator.validateEmail,
-                decoration: const InputDecoration(labelText: TTexts.email, prefixIcon: Icon(Iconsax.direct_right)
+                decoration: InputDecoration(labelText: TTexts.email.tr, prefixIcon: Icon(Iconsax.direct_right)
             ),
             ),),
             const SizedBox(height: TSizes.spaceBtwSections,),
 
             ///submit button
-            SizedBox(width: double.infinity,child: ElevatedButton(onPressed: () => controller.sendPasswordResetEmail(), child: const Text(TTexts.submit))
+            SizedBox(width: double.infinity,child: ElevatedButton(onPressed: () => controller.sendPasswordResetEmail(), child: const ShopText(TTexts.submit))
               ,)
           ],
         ),

@@ -5,6 +5,7 @@ import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
 import 'package:fashion_business_app/data/repositories/authentication/authentication_repository.dart';
 import 'package:fashion_business_app/features/authentication/controllers/signup/network_manager.dart';
 import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
+import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:fashion_business_app/utils/constants/image_strings.dart';
 import 'package:fashion_business_app/utils/popups/full_screen_loader.dart';
 
@@ -35,39 +36,47 @@ class LoginController extends GetxController{
     super.onInit();
   }
   Future<void> emailAndPasswordSignInAdmin() async {
-    try{
+    try {
+      //form validation
+      if (!loginFormKeyAdmin.currentState!.validate()) {
+        return;
+      }
+
+      final normalizedEmail = email.text.trim();
+      if (!AdminConfig.isAdminEmail(normalizedEmail)) {
+        TLoaders.errorSnackBar(
+          title: 'Không có quyền truy cập',
+          message: 'Chỉ tài khoản quản trị viên (${AdminConfig.adminEmail}) mới được phép đăng nhập.',
+        );
+        return;
+      }
+
       //start loading
-      TFullScreenLoader.openLoadingDialog('Logging you in ....', TImages.loading);
+      TFullScreenLoader.openLoadingDialog('Đang xác thực quản trị viên...', TImages.loading);
 
       //check Internet connect
       final isConnected = await NetworkManager.instance.isConnected();
-      if(!isConnected){
+      if (!isConnected) {
         TFullScreenLoader.stopLoading();
         return;
       }
 
-      //form validation
-      if(!loginFormKeyAdmin.currentState!.validate()){
-        TFullScreenLoader.stopLoading();
-        return;
-      }
-
-      //save date if remember me is selected
-      if(rememberMe.value){
-        localStorage.write('REMEMBER_ME_EMAIL', email.text.trim());
-        localStorage.write('REMEMBER_ME_PASSWORD', password.text.trim());
+      //save email if remember me is selected (never persist plaintext password)
+      if (rememberMe.value) {
+        localStorage.write('REMEMBER_ME_EMAIL', normalizedEmail);
       }
 
       //login user using Email & password auth
-      final userCredentials = await AuthenticationRepository.instance.loginWithEmailAndPassword(email.text.trim(), password.text.trim());
+      await AuthenticationRepository.instance
+          .loginWithEmailAndPassword(normalizedEmail, password.text.trim());
 
       //remove loader
       TFullScreenLoader.stopLoading();
 
       AuthenticationRepository.instance.screenRedirectAdmin();
-    }catch(e){
+    } catch (e) {
       TFullScreenLoader.stopLoading();
-      TLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+      TLoaders.errorSnackBar(title: 'Đăng nhập thất bại', message: e.toString());
     }
   }
 
@@ -126,6 +135,10 @@ class LoginController extends GetxController{
 
       //googleSigning
       final userCredentials = await AuthenticationRepository.instance.signInWithGoogle();
+      if (userCredentials == null) {
+        TFullScreenLoader.stopLoading();
+        return;
+      }
 
       //save user record
       await userController.saveUserRecord(userCredentials);

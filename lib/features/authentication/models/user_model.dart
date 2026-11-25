@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fashion_business_app/utils/constants/admin_config.dart';
 import 'package:fashion_business_app/utils/formatter/formatter.dart';
 
 class UserModel {
@@ -68,7 +69,8 @@ class UserModel {
         username: data['Username'] ?? '',
         email: data['Email'] ?? '',
         phoneNumber: data['PhoneNumber'] ?? '',
-        profilePicture: data['ProfilePicture'] ?? '', role: data['Role'],
+        profilePicture: data['ProfilePicture'] ?? '',
+        role: (data['Role'] as String?) ?? AdminConfig.roleForEmail(data['Email'] as String?),
       );
     }else {
       return UserModel.empty();

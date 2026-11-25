@@ -39,19 +39,23 @@ class BrandModel {
 
   factory BrandModel.fromSnapshot(
       DocumentSnapshot<Map<String, dynamic>> document) {
-    final data = document.data()!;
+    final data = document.data() ?? {};
     return BrandModel(
-        id: data['Id'] ?? '',
+        id: (data['Id'] as String?)?.isNotEmpty == true ? data['Id'] as String : document.id,
         name: data['Name'] ?? '',
-        productsCount: data['ProductsCount'] ?? '',
+        productsCount: int.tryParse((data['ProductsCount'] ?? 0).toString()) ?? 0,
         image: data['Image'] ?? '',
         isFeatured: data['IsFeatured'] ?? false);
   }
 
   factory BrandModel.fromQuerySnapshot(DocumentSnapshot<Object?> document) {
-    final data = document.data() as Map<String, dynamic>;
-    return BrandModel(id: document.id, name: data['Name'] ?? '', image: data['Image'] ?? '', isFeatured: data['IsFeatured'] ?? false
-
+    final data = document.data() as Map<String, dynamic>? ?? {};
+    return BrandModel(
+      id: (data['Id'] as String?)?.isNotEmpty == true ? data['Id'] as String : document.id,
+      name: data['Name'] ?? '',
+      image: data['Image'] ?? '',
+      productsCount: int.tryParse((data['ProductsCount'] ?? 0).toString()) ?? 0,
+      isFeatured: data['IsFeatured'] ?? false,
     );
   }
 }

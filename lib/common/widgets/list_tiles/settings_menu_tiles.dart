@@ -1,15 +1,15 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
 
 class TSettingMenuTiles extends StatelessWidget {
-  const TSettingMenuTiles(
-      {super.key,
-      required this.icon,
-      required this.title,
-      required this.subtitle,
-      this.trailing,
-      this.onTap
-      });
+  const TSettingMenuTiles({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+    this.onTap,
+  });
 
   final IconData icon;
   final String title, subtitle;
@@ -18,21 +18,32 @@ class TSettingMenuTiles extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return ListTile(
-      leading: Icon(
-        icon,
-        size: 28,
-        color: TColors.primaryColor,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: dark ? const Color(0xFF22362D) : const Color(0xFFEBF2EE),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+        ),
       ),
-      title: Text(
+      title: ShopText(
         title,
-        style: Theme.of(context).textTheme.titleMedium,
+        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
       ),
-      subtitle: Text(
+      subtitle: ShopText(
         subtitle,
-        style: Theme.of(context).textTheme.labelMedium,
+        style: theme.textTheme.labelMedium?.copyWith(color: theme.hintColor),
       ),
-      trailing: trailing,
+      trailing: trailing ?? Icon(Icons.chevron_right_rounded, color: theme.hintColor),
       onTap: onTap,
     );
   }

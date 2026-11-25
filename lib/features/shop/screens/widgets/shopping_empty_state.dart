@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -26,16 +27,16 @@ class ShoppingEmptyState extends StatelessWidget {
         child: Icon(wishlist ? Iconsax.heart : Iconsax.bag_2, size: 44,
             color: Theme.of(context).colorScheme.primary)),
       const SizedBox(height: 28),
-      Text(wishlist ? 'Keep your favorites close.' : 'Your next pair awaits.',
+      ShopText(wishlist ? 'Keep your favorites close.' : 'Your next pair awaits.',
           textAlign: TextAlign.center, style: const TextStyle(fontSize: 25,
               fontWeight: FontWeight.w600, letterSpacing: -0.8, height: 1.2)),
       const SizedBox(height: 12),
-      Text(wishlist ? 'Tap the heart on any sneaker to save it here.\nCome back when you’re ready to choose.'
+      ShopText(wishlist ? 'Tap the heart on any sneaker to save it here.\nCome back when you’re ready to choose.'
           : 'Your bag is empty. Explore the collection\nand find something that moves you.',
           textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.7)),
       const SizedBox(height: 28),
       SizedBox(width: double.infinity, child: ElevatedButton(onPressed: exploreSneakers,
-          child: const Text('Explore sneakers'))),
+          child: const ShopText('Explore sneakers'))),
     ]),
   ));
 }

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/utils/device/device_utility.dart';
@@ -13,7 +14,7 @@ class TRatingProgressIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(flex: 1,child: Text(text, style: Theme.of(context).textTheme.bodyMedium,)),
+        Expanded(flex: 1,child: ShopText(text, style: Theme.of(context).textTheme.bodyMedium,)),
         Expanded(
             flex: 11,
             child: SizedBox(

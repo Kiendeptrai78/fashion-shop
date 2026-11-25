@@ -75,7 +75,7 @@ class UserRepository extends GetxController{
   ///Update any field in specific Users Collection
   Future<void> updateSingleField(Map<String, dynamic> json) async{
     try{
-      await _db.collection("Users").doc(AuthenticationRepository.instance.authUser.uid).update(json);
+      await _db.collection("Users").doc(AuthenticationRepository.instance.authUser.uid).set(json, SetOptions(merge: true));
     }on FirebaseException catch (e){
       throw TFirebaseException(e.code).message;
     }on FormatException catch (_){
