@@ -1,4 +1,7 @@
 import 'dart:math';
+import '../models/velora_ai_reply.dart';
+import 'velora_gemini_assistant.dart';
+export '../models/velora_ai_reply.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
@@ -11,35 +14,15 @@ import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_ai/firebase_ai.dart' show FirebaseAIException;
 import 'package:get/get.dart';
-
-class VeloraAiReply {
-  const VeloraAiReply({
-    required this.text,
-    this.products = const [],
-    this.showVoucherShortcut = false,
-    this.showOrdersShortcut = false,
-    this.showReturnsShortcut = false,
-    this.showSupportChatShortcut = false,
-    this.showCartShortcut = false,
-    this.followUpPrompts = const [],
-  });
-
-  final String text;
-  final List<ProductModel> products;
-  final bool showVoucherShortcut;
-  final bool showOrdersShortcut;
-  final bool showReturnsShortcut;
-  final bool showSupportChatShortcut;
-  final bool showCartShortcut;
-  final List<String> followUpPrompts;
-}
 
 class VeloraAiService {
   VeloraAiService({FirebaseFirestore? db})
       : _db = db ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
+  final _gemini = VeloraGeminiAssistant();
   List<ProductModel>? _cachedProducts;
   DateTime? _cacheTime;
 
@@ -59,7 +42,7 @@ class VeloraAiService {
     'Gợi ý giày đi du lịch đi bộ cả ngày không đau chân',
     'Tư vấn quà tặng giày cho người yêu',
     'Giày chân bè đi không bị đau mũi',
-    'Cao 1m72 nặng 68kg thường đi size mấy?',
+    'Chọn size thế nào khi chân mình hơi bè?',
     'Giày thoáng khí cho mùa hè không bí chân',
     'Tầm giá từ 2 đến 3 triệu có đôi nào đẹp?',
     'Giày màu đen dễ vệ sinh đi mưa',
@@ -371,6 +354,74 @@ class VeloraAiService {
   }
 
   Future<VeloraAiReply> ask(String query, {String language = 'vi'}) async {
+    final text = query.trim();
+    if (text.isEmpty) return _askLocal(text, language: language);
+    if (VeloraGeminiAssistant.containsPersonalData(text)) {
+      return VeloraAiReply(text: language == 'en'
+          ? 'Please leave out personal or payment details. I only need your preferred style, budget and shoe size.'
+          : 'Bạn không cần gửi thông tin cá nhân hoặc thanh toán. Mình chỉ cần biết kiểu giày, ngân sách và size bạn đang tìm.',
+          showSupportChatShortcut: true);
+    }
+    if (handlesLocally(text)) {
+      _gemini.clearHistory();
+      return _askLocal(text, language: language);
+    }
+    try {
+      final norm = _normalize(text);
+      Query<Map<String, dynamic>> query = _db.collection('Products');
+      final category = _categoryAliases.entries.where((entry) =>
+          entry.value.any((alias) => norm.contains(alias))).firstOrNull?.key;
+      if (category != null) {
+        final categories = await _db.collection('Categories').limit(40).get();
+        final match = categories.docs.where((doc) {
+          final name = _normalize((doc.data()['Name'] ?? '').toString());
+          return name == _normalize(category) || name == _normalize(_viCat(category));
+        }).firstOrNull;
+        if (match != null) query = query.where('CategoryId', isEqualTo: match.id);
+      }
+      final snapshot = await query.limit(41).get();
+      final recentIds = _gemini.recentProductIds;
+      final recent = recentIds.isEmpty ? <ProductModel>[] :
+          (await _db.collection('Products').where(FieldPath.documentId, whereIn: recentIds).get())
+              .docs.map(ProductModel.fromSnapshot).toList();
+      final products = [...recent,
+        ...snapshot.docs.map(ProductModel.fromSnapshot).where((p) => !recentIds.contains(p.id)),
+      ].take(40).toList();
+      final reply = await _gemini.ask(text, language: language, products: products,
+          catalogIsPartial: snapshot.docs.length > 40 || category != null);
+      if (reply.products.isNotEmpty) {
+        _recordUserInterest(query: text,
+            categories: reply.products.map((p) => p.categoryName).toSet().toList(),
+            categoryIds: reply.products.map((p) => p.categoryId).where((id) => id.isNotEmpty).toSet().toList(),
+            colors: const [], maxBudgetUsd: null);
+      }
+      return reply;
+    } catch (error) {
+      if (error is FirebaseAIException &&
+          RegExp(r'quota|resource_exhausted|429', caseSensitive: false).hasMatch(error.message)) {
+        return VeloraAiReply(text: language == 'en'
+            ? 'The assistant has reached its request limit. Please try again later or chat with VELORA support.'
+            : 'Trợ lý đang đạt giới hạn lượt tư vấn. Bạn quay lại sau hoặc nhắn CSKH VELORA nhé.',
+            showSupportChatShortcut: true);
+      }
+      return VeloraAiReply(text: language == 'en'
+          ? 'I couldn’t connect to the assistant right now. Please try again or chat with VELORA support.'
+          : 'Mình chưa kết nối được trợ lý lúc này. Bạn thử lại hoặc nhắn CSKH VELORA nhé.',
+          showSupportChatShortcut: true);
+    }
+  }
+
+  static bool handlesLocally(String query) {
+    final norm = _normalize(query);
+    return const ['don hang', 'don cua', 'don nay', 'kiem tra don', 'huy don', 'order',
+      'doi tra', 'doi size', 'doi giay', 'tra hang', 'hoan tien', 'bao hanh', 'giao sai',
+      'giay loi', 'bi loi', 'bi chat', 'bi rong', 'return', 'exchange', 'refund',
+      'gio hang', 'trong gio', 'cart', 'thanh toan', 'chuyen khoan', 'ship cod', 'ngan hang',
+      'so tai khoan', 'mat khau', 'dia chi cua', 'ship', 'giao hang', 'voucher', 'ma giam',
+      'coupon', 'freeship'].any(norm.contains);
+  }
+
+  Future<VeloraAiReply> _askLocal(String query, {String language = 'vi'}) async {
     final trimmed = query.trim();
     final isEn = language == 'en';
     if (trimmed.isEmpty) {

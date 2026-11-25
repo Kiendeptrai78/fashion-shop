@@ -54,9 +54,9 @@ Future<bool?> openReturnRequestComposer(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    backgroundColor: Colors.white,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
     builder: (_) => ReturnRequestComposerSheet(order: order, item: item),
   );
@@ -246,7 +246,6 @@ class _ReturnRequestComposerSheetState
           .map((e) => '${e.key}: ${e.value}')
           .join(' · ');
 
-      // Check AdminAutomation for auto-response template
       String adminResponse = '';
       ReturnRequestStatus initialStatus = ReturnRequestStatus.pending;
       try {
@@ -261,13 +260,12 @@ class _ReturnRequestComposerSheetState
         adminResponse = tpl
             .replaceAll('{name}', customerName)
             .replaceAll('{product}', widget.item.title)
-            .replaceAll(
-              '{type}',
-              ReturnRequestModel.typeLabelOf(_type),
-            )
+            .replaceAll('{type}', ReturnRequestModel.typeLabelOf(_type))
             .replaceAll(
               '{newSize}',
-              _type == ReturnRequestType.exchangeSize ? _targetSize : 'đôi mới 1-1',
+              _type == ReturnRequestType.exchangeSize
+                  ? _targetSize
+                  : 'đôi mới 1-1',
             );
         if (autoApprove) {
           initialStatus = ReturnRequestStatus.approvedPickup;
@@ -307,7 +305,6 @@ class _ReturnRequestComposerSheetState
 
       await db.collection('ReturnRequests').doc(reqId).set(request.toMap());
 
-      // Send confirmation notification to user's Notification inbox
       final notifId = 'return-$reqId';
       await db
           .collection('Users')
@@ -321,13 +318,11 @@ class _ReturnRequestComposerSheetState
         if ((widget.item.image ?? '').isNotEmpty) 'imageUrl': widget.item.image,
         'titleVi':
             'Đã tiếp nhận yêu cầu ${request.typeLabel()}: ${widget.item.title}',
-        'titleEn':
-            'Return/Exchange request received: ${widget.item.title}',
+        'titleEn': 'Return/Exchange request received: ${widget.item.title}',
         'bodyVi': adminResponse.isNotEmpty
             ? adminResponse
             : 'Bộ phận Đổi trả & Bảo hành VELORA đang xử lý yêu cầu của bạn.',
-        'bodyEn':
-            'VELORA Return & Exchange Center is processing your request.',
+        'bodyEn': 'VELORA Return & Exchange Center is processing your request.',
         'read': false,
         'pushPending': true,
         'createdAt': FieldValue.serverTimestamp(),
@@ -336,13 +331,13 @@ class _ReturnRequestComposerSheetState
       if (!mounted) return;
       Navigator.of(context).pop(true);
       Get.snackbar(
-        'Đã gửi yêu cầu Đổi / Trả thành công',
-        'VELORA CSKH đã tiếp nhận yêu cầu cho "${widget.item.title}". Bạn có thể theo dõi tiến trình ngay trong mục Đổi trả & Bảo hành.',
+        'Đã gửi yêu cầu Đổi / Trả',
+        'Đã ghi nhận yêu cầu cho "${widget.item.title}". Bạn có thể theo dõi trong mục Đổi trả.',
         snackPosition: SnackPosition.TOP,
-        backgroundColor: const Color(0xFF173E32),
+        backgroundColor: const Color(0xFF111827),
         colorText: Colors.white,
         margin: const EdgeInsets.all(14),
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 3),
       );
     } catch (e) {
       if (mounted) {
@@ -356,7 +351,6 @@ class _ReturnRequestComposerSheetState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
     final locale = Localizations.localeOf(context).languageCode;
     final isEn = locale == 'en';
     final item = widget.item;
@@ -364,46 +358,34 @@ class _ReturnRequestComposerSheetState
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0F2FE),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Iconsax.refresh_circle,
-                    color: Color(0xFF0284C7),
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         isEn
-                            ? 'Return & Exchange Request'
-                            : 'Yêu cầu Đổi trả & Bảo hành',
+                            ? 'Return / Exchange Request'
+                            : 'Yêu cầu Đổi / Trả hàng',
                         style: const TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827),
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         isEn
-                            ? 'Free exchange delivery from VELORA Hanoi Warehouse'
-                            : 'Hỗ trợ đổi mới tận nơi & Chat trực tiếp 1-1 với VELORA',
+                            ? 'Supported within 7 days of delivery'
+                            : 'Áp dụng trong vòng 7 ngày kể từ ngày nhận hàng',
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF0284C7),
-                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -415,22 +397,23 @@ class _ReturnRequestComposerSheetState
                 ),
               ],
             ),
-            const Divider(height: 22),
+            const Divider(height: 20, color: Color(0xFFE5E7EB)),
 
-            // Selected Product summary
+            // Product summary
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: dark ? const Color(0xFF1A2721) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(14),
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 children: [
                   TRoundedImage(
                     imageUrl: item.image ?? '',
-                    width: 60,
-                    height: 60,
+                    width: 56,
+                    height: 56,
+                    borderRadius: 8,
                     isNetworkImage: true,
                   ),
                   const SizedBox(width: 12),
@@ -442,15 +425,19 @@ class _ReturnRequestComposerSheetState
                           item.title,
                           softWrap: true,
                           style: const TextStyle(
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             fontSize: 14,
+                            color: Color(0xFF111827),
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'SL: ${item.quantity} • ${formatShopMoney(item.price * item.quantity, language: locale)}'
-                          '${(item.selectedVariation?.entries ?? []).isNotEmpty ? ' • ${(item.selectedVariation?.entries ?? []).map((e) => '${e.key}: ${e.value}').join(' · ')}' : ''}',
-                          style: theme.textTheme.bodySmall,
+                          'x${item.quantity} · ${formatShopMoney(item.price * item.quantity, language: locale)}'
+                          '${(item.selectedVariation?.entries ?? []).isNotEmpty ? ' · ${(item.selectedVariation?.entries ?? []).map((e) => '${e.key}: ${e.value}').join(' · ')}' : ''}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                          ),
                         ),
                       ],
                     ),
@@ -460,67 +447,65 @@ class _ReturnRequestComposerSheetState
             ),
             const SizedBox(height: 18),
 
-            // 1. Choose Return / Exchange Type
+            // 1. Return / Exchange Type (clean monochrome selection cards)
             const Text(
-              '1. Chọn hình thức hỗ trợ bạn mong muốn',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+              'Hình thức hỗ trợ',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             for (final t in ReturnRequestType.values)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: InkWell(
                   onTap: () => setState(() => _type = t),
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(10),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
+                      horizontal: 12,
+                      vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: _type == t
-                          ? ReturnRequestModel.typeColorOf(t)
-                              .withValues(alpha: 0.1)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(13),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: _type == t
-                            ? ReturnRequestModel.typeColorOf(t)
-                            : const Color(0xFFCBD5E1),
-                        width: _type == t ? 1.6 : 1,
+                            ? const Color(0xFF111827)
+                            : const Color(0xFFE2E8F0),
+                        width: _type == t ? 1.5 : 1,
                       ),
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          ReturnRequestModel.typeIconOf(t),
-                          color: ReturnRequestModel.typeColorOf(t),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                ReturnRequestModel.typeLabelOf(t,
-                                    english: isEn),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
+                                ReturnRequestModel.typeLabelOf(
+                                  t,
+                                  english: isEn,
+                                ),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
                                   fontSize: 13.5,
-                                  color: _type == t
-                                      ? ReturnRequestModel.typeColorOf(t)
-                                      : null,
+                                  color: Color(0xFF111827),
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 t == ReturnRequestType.exchangeSize
-                                    ? 'Đổi sang size EU vừa chân hơn hoặc phối màu khác miễn phí'
+                                    ? 'Đổi sang size EU vừa chân hơn miễn phí'
                                     : t == ReturnRequestType.defectiveExchange
-                                        ? 'Đổi ngay 1 đôi mới nguyên hộp từ Tổng Kho Hà Nội'
-                                        : 'Hoàn lại 100% số tiền ${formatShopMoney(item.price * item.quantity, language: locale)}',
-                                style: theme.textTheme.bodySmall,
+                                        ? 'Đổi 1 đôi mới cùng mẫu từ kho Hà Nội'
+                                        : 'Hoàn lại ${formatShopMoney(item.price * item.quantity, language: locale)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                ),
                               ),
                             ],
                           ),
@@ -528,7 +513,9 @@ class _ReturnRequestComposerSheetState
                         Radio<ReturnRequestType>(
                           value: t,
                           groupValue: _type,
-                          activeColor: ReturnRequestModel.typeColorOf(t),
+                          activeColor: const Color(0xFF111827),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                           onChanged: (v) {
                             if (v != null) setState(() => _type = v);
                           },
@@ -539,12 +526,15 @@ class _ReturnRequestComposerSheetState
                 ),
               ),
 
-            // Target EU Size selector when Exchange Size is selected
             if (_type == ReturnRequestType.exchangeSize) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               const Text(
-                'Chọn kích cỡ (Size EU) bạn muốn đổi sang:',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                'Size EU muốn đổi sang',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF111827),
+                ),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -552,27 +542,46 @@ class _ReturnRequestComposerSheetState
                 runSpacing: 8,
                 children: _euSizes.map((sz) {
                   final sel = _targetSize == sz;
-                  return ChoiceChip(
-                    label: Text(
-                      sz,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: sel ? Colors.white : const Color(0xFF0F172A),
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => setState(() => _targetSize = sz),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: sel ? const Color(0xFF111827) : Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: sel
+                              ? const Color(0xFF111827)
+                              : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                      child: Text(
+                        sz,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: sel ? Colors.white : const Color(0xFF111827),
+                        ),
                       ),
                     ),
-                    selected: sel,
-                    selectedColor: const Color(0xFF0284C7),
-                    onSelected: (_) => setState(() => _targetSize = sz),
                   );
                 }).toList(),
               ),
             ],
             const SizedBox(height: 16),
 
-            // 2. Quick Reason Chips
+            // 2. Reason selector
             const Text(
-              '2. Lý do đổi / trả sản phẩm',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+              'Lý do đổi / trả',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -580,18 +589,32 @@ class _ReturnRequestComposerSheetState
               runSpacing: 8,
               children: _reasons.map((r) {
                 final sel = _selectedReason == r;
-                return ChoiceChip(
-                  label: Text(
-                    r,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: sel ? Colors.white : null,
+                return InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => setState(() => _selectedReason = r),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: sel ? const Color(0xFF111827) : Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: sel
+                            ? const Color(0xFF111827)
+                            : const Color(0xFFCBD5E1),
+                      ),
+                    ),
+                    child: Text(
+                      r,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: sel ? Colors.white : const Color(0xFF334155),
+                      ),
                     ),
                   ),
-                  selected: sel,
-                  selectedColor: const Color(0xFF173E32),
-                  onSelected: (_) => setState(() => _selectedReason = r),
                 );
               }).toList(),
             ),
@@ -600,20 +623,23 @@ class _ReturnRequestComposerSheetState
               controller: _descCtrl,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: 'Ghi chú chi tiết tình trạng sản phẩm (tùy chọn)',
-                hintText:
-                    'VD: Shop giao nhầm size 40 trong khi đơn mình đặt size 42, nhờ shop đổi giúp...',
+                labelText: 'Ghi chú chi tiết (tùy chọn)',
+                hintText: 'Mô tả thêm về tình trạng giày hoặc size cần đổi...',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),
             const SizedBox(height: 16),
 
-            // 3. Upload Photos / Videos of Defect or Size Tag
+            // 3. Photos / Videos
             const Text(
-              '3. Hình ảnh / Video thực tế (tem size, vết lỗi, hộp giày...)',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+              'Ảnh / Video thực tế',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -624,21 +650,21 @@ class _ReturnRequestComposerSheetState
                   onPressed: _uploading
                       ? null
                       : () => _pickPhoto(ImageSource.camera),
-                  icon: const Icon(Iconsax.camera, size: 16),
+                  icon: const Icon(Iconsax.camera, size: 15),
                   label: const Text('Chụp ảnh', style: TextStyle(fontSize: 12)),
                 ),
                 OutlinedButton.icon(
                   onPressed: _uploading
                       ? null
                       : () => _pickPhoto(ImageSource.gallery),
-                  icon: const Icon(Iconsax.gallery, size: 16),
+                  icon: const Icon(Iconsax.gallery, size: 15),
                   label: const Text('Chọn ảnh', style: TextStyle(fontSize: 12)),
                 ),
                 OutlinedButton.icon(
                   onPressed: _uploading
                       ? null
                       : () => _pickVideo(ImageSource.camera),
-                  icon: const Icon(Iconsax.video, size: 16),
+                  icon: const Icon(Iconsax.video, size: 15),
                   label:
                       const Text('Quay video', style: TextStyle(fontSize: 12)),
                 ),
@@ -646,7 +672,7 @@ class _ReturnRequestComposerSheetState
                   onPressed: _uploading
                       ? null
                       : () => _pickVideo(ImageSource.gallery),
-                  icon: const Icon(Iconsax.video_play, size: 16),
+                  icon: const Icon(Iconsax.video_play, size: 15),
                   label:
                       const Text('Chọn video', style: TextStyle(fontSize: 12)),
                 ),
@@ -654,12 +680,12 @@ class _ReturnRequestComposerSheetState
             ),
             if (_uploading) ...[
               const SizedBox(height: 10),
-              const LinearProgressIndicator(),
+              const LinearProgressIndicator(color: Color(0xFF111827)),
             ],
             if (_imageUrls.isNotEmpty || _videoUrls.isNotEmpty) ...[
               const SizedBox(height: 10),
               SizedBox(
-                height: 76,
+                height: 72,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
@@ -669,11 +695,11 @@ class _ReturnRequestComposerSheetState
                         child: Stack(
                           children: [
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(8),
                               child: CachedNetworkImage(
                                 imageUrl: _imageUrls[i],
-                                width: 76,
-                                height: 76,
+                                width: 72,
+                                height: 72,
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -706,17 +732,17 @@ class _ReturnRequestComposerSheetState
                         child: Stack(
                           children: [
                             Container(
-                              width: 76,
-                              height: 76,
+                              width: 72,
+                              height: 72,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF14352B),
-                                borderRadius: BorderRadius.circular(10),
+                                color: const Color(0xFF111827),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Center(
                                 child: Icon(
                                   Icons.play_circle_fill_rounded,
-                                  color: Color(0xFFDDEABB),
-                                  size: 28,
+                                  color: Colors.white,
+                                  size: 26,
                                 ),
                               ),
                             ),
@@ -749,10 +775,14 @@ class _ReturnRequestComposerSheetState
             ],
             const SizedBox(height: 16),
 
-            // 4. Exchange Address Only (No shipper phone needed)
+            // 4. Address
             const Text(
-              '4. Địa chỉ đổi mới (nơi nhận sản phẩm đổi mới)',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+              'Địa chỉ nhận hàng đổi / thu hồi',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -760,42 +790,11 @@ class _ReturnRequestComposerSheetState
               maxLines: 2,
               minLines: 1,
               decoration: InputDecoration(
-                labelText: 'Địa chỉ đổi mới',
-                hintText: 'Nhập địa chỉ nhận đôi giày đổi mới của bạn...',
+                hintText: 'Nhập địa chỉ nhận đôi giày đổi mới...',
                 prefixIcon: const Icon(Iconsax.location, size: 18),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFBBF7D0)),
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Iconsax.message_text_1,
-                    size: 16,
-                    color: Color(0xFF173E32),
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Sau khi tiếp nhận yêu cầu, Admin VELORA sẽ nhắn tin riêng trực tiếp với bạn qua mục "Chat với VELORA" để thông báo chi tiết quá trình đổi mới.',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: Color(0xFF166534),
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
             if (_error != null) ...[
@@ -812,27 +811,18 @@ class _ReturnRequestComposerSheetState
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
-              child: FilledButton.icon(
+              child: FilledButton(
                 onPressed: _submitting ? null : _submit,
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF173E32),
+                  backgroundColor: const Color(0xFF111827),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  elevation: 0,
                 ),
-                icon: _submitting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Iconsax.send_2, size: 18),
-                label: Text(
+                child: Text(
                   _submitting
                       ? 'Đang gửi yêu cầu...'
                       : 'Gửi yêu cầu ${ReturnRequestModel.typeLabelOf(_type, english: isEn)}',
@@ -850,7 +840,7 @@ class _ReturnRequestComposerSheetState
   }
 }
 
-/// Customer screen listing all Return & Exchange requests + 4-step tracking.
+/// Customer screen listing all Return & Exchange requests with clean minimal UI.
 class MyReturnRequestsScreen extends StatefulWidget {
   const MyReturnRequestsScreen({super.key, this.highlightRequestId});
 
@@ -898,6 +888,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
 
     await showModalBottomSheet<void>(
       context: context,
+      backgroundColor: Colors.white,
       showDragHandle: true,
       builder: (sheetCtx) => SafeArea(
         child: ListView(
@@ -905,8 +896,12 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
           children: [
             const Text(
-              'Chọn sản phẩm từ đơn đã nhận (trong 7 ngày)',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              'Chọn sản phẩm từ đơn đã nhận',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
             ),
             const SizedBox(height: 12),
             for (final ord in delivered)
@@ -915,7 +910,7 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                   final daysLeft = returnWindowDaysLeft(ord);
                   final eligible = daysLeft >= 0;
                   return Opacity(
-                    opacity: eligible ? 1.0 : 0.52,
+                    opacity: eligible ? 1.0 : 0.5,
                     child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(vertical: 4),
                       leading: TRoundedImage(
@@ -927,27 +922,23 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                       title: Text(
                         item.title,
                         softWrap: true,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF111827),
+                        ),
                       ),
                       subtitle: Text(
                         eligible
-                            ? 'Đặt ngày ${DateFormat('dd/MM/yyyy').format(ord.orderDate)} • Còn $daysLeft ngày đổi trả'
-                            : 'Đặt ngày ${DateFormat('dd/MM/yyyy').format(ord.orderDate)} • Đã quá hạn đổi trả 7 ngày',
-                        style: TextStyle(
+                            ? '${DateFormat('dd/MM/yyyy').format(ord.orderDate)} · Còn $daysLeft ngày đổi trả'
+                            : '${DateFormat('dd/MM/yyyy').format(ord.orderDate)} · Đã quá hạn 7 ngày',
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: eligible
-                              ? const Color(0xFF0284C7)
-                              : const Color(0xFFDC2626),
-                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF64748B),
                         ),
                       ),
-                      trailing: Icon(
-                        eligible
-                            ? Iconsax.refresh_circle
-                            : Icons.block_rounded,
-                        color: eligible
-                            ? const Color(0xFF0284C7)
-                            : const Color(0xFFDC2626),
+                      trailing: const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFF64748B),
                       ),
                       onTap: () async {
                         Navigator.of(sheetCtx).pop();
@@ -975,26 +966,23 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
     final isEn = locale == 'en';
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF6F7F8),
       appBar: TAppbar(
         showBackArrow: true,
-        title: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            isEn ? 'Returns & Exchanges' : 'Đổi trả & Bảo hành',
-            style: const TextStyle(fontSize: 18.5, fontWeight: FontWeight.w700),
-          ),
+        title: Text(
+          isEn ? 'Returns & Exchanges' : 'Đổi trả & Bảo hành',
+          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
         ),
         actions: [
           IconButton(
             tooltip: 'Chat trực tiếp với VELORA',
             onPressed: () => Get.to(() => const VeloraSupportChatScreen()),
-            icon: const Icon(Iconsax.message_text_1),
+            icon: const Icon(Iconsax.message_text_1, size: 21),
           ),
           IconButton(
             tooltip: 'Tạo yêu cầu đổi trả mới',
             onPressed: _openCreateFromOrderPicker,
-            icon: const Icon(Iconsax.add_circle),
+            icon: const Icon(Iconsax.add, size: 22),
           ),
         ],
       ),
@@ -1006,13 +994,30 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting &&
                     !snapshot.hasData) {
                   return const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF111827),
+                    ),
                   );
                 }
                 final all = (snapshot.data?.docs ?? const [])
                     .map(ReturnRequestModel.fromSnapshot)
                     .toList()
                   ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+                final pendingCount = all
+                    .where((e) => e.status == ReturnRequestStatus.pending)
+                    .length;
+                final activeCount = all
+                    .where((e) =>
+                        e.status == ReturnRequestStatus.approvedPickup ||
+                        e.status == ReturnRequestStatus.inspecting)
+                    .length;
+                final completedCount = all
+                    .where((e) =>
+                        e.status == ReturnRequestStatus.completed ||
+                        e.status == ReturnRequestStatus.rejected)
+                    .length;
 
                 final filtered = all.where((r) {
                   if (_filter == 'pending') {
@@ -1029,178 +1034,193 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                   return true;
                 }).toList();
 
-                return ListView(
-                  padding: const EdgeInsets.all(18),
+                final tabs = [
+                  ('all', isEn ? 'All' : 'Tất cả', all.length),
+                  ('pending', isEn ? 'Pending' : 'Chờ duyệt', pendingCount),
+                  ('active', isEn ? 'In progress' : 'Đang xử lý', activeCount),
+                  ('completed', isEn ? 'Completed' : 'Hoàn tất', completedCount),
+                ];
+
+                return Column(
                   children: [
-                    // Policy & Quick Action Banner
+                    // Colorless underline tabs
                     Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF102B23), Color(0xFF1A4638)],
-                        ),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.verified_user_rounded,
-                                color: Color(0xFFDDEABB),
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Chính sách Đổi Size & Đổi trả trong 7 ngày VELORA',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      height: 44,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: tabs.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 22),
+                        itemBuilder: (_, idx) {
+                          final (key, label, count) = tabs[idx];
+                          final selected = _filter == key;
+                          return InkWell(
+                            onTap: () => setState(() => _filter = key),
+                            child: Container(
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: selected
+                                        ? const Color(0xFF111827)
+                                        : Colors.transparent,
+                                    width: 2,
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            '• Hỗ trợ Đổi kích cỡ EU 38–44, Đổi mới 1-1 nếu lỗi/giao sai hoặc Hoàn tiền 100% trong vòng 7 ngày kể từ ngày nhận hàng.\n• Sau khi gửi yêu cầu, Admin VELORA sẽ thẩm định (duyệt hoặc từ chối kèm lý do) và nhắn tin trực tiếp với bạn qua mục Chat với VELORA.',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              height: 1.45,
+                              child: Text(
+                                count > 0 ? '$label ($count)' : label,
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: selected
+                                      ? const Color(0xFF111827)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const Divider(height: 1, color: Color(0xFFE5E7EB)),
+
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                        children: [
+                          // Clean white policy & create card (no dark gradient)
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE5E7EB),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isEn
+                                            ? '7-day Size Exchange & Return'
+                                            : 'Đổi size & Trả hàng trong 7 ngày',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF111827),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        isEn
+                                            ? 'Free size exchange or 100% refund for delivered orders.'
+                                            : 'Đổi size EU 38–44, đổi mới 1-1 hoặc hoàn tiền từ đơn đã nhận.',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF64748B),
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                OutlinedButton(
+                                  onPressed: _openCreateFromOrderPicker,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF111827),
+                                    side: const BorderSide(
+                                      color: Color(0xFFCBD5E1),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    isEn ? 'New request' : 'Tạo yêu cầu',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: _openCreateFromOrderPicker,
-                              style: FilledButton.styleFrom(
-                                backgroundColor: const Color(0xFFDDEABB),
-                                foregroundColor: const Color(0xFF102B23),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
+
+                          if (filtered.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 64),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Iconsax.refresh_circle,
+                                    size: 46,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    isEn
+                                        ? 'No return requests'
+                                        : 'Chưa có yêu cầu đổi trả nào',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF111827),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    isEn
+                                        ? 'Requests from your delivered orders will appear here.'
+                                        : 'Bạn có thể tạo yêu cầu đổi size hoặc trả hàng từ đơn đã nhận.',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              icon: const Icon(Iconsax.refresh_circle, size: 17),
-                              label: const Text(
-                                '+ Tạo yêu cầu Đổi Size / Trả hàng từ đơn đã nhận',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                            )
+                          else
+                            for (final req in filtered)
+                              ReturnRequestTrackingCard(
+                                request: req,
+                                highlighted:
+                                    widget.highlightRequestId == req.id,
                               ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-
-                    // Filter chips
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildFilterPill('all', 'Tất cả (${all.length})'),
-                          const SizedBox(width: 8),
-                          _buildFilterPill(
-                            'pending',
-                            'Chờ duyệt (${all.where((e) => e.status == ReturnRequestStatus.pending).length})',
-                          ),
-                          const SizedBox(width: 8),
-                          _buildFilterPill(
-                            'active',
-                            'Đang thu hồi & Đổi mới (${all.where((e) => e.status == ReturnRequestStatus.approvedPickup || e.status == ReturnRequestStatus.inspecting).length})',
-                          ),
-                          const SizedBox(width: 8),
-                          _buildFilterPill(
-                            'completed',
-                            'Hoàn tất (${all.where((e) => e.status == ReturnRequestStatus.completed || e.status == ReturnRequestStatus.rejected).length})',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    if (filtered.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 48),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Iconsax.refresh_circle,
-                              size: 52,
-                              color: Color(0xFF94A3B8),
-                            ),
-                            const SizedBox(height: 14),
-                            const Text(
-                              'Chưa có yêu cầu đổi trả nào',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Nếu đôi giày bạn nhận bị chật/rộng hoặc có lỗi, hãy bấm nút trên để yêu cầu Shipper đổi mới tận nơi.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF64748B),
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      for (final req in filtered)
-                        ReturnRequestTrackingCard(
-                          request: req,
-                          highlighted:
-                              widget.highlightRequestId == req.id,
-                        ),
                   ],
                 );
               },
             ),
     );
   }
-
-  Widget _buildFilterPill(String key, String label) {
-    final sel = _filter == key;
-    return GestureDetector(
-      onTap: () {
-        if (_filter != key) setState(() => _filter = key);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        decoration: BoxDecoration(
-          color: sel ? const Color(0xFF173E32) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: sel ? const Color(0xFF173E32) : const Color(0xFFCBD5E1),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: sel ? Colors.white : const Color(0xFF334155),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
-/// Reusable Return / Exchange Tracking Card used in both `MyReturnRequestsScreen` and `OrderDetail`.
+/// Clean commercial Return / Exchange Card:
+/// - Neutral white card
+/// - Strictly ONE status badge representing the request's status
+/// - Single-color monochrome 4-step progress tracker
 class ReturnRequestTrackingCard extends StatelessWidget {
   const ReturnRequestTrackingCard({
     super.key,
@@ -1211,108 +1231,103 @@ class ReturnRequestTrackingCard extends StatelessWidget {
   final ReturnRequestModel request;
   final bool highlighted;
 
+  Widget _singleStatusBadge(bool isEn) {
+    final rejected = request.status == ReturnRequestStatus.rejected;
+    final completed = request.status == ReturnRequestStatus.completed;
+    final textColor = rejected
+        ? const Color(0xFFB91C1C)
+        : (completed ? const Color(0xFF15803D) : const Color(0xFF1E293B));
+    final bgColor = rejected
+        ? const Color(0xFFFEF2F2)
+        : (completed ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9));
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        request.statusLabel(english: isEn),
+        style: TextStyle(
+          color: textColor,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context).languageCode;
     final isEn = locale == 'en';
-    final tone = request.statusColor;
-    final bgTone = request.statusBgColor;
-    final borderTone = request.statusBorderColor;
     final rejected = request.status == ReturnRequestStatus.rejected;
     final step = request.stepIndex;
 
-    const stepColors = [
-      Color(0xFFD97706), // 1. Gửi yêu cầu (Cam)
-      Color(0xFF7C3AED), // 2. Shipper thu hồi (Tím)
-      Color(0xFF0284C7), // 3. Kho HN đổi mới (Xanh dương)
-      Color(0xFF16A34A), // 4. Hoàn tất (Xanh lá)
-    ];
     final stepLabels = isEn
-        ? ['Submitted', 'Pickup', 'Hanoi Hub', 'Completed']
-        : ['Gửi yêu cầu', 'Lấy hàng', 'Kho Hà Nội', 'Hoàn tất'];
+        ? ['Submitted', 'Pickup', 'Inspecting', 'Completed']
+        : ['Đã gửi', 'Lấy hàng', 'Kiểm định', 'Hoàn tất'];
+
+    final typeAndDetail = (request.requestedSizeOrColor.trim().isNotEmpty &&
+            request.requestedSizeOrColor.trim() !=
+                request.typeLabel(english: isEn).trim())
+        ? '${request.typeLabel(english: isEn)} · ${request.requestedSizeOrColor}'
+        : request.typeLabel(english: isEn);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: highlighted
-              ? tone
-              : borderTone.withValues(alpha: 0.65),
-          width: highlighted ? 2 : 1.2,
+              ? const Color(0xFF111827)
+              : const Color(0xFFE5E7EB),
+          width: highlighted ? 1.5 : 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status Badge + Date (Wrap prevents horizontal overflow on narrow screens)
-          SizedBox(
-            width: double.infinity,
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: bgTone,
-                    borderRadius: BorderRadius.circular(999),
-                    border:
-                        Border.all(color: borderTone.withValues(alpha: 0.7)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(request.statusIcon, size: 14, color: tone),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          request.statusLabel(english: isEn),
-                          softWrap: true,
-                          style: TextStyle(
-                            color: tone,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  DateFormat('dd/MM/yyyy HH:mm').format(request.createdAt),
+          // Top row: Date on left + strictly ONE status badge on right
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  DateFormat('dd/MM/yyyy · HH:mm').format(request.createdAt),
                   style: const TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: Color(0xFF64748B),
                   ),
                 ),
-              ],
-            ),
+              ),
+              _singleStatusBadge(isEn),
+            ],
           ),
-          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ),
 
-          // Product & Type Info
+          // Product & Type Info (plain clean typography, zero extra badges)
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TRoundedImage(
-                imageUrl: request.productThumbnail,
-                width: 60,
-                height: 60,
-                isNetworkImage: true,
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                ),
+                child: TRoundedImage(
+                  imageUrl: request.productThumbnail,
+                  width: 58,
+                  height: 58,
+                  borderRadius: 8,
+                  isNetworkImage: true,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1323,88 +1338,43 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                       request.productTitle,
                       softWrap: true,
                       style: const TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ReturnRequestModel.typeColorOf(request.type)
-                                .withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            request.typeLabel(english: isEn),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color:
-                                  ReturnRequestModel.typeColorOf(request.type),
-                            ),
-                          ),
-                        ),
-                        if (request.requestedSizeOrColor.trim().isNotEmpty &&
-                            request.requestedSizeOrColor.trim() !=
-                                request.typeLabel(english: isEn).trim())
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              request.requestedSizeOrColor,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                          ),
-                      ],
+                    Text(
+                      typeAndDetail,
+                      softWrap: true,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF475569),
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            request.statusSubtitle(english: isEn),
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: Color(0xFF475569),
-              height: 1.4,
-            ),
-          ),
 
-          // 4-Step Visual Return Progress Bar
+          // Single-color monochrome 4-step progress bar
           if (!rejected) ...[
             const SizedBox(height: 14),
             Row(
               children: List.generate(4, (i) {
                 final active = (i + 1) <= step;
+                final current = (i + 1) == step;
                 return Expanded(
                   child: Column(
                     children: [
                       Container(
-                        height: 5,
+                        height: 3.5,
                         margin: EdgeInsets.only(right: i < 3 ? 6 : 0),
                         decoration: BoxDecoration(
                           color: active
-                              ? stepColors[i]
+                              ? const Color(0xFF111827)
                               : const Color(0xFFE2E8F0),
                           borderRadius: BorderRadius.circular(999),
                         ),
@@ -1417,9 +1387,9 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight:
-                              (i + 1) == step ? FontWeight.w800 : FontWeight.w600,
+                              current ? FontWeight.w700 : FontWeight.w500,
                           color: active
-                              ? stepColors[i]
+                              ? const Color(0xFF111827)
                               : const Color(0xFF94A3B8),
                         ),
                       ),
@@ -1430,21 +1400,25 @@ class ReturnRequestTrackingCard extends StatelessWidget {
             ),
           ],
 
-          const Divider(height: 22),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ),
           Text(
             'Lý do: ${request.reasonCategory}'
-            '${request.description.isNotEmpty && request.description != request.reasonCategory ? ' — "${request.description}"' : ''}',
+            '${request.description.isNotEmpty && request.description != request.reasonCategory ? ' — ${request.description}' : ''}',
             style: const TextStyle(
               fontSize: 12.5,
-              color: Color(0xFF1E293B),
+              color: Color(0xFF334155),
+              height: 1.4,
             ),
           ),
           if (request.pickupAddress.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              '📍 Địa chỉ đổi mới: ${request.pickupAddress}',
+              'Địa chỉ nhận đổi: ${request.pickupAddress}',
               style: const TextStyle(
-                fontSize: 11.5,
+                fontSize: 12,
                 color: Color(0xFF64748B),
               ),
             ),
@@ -1453,7 +1427,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
           if (request.hasMedia) ...[
             const SizedBox(height: 10),
             SizedBox(
-              height: 64,
+              height: 60,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
@@ -1461,29 +1435,29 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(9),
+                        borderRadius: BorderRadius.circular(8),
                         child: CachedNetworkImage(
                           imageUrl: img,
-                          width: 64,
-                          height: 64,
+                          width: 60,
+                          height: 60,
                           fit: BoxFit.cover,
                         ),
                       ),
                     ),
                   for (var i = 0; i < request.videoUrls.length; i++)
                     Container(
-                      width: 64,
-                      height: 64,
+                      width: 60,
+                      height: 60,
                       margin: const EdgeInsets.only(right: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF14352B),
-                        borderRadius: BorderRadius.circular(9),
+                        color: const Color(0xFF111827),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Center(
                         child: Icon(
                           Icons.play_circle_fill_rounded,
-                          color: Color(0xFFDDEABB),
-                          size: 26,
+                          color: Colors.white,
+                          size: 24,
                         ),
                       ),
                     ),
@@ -1492,61 +1466,35 @@ class ReturnRequestTrackingCard extends StatelessWidget {
             ),
           ],
 
-          // Official VELORA CSKH Response
+          // Clean neutral Admin response box
           if (request.hasAdminResponse) ...[
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
-                color: const Color(0xFFF3F8F5),
-                borderRadius: BorderRadius.circular(12),
-                border: const Border(
-                  left: BorderSide(color: Color(0xFF173E32), width: 3.5),
-                ),
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 20,
-                        height: 20,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF173E32),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: const Text(
-                          'V',
-                          style: TextStyle(
-                            color: Color(0xFFDDEABB),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 7),
-                      const Expanded(
-                        child: Text(
-                          'Phản hồi từ Trung tâm Đổi trả & Bảo hành VELORA',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF173E32),
-                          ),
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    'Phản hồi từ VELORA',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
                     request.adminResponse,
                     style: const TextStyle(
                       fontSize: 12.5,
-                      color: Color(0xFF1E293B),
-                      height: 1.45,
+                      color: Color(0xFF475569),
+                      height: 1.4,
                     ),
                   ),
                 ],
@@ -1561,23 +1509,21 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                 () => VeloraSupportChatScreen(initialReturnRequest: request),
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF173E32),
-                side: BorderSide(
-                  color: const Color(0xFF173E32).withValues(alpha: 0.4),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                foregroundColor: const Color(0xFF111827),
+                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                padding: const EdgeInsets.symmetric(vertical: 9),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              icon: const Icon(Iconsax.message_text_1, size: 16),
+              icon: const Icon(Iconsax.message_text_1, size: 15),
               label: Text(
                 isEn
-                    ? 'Chat directly with VELORA about this exchange'
-                    : 'Chat riêng với VELORA về yêu cầu đổi trả này',
+                    ? 'Contact VELORA Support'
+                    : 'Liên hệ CSKH về yêu cầu này',
                 style: const TextStyle(
                   fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),

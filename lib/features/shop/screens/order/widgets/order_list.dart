@@ -1,195 +1,154 @@
+import 'package:fashion_business_app/common/widgets/loaders/animation_loader.dart';
+import 'package:fashion_business_app/features/shop/controllers/product/order_controller.dart';
+import 'package:fashion_business_app/features/shop/models/order_model.dart';
+import 'package:fashion_business_app/features/shop/screens/order/order_detail.dart';
+import 'package:fashion_business_app/navigation_menu.dart';
+import 'package:fashion_business_app/utils/constants/enums.dart';
+import 'package:fashion_business_app/utils/constants/image_strings.dart';
+import 'package:fashion_business_app/utils/helpers/cloud_helper_function.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:fashion_business_app/common/widgets/custom_shapes/containers/rounded_container.dart';
-import 'package:fashion_business_app/common/widgets/loaders/animation_loader.dart';
-import 'package:fashion_business_app/data/repositories/orders/orders_repository.dart';
-import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
-import 'package:fashion_business_app/features/shop/controllers/product/order_controller.dart';
-import 'package:fashion_business_app/features/shop/screens/order/order.dart';
-import 'package:fashion_business_app/features/shop/screens/order/order_detail.dart';
-import 'package:fashion_business_app/navigation_menu.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
-import 'package:fashion_business_app/utils/constants/image_strings.dart';
-import 'package:fashion_business_app/utils/constants/sizes.dart';
-import 'package:fashion_business_app/utils/helpers/cloud_helper_function.dart';
-import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
 
 class TOrderListItem extends StatelessWidget {
   const TOrderListItem({super.key});
 
+  Widget _statusBadge(OrderModel order, bool isEn) {
+    final isCancelled = order.status == OrderStatus.cancelled;
+    final isReceived = order.status == OrderStatus.received;
+    final textColor = isCancelled
+        ? const Color(0xFFB91C1C)
+        : (isReceived ? const Color(0xFF15803D) : const Color(0xFF1E293B));
+    final bgColor = isCancelled
+        ? const Color(0xFFFEF2F2)
+        : (isReceived ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9));
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        order.orderStatusLabel(english: isEn),
+        style: TextStyle(
+          color: textColor,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dark = THelperFunctions.isDarkMode(context);
-
     final controller = Get.put(OrderController());
+    final lang = Localizations.localeOf(context).languageCode;
+    final isEn = lang == 'en';
 
     return FutureBuilder(
-        future: controller.fetUserOrders(),
-        builder: (_, snapshot) {
-          final emptyWidget = TAnimationLoaderWidget(
-            text: 'Whoop! No Order Yet!',
-            animation: TImages.masterCard,
-            showAction: true,
-            actionText: 'Let\'s fill it',
-            onActionPressed: () => Get.off(() => const NavigationMenu()),
-          );
+      future: controller.fetUserOrders(),
+      builder: (_, snapshot) {
+        final emptyWidget = TAnimationLoaderWidget(
+          text: 'Whoop! No Order Yet!',
+          animation: TImages.masterCard,
+          showAction: true,
+          actionText: 'Let\'s fill it',
+          onActionPressed: () => Get.off(() => const NavigationMenu()),
+        );
 
-          final response = TCloudHelperFunctions.checkMultiRecordState(
-              snapshot: snapshot, nothingFound: emptyWidget);
-          if (response != null) return response;
+        final response = TCloudHelperFunctions.checkMultiRecordState(
+          snapshot: snapshot,
+          nothingFound: emptyWidget,
+        );
+        if (response != null) return response;
 
-          ///congratulation record found
-          final orders = snapshot.data!;
-          return ListView.separated(
-            shrinkWrap: true,
-            separatorBuilder: (_, __) => const SizedBox(
-              height: TSizes.spaceBtwItems,
-            ),
-            itemCount: orders.length,
-            itemBuilder: (_, index) {
-              final order = orders[index];
-              return TRoundedContainer(
-                showBorder: true,
-                backgroundColor: dark ? TColors.dark : TColors.light,
-                padding: const EdgeInsets.all(TSizes.md),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ///row1
-                    Row(
-                      children: [
-                        /// icon
-                        const Icon(Iconsax.ship),
-                        const SizedBox(
-                          width: TSizes.spaceBtwItems / 2,
-                        ),
-
-                        /// status & date
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: order.statusBgColor,
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: order.statusBorderColor.withValues(alpha: 0.65),
-                                  ),
-                                ),
-                                child: Text(
-                                  order.orderStatusLabel(
-                                    english: Localizations.localeOf(context).languageCode == 'en',
-                                  ),
-                                  style: TextStyle(
-                                    color: order.statusColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              ShopText(
-                                order.formattedOrderDate,
-                                style: const TextStyle(
-                                    fontSize: 15, fontWeight: FontWeight.bold),
-                              )
-                            ],
+        final orders = snapshot.data!;
+        return ListView.separated(
+          shrinkWrap: true,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemCount: orders.length,
+          itemBuilder: (_, index) {
+            final order = orders[index];
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Get.to(() => OrderDetail(order: order)),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          ShopText(
+                            order.formattedOrderDate,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
+                          const Spacer(),
+                          _statusBadge(order, isEn),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        order.itemsSummary(english: isEn),
+                        softWrap: true,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF111827),
                         ),
-
-                        ///icon
-                        IconButton(
-                            onPressed: () =>
-                                Get.to(() => OrderDetail(order: order)),
-                            icon: const Icon(
-                              Iconsax.arrow_right_34,
-                              size: TSizes.iconSm,
-                            ))
-                      ],
-                    ),
-                    const SizedBox(
-                      height: TSizes.spaceBtwItems,
-                    ),
-
-                    ///row2
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              /// icon
-                              const Icon(Iconsax.tag),
-                              const SizedBox(
-                                width: TSizes.spaceBtwItems / 2,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              order.discountAmount > 0 &&
+                                      order.couponCode.trim().isNotEmpty
+                                  ? '${order.formattedDeliveryDate} · Mã ${order.couponCode.trim().toUpperCase()}'
+                                  : order.formattedDeliveryDate,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
                               ),
-
-                              /// status & date
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ShopText('Order',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelMedium),
-                                    Text(
-                                      order.itemsSummary(
-                                        english: Localizations.localeOf(context).languageCode == 'en',
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context).textTheme.titleMedium,
-                                    )
-                                  ],
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-
-                        ///row3
-                        Expanded(
-                          child: Row(
-                            children: [
-                              /// icon
-                              const Icon(Iconsax.calendar),
-                              const SizedBox(
-                                width: TSizes.spaceBtwItems / 2,
-                              ),
-
-                              /// status & date
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ShopText('Shipping Date',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelMedium),
-                                    ShopText(order.formattedDeliveryDate,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium)
-                                  ],
-                                ),
-                              ),
-                            ],
+                          Text(
+                            formatShopMoney(order.totalAmount, language: lang),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF111827),
+                            ),
                           ),
-                        )
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Iconsax.arrow_right_34,
+                            size: 16,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              );
-            },
-          );
-        });
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

@@ -45,7 +45,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('checkout coupon picker returns an eligible welcome code', (tester) async {
+  testWidgets('checkout coupon picker ranks highest-saving voucher first with red recommendation badge', (tester) async {
     ShopCoupon? selected;
     await tester.pumpWidget(app(Scaffold(body: Builder(builder: (context) => TextButton(
       onPressed: () async { selected = await Get.to<ShopCoupon>(() => const CouponsScreen(subtotal: 110)); },
@@ -54,11 +54,43 @@ void main() {
     await tester.tap(find.text('Choose'));
     await tester.pumpAndSettle();
     expect(find.text('WELCOME10'), findsOneWidget);
+    expect(find.text('SHIPNEW'), findsOneWidget);
+    expect(find.textContaining('Mã Giảm giá sản phẩm'), findsOneWidget);
+    expect(find.textContaining('Mã Miễn phí vận chuyển'), findsOneWidget);
+    expect(find.text('Đồng ý'), findsNothing);
+    expect(find.text('Đề xuất tốt nhất'), findsWidgets);
+    expect(find.text('Đề xuất dùng'), findsWidgets);
     final apply = find.widgetWithText(OutlinedButton, 'Áp dụng').first;
     await tester.ensureVisible(apply);
     await tester.tap(apply);
     await tester.pumpAndSettle();
-    expect(selected?.id, 'WELCOME10');
+    // On Nov 20, LE-2026-11-20 saves $15 (> WELCOME10 $10), so it ranks #1
+    expect(selected?.id, 'LE-2026-11-20');
+
+    // Verify dual stacking: 1 Freeship ($5) + 1 Product Discount ($10) = $15 total discount
+    final ship = benefits.coupons.firstWhere((c) => c.id == 'SHIPNEW');
+    final prod = benefits.coupons.firstWhere((c) => c.id == 'WELCOME10');
+    final dualQuote = benefits.quoteDual(110, productCoupon: prod, shippingCoupon: ship);
+    expect(dualQuote.shippingDiscount, 5);
+    expect(dualQuote.productDiscount, 10);
+    expect(dualQuote.discount, 15);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pressing back from checkout coupon picker pops cleanly without bool cast error', (tester) async {
+    Object? poppedResult = 'sentinel';
+    await tester.pumpWidget(app(Scaffold(body: Builder(builder: (context) => TextButton(
+      onPressed: () async {
+        final res = await Get.to<ShopCoupon>(() => const CouponsScreen(subtotal: 110));
+        poppedResult = res;
+      },
+      child: const Text('OpenPicker'),
+    )))));
+    await tester.tap(find.text('OpenPicker'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(IconButton).first);
+    await tester.pumpAndSettle();
+    expect(poppedResult, isNull);
     expect(tester.takeException(), isNull);
   });
 
