@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/features/personalization/services/loyalty_coins.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
@@ -22,6 +23,7 @@ class OrderRepository extends GetxController{
           next == OrderStatus.cancelled && status == OrderStatus.pending.toString();
       final canReceive = next == OrderStatus.received && status == OrderStatus.shipped.toString();
       if (!canCancel && !canReceive) throw StateError('Order status has changed. Refresh and try again.');
+      if (canCancel) await LoyaltyCoins.refundInTransaction(transaction, ref, current!);
       transaction.update(ref, {'status': next.toString(), 'notificationPending': true});
     });
     await _writeCustomerOrderNotification(uid: uid, order: order, status: next);
@@ -157,7 +159,12 @@ class OrderRepository extends GetxController{
       final userId = AuthenticationRepository.instance.authUser.uid;
       if(userId.isEmpty) throw 'Unable to find user information. Try again in few minutes.';
 
-      final result = await _db.collection('Users').doc(userId).collection('Orders').get();
+      var result = await _db.collection('Users').doc(userId).collection('Orders').get();
+      if (result.docs.any((doc) => !doc.data().containsKey('reviewedProductIds') &&
+          (doc.data()['status'] ?? '').toString().split('.').last == 'received')) {
+        await LoyaltyCoins().backfillReviewedProducts(result.docs);
+        result = await _db.collection('Users').doc(userId).collection('Orders').get();
+      }
       return result.docs.map((e) => OrderModel.fromSnapshot(e)).toList();
     }catch(e){
       throw 'Something went wrong while fetching order information. Try again later';
@@ -227,7 +234,15 @@ class OrderRepository extends GetxController{
       } else {
         // Nếu đơn hàng đã tồn tại, cập nhật đơn hàng
         final orderId = querySnapshot.docs.first.id;
-        await orderRef.doc(orderId).update({...order.toJson(), 'notificationPending': true});
+        final ref = orderRef.doc(orderId);
+        await _db.runTransaction((tx) async {
+          final current = (await tx.get(ref)).data()!;
+          if (order.status == OrderStatus.cancelled) {
+            await LoyaltyCoins.refundInTransaction(tx, ref, current);
+          }
+          final updates = order.toJson()..remove('reviewedProductIds')..remove('coinsUsed');
+          tx.update(ref, {...updates, 'notificationPending': true});
+        });
         await _writeCustomerOrderNotification(uid: clientUserId, order: order, status: order.status);
         return orderId;
       }

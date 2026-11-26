@@ -1,11 +1,50 @@
+import 'package:fashion_business_app/features/personalization/services/loyalty_coins.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
 import 'package:fashion_business_app/features/shop/models/product_review_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 
+class ReviewEligibility {
+  const ReviewEligibility({this.orderDocumentId, this.message = ''});
+  final String? orderDocumentId;
+  final String message;
+  bool get allowed => orderDocumentId != null;
+}
+
 class ReviewRepository {
-  final _db = FirebaseFirestore.instance;
+  ReviewRepository({FirebaseFirestore? db, String? userId})
+      : _db = db ?? FirebaseFirestore.instance, _userId = userId;
+  final FirebaseFirestore _db;
+  final String? _userId;
+
+  Future<ReviewEligibility> eligibility(String productId, {String? orderId}) async {
+    final uid = _userId ?? FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      return const ReviewEligibility(message: 'Vui lòng đăng nhập để đánh giá.');
+    }
+    final orders = await _db.collection('Users').doc(uid).collection('Orders').get();
+    final purchases = orders.docs.where((doc) {
+      final data = doc.data();
+      return (orderId == null || doc.id == orderId || data['id'] == orderId) &&
+          (data['status'] ?? '').toString().split('.').last == 'received' &&
+          (data['items'] as List? ?? []).any((item) => item is Map && item['productId'] == productId);
+    }).toList();
+    if (purchases.isEmpty) {
+      return const ReviewEligibility(message: 'Bạn cần nhận sản phẩm trước khi đánh giá.');
+    }
+    final prior = await _db.collection('Products').doc(productId).collection('Reviews')
+        .where('userId', isEqualTo: uid).get();
+    for (final purchase in purchases) {
+      final reviewed = List<String>.from(purchase.data()['reviewedProductIds'] as List? ?? []);
+      final oldReview = prior.docs.any((review) => review.data()['purchaseOrderId'] == purchase.id ||
+          (purchase.data()['id'] != null && review.data()['purchaseOrderId'] == purchase.data()['id']));
+      if (reviewed.contains(productId) || oldReview) continue;
+      final reward = await purchase.reference.collection('ReviewRewards').doc(productId).get();
+      if (!reward.exists) return ReviewEligibility(orderDocumentId: purchase.id);
+    }
+    return const ReviewEligibility(message: 'Bạn đã đánh giá sản phẩm trong đơn này. Mỗi sản phẩm chỉ được đánh giá một lần.');
+  }
 
   Future<List<ProductReviewEntry>> fetchRecent(String productId) async {
     String productTitle = 'sản phẩm VELORA';
@@ -69,10 +108,11 @@ class ReviewRepository {
     return entries;
   }
 
-  Future<void> save(
+  Future<int> save(
     String productId,
     int rating,
     String text, {
+    String? purchaseOrderId,
     List<String> imageUrls = const [],
     List<String> videoUrls = const [],
   }) async {
@@ -86,19 +126,8 @@ class ReviewRepository {
           'Vui lòng chọn số sao và nhập cảm nhận (hoặc đính kèm ảnh/video).');
     }
 
-    QueryDocumentSnapshot<Map<String, dynamic>>? purchase;
-    try {
-      final orders = await _db
-          .collection('Users')
-          .doc(user.uid)
-          .collection('Orders')
-          .where('status', isEqualTo: 'OrderStatus.received')
-          .get();
-      purchase = orders.docs
-          .where((doc) => (doc.data()['items'] as List? ?? [])
-              .any((item) => item is Map && item['productId'] == productId))
-          .firstOrNull;
-    } catch (_) {}
+    final permission = await eligibility(productId, orderId: purchaseOrderId);
+    if (!permission.allowed) throw StateError(permission.message);
 
     final name = Get.isRegistered<UserController>() &&
             UserController.instance.user.value.fullName.trim().isNotEmpty
@@ -139,23 +168,17 @@ class ReviewRepository {
       }
     } catch (_) {}
 
-    // Allow a customer to write multiple reviews for the same product!
-    final reviewDocId = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}';
-    final ref = _db
-        .collection('Products')
-        .doc(productId)
-        .collection('Reviews')
-        .doc(reviewDocId);
-
-    await ref.set({
+    final ref = _db.collection('Products').doc(productId).collection('Reviews').doc();
+    return LoyaltyCoins().saveReview(productId: productId, reviewId: ref.id,
+      orderDocumentId: permission.orderDocumentId, data: {
       'userId': user.uid,
       'authorName': name,
       'rating': rating,
       'text': text.trim(),
       'imageUrls': imageUrls,
       'videoUrls': videoUrls,
-      'verifiedPurchase': purchase != null,
-      if (purchase != null) 'purchaseOrderId': purchase.id,
+      'verifiedPurchase': true,
+      'purchaseOrderId': permission.orderDocumentId,
       if (autoAdminReply.isNotEmpty) ...{
         'adminReply': autoAdminReply,
         'adminReplyAt': FieldValue.serverTimestamp(),

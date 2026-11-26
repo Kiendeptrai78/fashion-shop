@@ -1,5 +1,9 @@
 # Push worker (no Cloud Functions deployment)
 
+For cloud delivery independent of this Mac, see [Cloudflare worker](cloudflare/README.md).
+The local launchd service described below is a fallback and must remain disabled
+while the cloud worker is enabled.
+
 This Node.js process uses Firestore listeners and Firebase Admin Messaging. It can
 run on an existing computer/server; it does not enable Firebase billing or buy
 hosting. Firestore reads, listener reconnects and sends remain subject to the
@@ -102,3 +106,35 @@ For the first local activation of an existing store, use `npm start -- --new-onl
 to leave already-queued historical notifications untouched and watch new events.
 Later changes to an existing queued order/inbox entry are still processed. Normal
 `npm start` also processes the backlog. Keep the worker running for delivery.
+
+## Installed macOS background service
+
+This development machine has a per-user `launchd` service named
+`com.velora.push-worker`, with `RunAtLoad`, `KeepAlive` and a 15-second restart
+throttle. It runs after user login independently of terminal/chat sessions.
+The runtime and private credentials are installed outside the repository at
+`~/Library/Application Support/VELORA/push`; logs are in `~/Library/Logs/VELORA`.
+The LaunchAgent configuration is `~/Library/LaunchAgents/com.velora.push-worker.plist`.
+
+```sh
+launchctl print gui/$(id -u)/com.velora.push-worker
+tail -50 "$HOME/Library/Logs/VELORA/push-worker.log"
+tail -50 "$HOME/Library/Logs/VELORA/push-worker-error.log"
+```
+
+`PUSH_STARTUP_EXCLUSIONS` points to a private JSON array of document paths queued
+before service installation. It is a fixed first-install snapshot, not recreated
+on each boot. Subsequent notifications queued during downtime are processed on
+restart. An excluded historical document can still be processed if modified after
+startup. Do not use `--new-only` for this installed service: that flag defers every
+startup backlog, including events queued while the service was offline.
+
+Changes to the repository's worker files must also be copied to the installed
+runtime before restarting the service. Keep credentials and the history snapshot
+intact. There must be only one active local worker.
+
+This is a local development service: the Mac must be awake, connected to the
+internet and the user logged in. It cannot send while the Mac is asleep, shut
+down or logged out. Production push independent of this machine requires deploying
+the worker on an always-running server; Firebase Admin credentials must remain
+on that server, outside the mobile app.

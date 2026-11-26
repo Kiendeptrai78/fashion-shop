@@ -1032,13 +1032,11 @@ class _AdminVouchersViewState extends State<AdminVouchersView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AdminSectionToolbar(
-                  title: 'Quản lý Voucher (${all.length})',
-                  subtitle:
-                      'Chia 2 nhóm độc lập: Mã Miễn phí vận chuyển & Mã Giảm giá sản phẩm (khách được áp tối đa 1 mã mỗi loại).',
+                  title: 'Mã giảm giá (${all.length})',
                   actions: [
                     AdminSearchField(
-                      hint: 'Tìm mã hoặc tên chương trình...',
-                      width: 230,
+                      hint: 'Tìm mã voucher...',
+                      width: 220,
                       onChanged: (v) => setState(() => _query = v),
                     ),
                     OutlinedButton.icon(

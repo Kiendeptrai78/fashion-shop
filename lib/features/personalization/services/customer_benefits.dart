@@ -64,10 +64,13 @@ class CheckoutQuote {
     this.discount = 0,
     this.productDiscount = 0,
     this.shippingDiscount = 0,
+    this.coinsUsed = 0,
   })  : shipping = TPricingCalculator.getShippingCost('US'),
         tax = TPricingCalculator.getTaxRateForLocation('US');
   final double subtotal, discount, productDiscount, shippingDiscount, shipping, tax;
-  double get total => max(0, subtotal + shipping + tax - discount);
+  final int coinsUsed;
+  double get coinDiscount => coinsUsed / usdToVnd;
+  double get total => max(0, subtotal + shipping + tax - discount - coinDiscount);
   int get totalVnd => (total * usdToVnd).round();
 }
 
@@ -379,6 +382,7 @@ class CustomerBenefits extends GetxController {
     double subtotal, {
     ShopCoupon? productCoupon,
     ShopCoupon? shippingCoupon,
+    int coins = 0,
   }) {
     final prodOff = (productCoupon != null &&
             !productCoupon.shipping &&
@@ -390,11 +394,13 @@ class CustomerBenefits extends GetxController {
             eligible(shippingCoupon, subtotal))
         ? shippingCoupon.discount(subtotal)
         : 0.0;
+    final base = CheckoutQuote(subtotal: subtotal, discount: prodOff + shipOff);
     return CheckoutQuote(
       subtotal: subtotal,
       discount: prodOff + shipOff,
       productDiscount: prodOff,
       shippingDiscount: shipOff,
+      coinsUsed: coins.clamp(0, base.totalVnd),
     );
   }
 
@@ -405,6 +411,7 @@ class CustomerBenefits extends GetxController {
     required bool bank,
     ShopCoupon? coupon,
     ShopCoupon? shippingCoupon,
+    int coins = 0,
     required Future<void> Function(CheckoutQuote quote) saveOrder,
   }) async {
     if (busy.value) throw StateError('A checkout is already in progress.');
@@ -417,6 +424,7 @@ class CustomerBenefits extends GetxController {
         subtotal,
         productCoupon: prodC,
         shippingCoupon: shipC,
+        coins: coins,
       );
       if (receipts.containsKey(orderId)) {
         final receipt = Map<String, dynamic>.from(receipts[orderId]);
@@ -425,6 +433,7 @@ class CustomerBenefits extends GetxController {
           discount: (receipt['discount'] as num).toDouble(),
           productDiscount: (receipt['productDiscount'] as num? ?? 0).toDouble(),
           shippingDiscount: (receipt['shippingDiscount'] as num? ?? 0).toDouble(),
+          coinsUsed: (receipt['coinsUsed'] as num? ?? 0).toInt(),
         );
       }
       if (subtotal <= 0) throw StateError('Your bag is empty.');
@@ -462,6 +471,7 @@ class CustomerBenefits extends GetxController {
             'discount': result.discount,
             'productDiscount': result.productDiscount,
             'shippingDiscount': result.shippingDiscount,
+            'coinsUsed': result.coinsUsed,
           },
         },
         'ledger': entries,

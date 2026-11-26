@@ -103,29 +103,16 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.auto_awesome_rounded, size: 19, color: AdminColors.forest),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Khách hàng đang quan tâm gì? (Video Reels & Trợ lý AI)',
-                    style: TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                      color: AdminColors.ink,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
             const Text(
-              'Ghi nhận tức thì khi khách Thả tim ❤️, Bình luận 💬 trên Video quảng cáo hoặc hỏi Trợ lý AI — bấm "Tung sản phẩm tương tự" để đẩy mẫu giày cùng dòng đến thẳng thông báo của khách.',
-              style: TextStyle(fontSize: 12, color: AdminColors.inkSecondary, height: 1.4),
+              'Nhu cầu khách hàng gần đây',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AdminColors.ink,
+              ),
             ),
             if (topTags.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 6,
@@ -138,10 +125,10 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                 }).toList(),
               ),
             ],
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             if (interests.isEmpty)
               const Text(
-                'Chưa có lượt thả tim/bình luận Video hoặc tìm kiếm AI. Khi khách hàng tương tác trên app mobile, dữ liệu sẽ hiện ngay tại đây.',
+                'Chưa có dữ liệu tương tác mới.',
                 style: TextStyle(fontSize: 12.5, color: AdminColors.inkMuted),
               )
             else
@@ -149,26 +136,18 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
                 children: interests.take(12).map((interest) {
                   final tags = [
                     ...interest.interestedCategories,
-                  ].take(4).join(' • ');
+                  ].take(4).join(' · ');
                   final isVideoLike = interest.lastSource == 'video_like' ||
                       interest.lastQuery.contains('Thả tim video');
                   final isVideoComment = interest.lastSource == 'video_comment' ||
                       interest.lastQuery.contains('Bình luận video');
                   final sourceBadgeLabel = isVideoLike
-                      ? '❤️ Thả tim Video'
+                      ? 'Thả tim'
                       : isVideoComment
-                          ? '💬 Bình luận Video'
-                          : '🤖 Hỏi Trợ lý AI';
-                  final sourceBadgeColor = isVideoLike
-                      ? AdminColors.rose
-                      : isVideoComment
-                          ? AdminColors.amber
-                          : AdminColors.forest;
-                  final sourceBadgeBg = isVideoLike
-                      ? AdminColors.roseBg
-                      : isVideoComment
-                          ? AdminColors.amberBg
-                          : AdminColors.sageSoft;
+                          ? 'Bình luận'
+                          : 'Tìm kiếm';
+                  const sourceBadgeColor = Color(0xFF334155);
+                  const sourceBadgeBg = Color(0xFFF1F5F9);
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
@@ -290,26 +269,15 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
-                children: [
-                  Icon(Iconsax.send_2, size: 20, color: AdminColors.forest),
-                  SizedBox(width: 10),
-                  Text(
-                    'Soạn & Gửi thông báo mới',
-                    style: TextStyle(
-                      fontSize: 16.5,
-                      fontWeight: FontWeight.w700,
-                      color: AdminColors.ink,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
               const Text(
-                'Thông báo được gửi thẳng vào hộp thư Thông báo (Notifications) của từng khách hàng trên ứng dụng.',
-                style: TextStyle(fontSize: 12.5, color: AdminColors.inkSecondary),
+                'Soạn thông báo',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AdminColors.ink,
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // Audience
               Row(
@@ -688,9 +656,7 @@ class _AdminNotificationsViewState extends State<AdminNotificationsView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const AdminSectionToolbar(
-                  title: 'Quản lý Thông báo',
-                  subtitle:
-                      'Gửi thông báo khuyến mãi, giới thiệu sản phẩm mới hoặc nhắc đơn hàng trực tiếp đến khách hàng.',
+                  title: 'Thông báo',
                 ),
                 const SizedBox(height: 18),
                 interestsCard,

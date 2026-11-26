@@ -1,0 +1,10 @@
+{
+  "name": "velora-push",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "vars": {"FIREBASE_PROJECT_ID": "fashion-business-app", "PUSH_ENABLED": "true"},
+  "triggers": {"crons": ["* * * * *"]},
+  "observability": {"enabled": true}
+}

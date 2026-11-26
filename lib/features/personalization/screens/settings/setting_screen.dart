@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/list_tiles/loyalty_coins_tile.dart';
 import 'package:fashion_business_app/common/widgets/dialogs/velora_confirm_dialog.dart';
 import 'package:fashion_business_app/common/widgets/images/circular_image.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_count_badge.dart';
@@ -95,6 +96,10 @@ class SettingScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
 
+                    if (activity != null) ...[
+                      const CoinWalletCard(),
+                      const SizedBox(height: 14),
+                    ],
                     // 3. 2-Column Bento Highlights: Yêu thích & Ví Voucher
                     Row(
                       children: [

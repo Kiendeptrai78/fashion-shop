@@ -53,113 +53,29 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AdminSectionToolbar(
-              title: c.tr(
-                'Quản lý Nổi bật (Video Quảng cáo, Trả lời Bình luận & Gợi ý Tương tự)',
-                'Featured Tab Management (Promo Videos, Comment Replies & Similar Push)',
-              ),
-              subtitle: c.tr(
-                'Chỉ hiển thị các video sản phẩm Nổi bật đã chọn lọc + tự động mở khóa sản phẩm tương tự theo từng khách thả tim / bình luận (không đổ tràn 210 video cho mọi người).',
-                'Curate Featured product videos and automatically unlock personalized similar sneakers when customers like or comment.',
-              ),
+              title: c.tr('Video Nổi bật', 'Featured Videos'),
               actions: [
                 _SecondaryBtn(
-                  label: c.tr(
-                    'Mẫu Tự động & Cấu hình',
-                    'Auto Templates & Config',
-                  ),
+                  label: c.tr('Mẫu tự động', 'Auto Config'),
                   icon: Iconsax.setting_2,
                   onPressed: () => _openAutomationTemplatesModal(context),
                 ),
                 _SecondaryBtn(
-                  label: c.tr(
-                    '⚡ Chạy Tự động tất cả',
-                    '⚡ Run All Automation',
-                  ),
-                  icon: Iconsax.flash_1,
+                  label: c.tr('Trả lời tự động', 'Auto Reply'),
+                  icon: Iconsax.tick_circle,
                   onPressed: () async {
                     await c.autoReplyAllUnrepliedVideoComments();
                     await c.autoPushSimilarProductsForAllVideoInteractions();
                   },
                 ),
                 AdminPrimaryButton(
-                  label: c.tr(
-                    '+ Thêm Video cho Sản phẩm',
-                    '+ Add Promo Video to Product',
-                  ),
+                  label: c.tr('Gắn video', 'Add Video'),
                   icon: Iconsax.video_add,
                   onPressed: () => _openAssignVideoModal(context),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-
-            // Active automation status banner
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF102B23), Color(0xFF1A4638)],
-                ),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Wrap(
-                spacing: 18,
-                runSpacing: 10,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                alignment: WrapAlignment.spaceBetween,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AdminColors.sage.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.auto_awesome_rounded,
-                          color: AdminColors.sage,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text(
-                          'Chế độ Tự động: Trả lời Comment (${autoCfg.autoVideoCommentReply ? "BẬT" : "TẮT"}) • Tự động tung giày tương tự khi khách Thả tim / Bình luận (${autoCfg.autoVideoSimilarPush ? "BẬT" : "TẮT"})',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  TextButton.icon(
-                    onPressed: () => _openAutomationTemplatesModal(context),
-                    style: TextButton.styleFrom(
-                      backgroundColor: AdminColors.sage,
-                      foregroundColor: AdminColors.forestDark,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                    ),
-                    icon: const Icon(Iconsax.edit_2, size: 14),
-                    label: const Text(
-                      'Chỉnh sửa mẫu tự động',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
 
             // KPI summary row
             LayoutBuilder(
@@ -173,43 +89,43 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
                   physics: const NeverScrollableScrollPhysics(),
                   mainAxisSpacing: 14,
                   crossAxisSpacing: 14,
-                  childAspectRatio: 2.0,
+                  childAspectRatio: 2.35,
                   children: [
                     AdminStatCard(
-                      title: 'Đang hiển thị trên tab Nổi bật',
-                      value: '${featuredProducts.length} / ${allProducts.length} đôi',
-                      subtitle: 'Đã lọc gọn để không tràn 210 video cùng lúc',
-                      icon: Icons.auto_awesome_rounded,
+                      title: 'Đang ghim',
+                      value: '${featuredProducts.length} mẫu',
+                      subtitle: 'Tổng ${allProducts.length} sản phẩm',
+                      icon: Iconsax.video_square,
                       accentColor: AdminColors.forest,
                       accentBg: AdminColors.sageSoft,
                     ),
                     AdminStatCard(
-                      title: 'Tổng Video Quảng cáo (.mp4)',
+                      title: 'Tổng video',
                       value: '$totalVideosCount video',
-                      subtitle: 'Hỗ trợ nhiều video cuộn ngang cho mỗi đôi giày',
+                      subtitle: autoCfg.autoVideoCommentReply
+                          ? 'Tự động trả lời: Bật'
+                          : 'Tự động trả lời: Tắt',
                       icon: Iconsax.video_play,
                       accentColor: AdminColors.sky,
                       accentBg: AdminColors.skyBg,
                     ),
                     AdminStatCard(
-                      title: 'Bình luận Video trên Nổi bật',
-                      value: '${allComments.length} bình luận',
+                      title: 'Bình luận',
+                      value: '${allComments.length}',
                       subtitle: pendingComments > 0
-                          ? '$pendingComments bình luận chờ phản hồi'
-                          : '100% đã phản hồi (Tự động + Thủ công)',
+                          ? '$pendingComments chờ trả lời'
+                          : 'Đã trả lời hết',
                       icon: Iconsax.message_text_1,
-                      accentColor: pendingComments > 0
-                          ? AdminColors.amber
-                          : AdminColors.emerald,
-                      accentBg: pendingComments > 0
-                          ? AdminColors.amberBg
-                          : AdminColors.emeraldBg,
+                      accentColor: AdminColors.amber,
+                      accentBg: AdminColors.amberBg,
                     ),
                     AdminStatCard(
-                      title: 'Khách Thả tim & Quan tâm Video',
-                      value: '${videoInterests.length} khách hàng',
-                      subtitle: 'Sẵn sàng tung nhiều sản phẩm tương tự tới tay khách',
-                      icon: Iconsax.heart5,
+                      title: 'Lượt quan tâm',
+                      value: '${videoInterests.length} khách',
+                      subtitle: autoCfg.autoVideoSimilarPush
+                          ? 'Gợi ý tự động: Bật'
+                          : 'Gợi ý tự động: Tắt',
+                      icon: Iconsax.heart,
                       accentColor: AdminColors.rose,
                       accentBg: AdminColors.roseBg,
                     ),
@@ -217,33 +133,40 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
                 );
               },
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // Sub-tab selector
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _SubTabButton(
-                  label:
-                      '🎬 Sản phẩm & Video trên Nổi bật (${featuredProducts.length})',
-                  selected: _activeTab == 0,
-                  onTap: () => setState(() => _activeTab = 0),
+            // Colorless underline sub-tab bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _SubTabButton(
+                      label: 'Video đang ghim (${featuredProducts.length})',
+                      selected: _activeTab == 0,
+                      onTap: () => setState(() => _activeTab = 0),
+                    ),
+                    _SubTabButton(
+                      label: 'Bình luận (${allComments.length})',
+                      badge:
+                          pendingComments > 0 ? '$pendingComments' : null,
+                      selected: _activeTab == 1,
+                      onTap: () => setState(() => _activeTab = 1),
+                    ),
+                    _SubTabButton(
+                      label: 'Khách quan tâm (${videoInterests.length})',
+                      selected: _activeTab == 2,
+                      onTap: () => setState(() => _activeTab = 2),
+                    ),
+                  ],
                 ),
-                _SubTabButton(
-                  label:
-                      '💬 Bình luận Video — Tự động & Nhập tay (${allComments.length})',
-                  badge: pendingComments > 0 ? '$pendingComments chờ' : null,
-                  selected: _activeTab == 1,
-                  onTap: () => setState(() => _activeTab = 1),
-                ),
-                _SubTabButton(
-                  label:
-                      '❤️ Khách Thả tim & Tung Sản phẩm Tương tự (${videoInterests.length})',
-                  selected: _activeTab == 2,
-                  onTap: () => setState(() => _activeTab = 2),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -2116,14 +2039,15 @@ class _SubTabButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        margin: const EdgeInsets.only(right: 22),
+        padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: selected ? AdminColors.forest : AdminColors.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? AdminColors.forest : AdminColors.border,
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? const Color(0xFF111827) : Colors.transparent,
+              width: 2.2,
+            ),
           ),
         ),
         child: Row(
@@ -2132,26 +2056,28 @@ class _SubTabButton extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : AdminColors.ink,
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected
+                    ? const Color(0xFF111827)
+                    : const Color(0xFF64748B),
               ),
             ),
             if (badge != null) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                 decoration: BoxDecoration(
-                  color: AdminColors.amber,
+                  color: const Color(0xFFFEF2F2),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   badge!,
                   style: const TextStyle(
                     fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFB91C1C),
                   ),
                 ),
               ),

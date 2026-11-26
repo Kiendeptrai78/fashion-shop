@@ -28,3 +28,15 @@ test('a cleared historical entry is released from the recovery exclusion', () =>
   watch(snapshot([{type:'removed',doc:doc('old')}]));
   assert.equal(deferred.size,0);
 });
+
+test('service restart skips fixed old history but processes events queued during downtime', () => {
+  const excluded = new Set([doc('old').ref.path]);
+  const deferred = new Set(), sent = [];
+  const watch = pendingWatch('inbox', false, deferred, d => sent.push(d.ref.path), excluded);
+  watch(snapshot([{type:'added',doc:doc('old')},{type:'added',doc:doc('during-downtime')}]));
+  assert.deepEqual(sent, [doc('during-downtime').ref.path]);
+  assert(deferred.has(doc('old').ref.path));
+  watch(snapshot([{type:'modified',doc:doc('old')}]));
+  assert.deepEqual(sent, [doc('during-downtime').ref.path,doc('old').ref.path]);
+  assert.equal(deferred.size, 0);
+});

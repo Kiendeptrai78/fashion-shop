@@ -25,6 +25,7 @@ import 'package:video_player/video_player.dart';
 import 'widgets/bottom_add_to_cart_widget.dart';
 import 'widgets/product_detail_image_slider.dart';
 import 'widgets/product_meta_data.dart';
+import 'widgets/product_size_guide_section.dart';
 import 'widgets/similar_products.dart';
 
 class ProductDetail extends StatefulWidget {
@@ -264,6 +265,9 @@ class _ProductDetailState extends State<ProductDetail> {
                     border: border,
                     dark: dark,
                   ),
+                  const SizedBox(height: 28),
+                  Obx(() => ProductSizeGuideSection(product: product,
+                    selectedSize: VariationController.instance.selectedAttributes['Size'])),
                   const SizedBox(height: 28),
                   SimilarProducts(
                     key: ValueKey(product.id),

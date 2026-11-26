@@ -21,8 +21,16 @@ class AdminCategoriesView extends StatefulWidget {
 class _AdminCategoriesViewState extends State<AdminCategoriesView> {
   String _query = '';
   String? _selectedCategoryId;
+  final Map<String, GlobalKey> _cardKeys = {};
+  final Map<String, GlobalKey> _drawerKeys = {};
 
   AdminWebController get c => widget.controller;
+
+  GlobalKey _cardKeyFor(String id) =>
+      _cardKeys.putIfAbsent(id, () => GlobalKey());
+
+  GlobalKey _drawerKeyFor(String id) =>
+      _drawerKeys.putIfAbsent(id, () => GlobalKey());
 
   String _canonicalKey(String raw) {
     final s = raw.trim().toLowerCase();
@@ -45,56 +53,70 @@ class _AdminCategoriesViewState extends State<AdminCategoriesView> {
     }).toList();
   }
 
-  ({
-    Color accent,
-    Color bg,
-    IconData icon,
-    String taglineVi,
-    String taglineEn,
-  }) _metaForCategory(CategoryModel cat) {
+  ({IconData icon, String taglineVi, String taglineEn}) _metaForCategory(
+    CategoryModel cat,
+  ) {
     final key = _canonicalKey('${cat.id} ${cat.name}');
     switch (key) {
       case 'running':
         return (
-          accent: const Color(0xFF16A34A),
-          bg: const Color(0xFFDCFCE7),
           icon: Iconsax.flash_1,
-          taglineVi: 'Đệm NitroFoam siêu nhẹ & hoàn trả năng lượng cho Marathon / Chạy đường dài',
-          taglineEn: 'Ultra-light NitroFoam cushioning & energy return for road running',
+          taglineVi: 'Đệm nhẹ & hoàn trả năng lượng cho chạy bộ đường dài',
+          taglineEn: 'Lightweight cushioning & energy return for road running',
         );
       case 'lifestyle':
         return (
-          accent: const Color(0xFF7C3AED),
-          bg: const Color(0xFFEDE9FE),
           icon: Iconsax.verify,
-          taglineVi: 'Thiết kế tối giản hiện đại, phối đồ đi làm & dạo phố hằng ngày',
-          taglineEn: 'Minimalist modern silhouette crafted for all-day urban comfort',
+          taglineVi: 'Thiết kế tối giản hiện đại, phối đồ đi làm & dạo phố',
+          taglineEn: 'Minimalist modern silhouette for everyday comfort',
         );
       case 'training':
         return (
-          accent: const Color(0xFF0284C7),
-          bg: const Color(0xFFE0F2FE),
           icon: Iconsax.weight,
-          taglineVi: 'Đế phẳng ổn định trọng tâm, bám sàn tối đa cho Gym & Cross-Training',
-          taglineEn: 'Flat stable base & multi-directional grip for gym and HIIT workouts',
+          taglineVi: 'Đế phẳng ổn định trọng tâm cho tập Gym & Cross-Training',
+          taglineEn: 'Flat stable base & grip for gym and HIIT workouts',
         );
       case 'basketball':
         return (
-          accent: const Color(0xFFD97706),
-          bg: const Color(0xFFFEF3C7),
           icon: Iconsax.cup,
-          taglineVi: 'Khóa cổ chân chắc chắn, bật nhảy êm và bám sân gỗ / sân outdoor',
-          taglineEn: 'Explosive court traction & ankle lockdown for high-impact play',
+          taglineVi: 'Khóa cổ chân chắc chắn, bật nhảy êm & bám sân bóng rổ',
+          taglineEn: 'Court traction & ankle support for basketball play',
         );
       case 'trail':
       default:
         return (
-          accent: const Color(0xFF0D9488),
-          bg: const Color(0xFFCCFBF1),
           icon: Iconsax.routing,
-          taglineVi: 'Gai đế địa hình sâu & màng chống thấm nước vượt mọi cung đường Trail',
-          taglineEn: 'Aggressive trail lugs & weather-resistant upper for rugged terrain',
+          taglineVi: 'Gai đế địa hình sâu & chống thấm nước vượt đường Trail',
+          taglineEn: 'Trail lugs & weather-resistant upper for rugged terrain',
         );
+    }
+  }
+
+  void _toggleCategoryDrawer(String catId) {
+    final collapsing = _selectedCategoryId == catId;
+    setState(() {
+      _selectedCategoryId = collapsing ? null : catId;
+    });
+
+    // Only scroll gently when expanding AND only if the drawer starts near/below the bottom of viewport
+    if (!collapsing) {
+      Future<void>.delayed(const Duration(milliseconds: 250), () {
+        if (!mounted || _selectedCategoryId != catId) return;
+        final ctx = _drawerKeys[catId]?.currentContext;
+        if (ctx == null || !ctx.mounted) return;
+        final box = ctx.findRenderObject() as RenderBox?;
+        if (box == null || !box.hasSize) return;
+        final topY = box.localToGlobal(Offset.zero).dy;
+        final viewH = MediaQuery.sizeOf(ctx).height;
+        if (topY > viewH * 0.72) {
+          Scrollable.ensureVisible(
+            ctx,
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            alignment: 0.25,
+          );
+        }
+      });
     }
   }
 
@@ -111,9 +133,9 @@ class _AdminCategoriesViewState extends State<AdminCategoriesView> {
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Dialog(
           backgroundColor: AdminColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: const BoxConstraints(maxWidth: 500),
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Form(
@@ -130,8 +152,8 @@ class _AdminCategoriesViewState extends State<AdminCategoriesView> {
                                 ? 'Thêm Bộ sưu tập / Danh mục mới'
                                 : 'Chỉnh sửa Danh mục ${existing.name}',
                             style: const TextStyle(
-                              fontSize: 17.5,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
                               color: AdminColors.ink,
                             ),
                           ),
@@ -168,7 +190,7 @@ class _AdminCategoriesViewState extends State<AdminCategoriesView> {
                       contentPadding: EdgeInsets.zero,
                       activeTrackColor: AdminColors.forest,
                       title: const Text(
-                        'Hiển thị nổi bật trên Trang chủ & Thanh lọc',
+                        'Hiển thị trên Trang chủ & Thanh lọc',
                         style: TextStyle(
                             fontSize: 13.5, fontWeight: FontWeight.w600),
                       ),
@@ -241,10 +263,8 @@ class _AdminCategoriesViewState extends State<AdminCategoriesView> {
       final totalActive = c.products.where((p) => !p.isDiscontinued).length;
       final totalDiscontinued =
           c.products.where((p) => p.isDiscontinued).length;
-
-      final selectedCat = _selectedCategoryId == null
-          ? null
-          : allCats.firstWhereOrNull((cat) => cat.id == _selectedCategoryId);
+      final featuredTotal =
+          c.products.where((p) => p.isFeatured && !p.isDiscontinued).length;
 
       return SingleChildScrollView(
         padding: EdgeInsets.all(width < 700 ? 16 : 28),
@@ -256,19 +276,16 @@ class _AdminCategoriesViewState extends State<AdminCategoriesView> {
               children: [
                 AdminSectionToolbar(
                   title: vi
-                      ? 'Bộ sưu tập & Danh mục Giày thể thao VELORA (${allCats.length})'
-                      : 'VELORA Athletic Collections & Categories (${allCats.length})',
-                  subtitle: vi
-                      ? 'Quản lý trực quan từng dòng giày thể thao, tồn kho theo bộ sưu tập, video nổi bật và trạng thái mở bán.'
-                      : 'Manage athletic shoe collections, inventory distribution, featured videos, and active models.',
+                      ? 'Danh mục (${allCats.length})'
+                      : 'Categories (${allCats.length})',
                   actions: [
                     AdminSearchField(
-                      hint: vi ? 'Tìm bộ sưu tập...' : 'Search collection...',
-                      width: 240,
+                      hint: vi ? 'Tìm danh mục...' : 'Search...',
+                      width: 220,
                       onChanged: (v) => setState(() => _query = v),
                     ),
                     AdminPrimaryButton(
-                      label: vi ? '+ Thêm bộ sưu tập' : '+ Add Collection',
+                      label: vi ? 'Thêm danh mục' : 'Add Category',
                       icon: Iconsax.add_circle,
                       onPressed: () => _openEditor(),
                     ),
@@ -276,310 +293,123 @@ class _AdminCategoriesViewState extends State<AdminCategoriesView> {
                 ),
                 const SizedBox(height: 18),
 
-                // Top KPI Summary across all collections
+                // Clean neutral summary strip (no rainbow backgrounds)
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final cols = constraints.maxWidth >= 1020
                         ? 4
                         : (constraints.maxWidth >= 620 ? 2 : 1);
-                    return GridView.count(
-                      crossAxisCount: cols,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 14,
-                      crossAxisSpacing: 14,
-                      childAspectRatio: 2.15,
+                    final cardWidth =
+                        (constraints.maxWidth - (cols - 1) * 14) / cols;
+                    return Wrap(
+                      spacing: 14,
+                      runSpacing: 14,
                       children: [
-                        AdminStatCard(
-                          title: vi ? 'Tổng dòng sản phẩm' : 'Total Collections',
-                          value: '${allCats.length} bộ sưu tập',
-                          subtitle: 'Chạy bộ • Hằng ngày • Tập luyện • Bóng rổ • Địa hình',
-                          icon: Iconsax.category_2,
-                          accentColor: AdminColors.forest,
-                          accentBg: AdminColors.sageSoft,
+                        _buildNeutralMetricCard(
+                          width: cardWidth,
+                          label: vi ? 'Dòng sản phẩm' : 'Collections',
+                          value: '${allCats.length} danh mục',
+                          sub: 'Chạy bộ · Hằng ngày · Tập luyện · Bóng rổ · Địa hình',
                         ),
-                        AdminStatCard(
-                          title: vi ? 'Tổng mẫu giày VELORA' : 'Total Sneaker Models',
+                        _buildNeutralMetricCard(
+                          width: cardWidth,
+                          label: vi ? 'Tổng mẫu giày' : 'Sneaker Models',
                           value: '$totalModels mẫu',
-                          subtitle: '$totalActive đang mở bán • $totalDiscontinued ngừng bán',
-                          icon: Iconsax.box,
-                          accentColor: AdminColors.sky,
-                          accentBg: AdminColors.skyBg,
+                          sub: '$totalActive đang bán · $totalDiscontinued ngừng bán',
                         ),
-                        AdminStatCard(
-                          title: vi ? 'Tổng tồn kho toàn hệ thống' : 'Total Warehouse Stock',
+                        _buildNeutralMetricCard(
+                          width: cardWidth,
+                          label: vi ? 'Tổng tồn kho' : 'Total Stock',
                           value: '$totalStock đôi',
-                          subtitle: 'Tại Tổng Kho VELORA Cầu Giấy, Hà Nội',
-                          icon: Iconsax.building_4,
-                          accentColor: AdminColors.emerald,
-                          accentBg: AdminColors.emeraldBg,
+                          sub: 'Kho Tổng VELORA Hà Nội',
                         ),
-                        AdminStatCard(
-                          title: vi ? 'Đang ghim trên tab Nổi bật' : 'Pinned on Featured',
-                          value:
-                              '${c.products.where((p) => p.isFeatured && !p.isDiscontinued).length} mẫu',
-                          subtitle: 'Phát video quảng cáo trên tab Nổi bật Mobile',
-                          icon: Icons.auto_awesome_rounded,
-                          accentColor: AdminColors.amber,
-                          accentBg: AdminColors.amberBg,
+                        _buildNeutralMetricCard(
+                          width: cardWidth,
+                          label: vi ? 'Ghim tab Nổi bật' : 'Pinned on Featured',
+                          value: '$featuredTotal mẫu',
+                          sub: 'Đang hiển thị video review thực tế',
                         ),
                       ],
                     );
                   },
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 20),
 
-                // Visual Collection Cards Grid
+                // Collection Rows with inline smooth slide-down drawer right underneath each row
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final cols = constraints.maxWidth >= 1060
-                        ? 2
-                        : 1;
-                    return GridView.builder(
-                      itemCount: filtered.length,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: cols,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        mainAxisExtent: 268,
-                      ),
-                      itemBuilder: (context, index) {
-                        final cat = filtered[index];
-                        final catProducts = _productsForCategory(cat);
-                        final meta = _metaForCategory(cat);
-                        final activeCount = catProducts
-                            .where((p) => !p.isDiscontinued)
-                            .length;
-                        final discCount = catProducts
-                            .where((p) => p.isDiscontinued)
-                            .length;
-                        final stockSum = catProducts.fold<int>(
-                            0, (sum, p) => sum + p.stock);
-                        final featuredCount = catProducts
-                            .where((p) => p.isFeatured && !p.isDiscontinued)
-                            .length;
-                        final heroImage = cat.image.trim().isNotEmpty
-                            ? cat.image.trim()
-                            : (catProducts.isNotEmpty
-                                ? catProducts.first.thumbnail
-                                : '');
-                        final isSelected = _selectedCategoryId == cat.id;
+                    final cols = constraints.maxWidth >= 1040 ? 2 : 1;
+                    final rows = <List<CategoryModel>>[];
+                    for (var i = 0; i < filtered.length; i += cols) {
+                      rows.add(
+                        filtered.sublist(
+                          i,
+                          i + cols > filtered.length ? filtered.length : i + cols,
+                        ),
+                      );
+                    }
 
-                        return AdminCard(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Hero Sneaker Image for this Collection
-                                  Container(
-                                    width: 84,
-                                    height: 84,
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: meta.bg,
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color:
-                                            meta.accent.withValues(alpha: 0.3),
-                                      ),
-                                    ),
-                                    child: heroImage.isNotEmpty
-                                        ? CachedNetworkImage(
-                                            imageUrl: heroImage,
-                                            fit: BoxFit.contain,
-                                          )
-                                        : Icon(
-                                            meta.icon,
-                                            color: meta.accent,
-                                            size: 32,
-                                          ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              meta.icon,
-                                              size: 17,
-                                              color: meta.accent,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                c.localizeCategory(cat.name),
-                                                style: const TextStyle(
-                                                  fontSize: 17,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: AdminColors.ink,
-                                                ),
-                                              ),
-                                            ),
-                                            AdminBadge(
-                                              label: '${catProducts.length} mẫu giày',
-                                              color: meta.accent,
-                                              bgColor: meta.bg,
-                                            ),
-                                          ],
+                    return Column(
+                      children: [
+                        for (var r = 0; r < rows.length; r++) ...[
+                          if (r > 0) const SizedBox(height: 16),
+                          Builder(builder: (context) {
+                            final rowCats = rows[r];
+                            final selectedInRow = rowCats.firstWhereOrNull(
+                              (cat) => cat.id == _selectedCategoryId,
+                            );
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (cols == 1)
+                                  _buildCategoryCard(rowCats.first, vi: vi)
+                                else
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: _buildCategoryCard(
+                                          rowCats[0],
+                                          vi: vi,
                                         ),
-                                        const SizedBox(height: 5),
-                                        Text(
-                                          vi ? meta.taglineVi : meta.taglineEn,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: AdminColors.inkSecondary,
-                                            height: 1.35,
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: rowCats.length > 1
+                                            ? _buildCategoryCard(
+                                                rowCats[1],
+                                                vi: vi,
+                                              )
+                                            : const SizedBox.shrink(),
+                                      ),
+                                    ],
+                                  ),
+
+                                // Butter-smooth 60fps SizeTransition drawer (retains child while collapsing!)
+                                _SmoothExpandableDrawer(
+                                  expanded: selectedInRow != null,
+                                  child: selectedInRow == null
+                                      ? null
+                                      : Padding(
+                                          key: _drawerKeyFor(selectedInRow.id),
+                                          padding:
+                                              const EdgeInsets.only(top: 12),
+                                          child:
+                                              _buildSelectedCategoryProductsSection(
+                                            selectedInRow,
                                           ),
                                         ),
-                                        const SizedBox(height: 10),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 6,
-                                          children: [
-                                            AdminBadge(
-                                              label: 'Tồn kho: $stockSum đôi',
-                                              color: AdminColors.forest,
-                                              bgColor: AdminColors.sageSoft,
-                                            ),
-                                            AdminBadge(
-                                              label: 'Đang bán: $activeCount',
-                                              color: AdminColors.emerald,
-                                              bgColor: AdminColors.emeraldBg,
-                                            ),
-                                            if (discCount > 0)
-                                              AdminBadge(
-                                                label: 'Ngừng bán: $discCount',
-                                                color: AdminColors.rose,
-                                                bgColor: AdminColors.roseBg,
-                                              ),
-                                            AdminBadge(
-                                              label: '🎬 $featuredCount trên Nổi bật',
-                                              color: AdminColors.sky,
-                                              bgColor: AdminColors.skyBg,
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const Spacer(),
-                              const Divider(height: 20),
-                              // Mini preview strip of sneakers + Action buttons
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: SizedBox(
-                                      height: 38,
-                                      child: ListView.separated(
-                                        scrollDirection: Axis.horizontal,
-                                        itemCount:
-                                            catProducts.take(6).length,
-                                        separatorBuilder: (_, __) =>
-                                            const SizedBox(width: 6),
-                                        itemBuilder: (_, i) {
-                                          final p = catProducts[i];
-                                          return Tooltip(
-                                            message: p.title,
-                                            child: InkWell(
-                                              onTap: () =>
-                                                  showAdminProductAndVideoPreviewDialog(
-                                                context,
-                                                controller: c,
-                                                product: p,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              child: Container(
-                                                width: 38,
-                                                height: 38,
-                                                padding:
-                                                    const EdgeInsets.all(3),
-                                                decoration: BoxDecoration(
-                                                  color:
-                                                      AdminColors.surfaceMuted,
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                    color: AdminColors.border,
-                                                  ),
-                                                ),
-                                                child: CachedNetworkImage(
-                                                  imageUrl: p.thumbnail,
-                                                  fit: BoxFit.contain,
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  FilledButton.tonalIcon(
-                                    onPressed: () {
-                                      setState(() {
-                                        _selectedCategoryId =
-                                            isSelected ? null : cat.id;
-                                      });
-                                    },
-                                    icon: Icon(
-                                      isSelected
-                                          ? Icons.keyboard_arrow_up_rounded
-                                          : Iconsax.eye,
-                                      size: 16,
-                                    ),
-                                    label: Text(
-                                      isSelected
-                                          ? 'Thu gọn danh sách'
-                                          : 'Xem ${catProducts.length} mẫu giày',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: meta.bg,
-                                      foregroundColor: meta.accent,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  IconButton(
-                                    tooltip: 'Chỉnh sửa danh mục',
-                                    onPressed: () =>
-                                        _openEditor(existing: cat),
-                                    icon: const Icon(
-                                      Iconsax.edit_2,
-                                      size: 17,
-                                      color: AdminColors.forest,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                                ),
+                              ],
+                            );
+                          }),
+                        ],
+                      ],
                     );
                   },
                 ),
-
-                // Expanded Product Drawer for the selected category
-                if (selectedCat != null) ...[
-                  const SizedBox(height: 22),
-                  _buildSelectedCategoryProductsSection(selectedCat),
-                ],
               ],
             ),
           ),
@@ -588,147 +418,573 @@ class _AdminCategoriesViewState extends State<AdminCategoriesView> {
     });
   }
 
+  Widget _buildNeutralMetricCard({
+    required double width,
+    required String label,
+    required String value,
+    required String sub,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            sub,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryCard(CategoryModel cat, {required bool vi}) {
+    final catProducts = _productsForCategory(cat);
+    final meta = _metaForCategory(cat);
+    final activeCount = catProducts.where((p) => !p.isDiscontinued).length;
+    final discCount = catProducts.where((p) => p.isDiscontinued).length;
+    final stockSum = catProducts.fold<int>(0, (sum, p) => sum + p.stock);
+    final featuredCount =
+        catProducts.where((p) => p.isFeatured && !p.isDiscontinued).length;
+    final heroImage = cat.image.trim().isNotEmpty
+        ? cat.image.trim()
+        : (catProducts.isNotEmpty ? catProducts.first.thumbnail : '');
+    final isSelected = _selectedCategoryId == cat.id;
+
+    final statsParts = <String>[
+      'Tồn kho: $stockSum đôi',
+      'Đang bán: $activeCount',
+      if (discCount > 0) 'Ngừng bán: $discCount',
+      'Nổi bật: $featuredCount',
+    ];
+
+    return Container(
+      key: _cardKeyFor(cat.id),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? AdminColors.forest : const Color(0xFFE5E7EB),
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 76,
+                height: 76,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: heroImage.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: heroImage,
+                        fit: BoxFit.contain,
+                      )
+                    : Icon(
+                        meta.icon,
+                        color: const Color(0xFF475569),
+                        size: 28,
+                      ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            c.localizeCategory(cat.name),
+                            style: const TextStyle(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF111827),
+                            ),
+                          ),
+                        ),
+                        // Single restrained neutral badge per card
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${catProducts.length} mẫu giày',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      statsParts.join('  ·  '),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 36,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: catProducts.take(6).length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 6),
+                    itemBuilder: (_, i) {
+                      final p = catProducts[i];
+                      return Tooltip(
+                        message: p.title,
+                        child: InkWell(
+                          onTap: () => showAdminProductAndVideoPreviewDialog(
+                            context,
+                            controller: c,
+                            product: p,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(8),
+                              border:
+                                  Border.all(color: const Color(0xFFE5E7EB)),
+                            ),
+                            child: CachedNetworkImage(
+                              imageUrl: p.thumbnail,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: () => _toggleCategoryDrawer(cat.id),
+                icon: Icon(
+                  isSelected
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  isSelected
+                      ? 'Thu gọn'
+                      : 'Xem ${catProducts.length} mẫu giày',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor:
+                      isSelected ? AdminColors.forest : Colors.white,
+                  foregroundColor:
+                      isSelected ? Colors.white : const Color(0xFF111827),
+                  side: BorderSide(
+                    color: isSelected
+                        ? AdminColors.forest
+                        : const Color(0xFFCBD5E1),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 13,
+                    vertical: 9,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                tooltip: 'Chỉnh sửa danh mục',
+                onPressed: () => _openEditor(existing: cat),
+                icon: const Icon(
+                  Iconsax.edit_2,
+                  size: 17,
+                  color: Color(0xFF475569),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSelectedCategoryProductsSection(CategoryModel cat) {
     final products = _productsForCategory(cat);
-    final meta = _metaForCategory(cat);
 
-    return AdminCard(
+    return Container(
       padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(meta.icon, color: meta.accent, size: 20),
-              const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Danh sách ${products.length} mẫu giày thuộc dòng ${c.localizeCategory(cat.name)}',
+                  '${c.localizeCategory(cat.name)} (${products.length} mẫu)',
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AdminColors.ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827),
                   ),
                 ),
               ),
-              TextButton.icon(
+              TextButton(
                 onPressed: () => c.selectSection(AdminSection.products),
-                icon: const Icon(Iconsax.box, size: 15),
-                label: const Text('Mở bảng Kho hàng đầy đủ →'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF111827),
+                ),
+                child: const Text(
+                  'Mở Kho hàng →',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
               ),
-              IconButton(
-                onPressed: () => setState(() => _selectedCategoryId = null),
-                icon: const Icon(Icons.close_rounded),
+              const SizedBox(width: 6),
+              OutlinedButton.icon(
+                onPressed: () => _toggleCategoryDrawer(cat.id),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF111827),
+                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 17),
+                label: const Text(
+                  'Thu gọn',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
-          const Divider(height: 22),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: products.map((p) {
-              final price = p.salePrice > 0 ? p.salePrice : p.price;
-              final isDisc = p.isDiscontinued;
-              return InkWell(
-                onTap: () => showAdminProductAndVideoPreviewDialog(
-                  context,
-                  controller: c,
-                  product: p,
-                ),
-                borderRadius: BorderRadius.circular(14),
-                child: Opacity(
-                  opacity: isDisc ? 0.55 : 1.0,
-                  child: Container(
-                    width: 265,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AdminColors.surfaceMuted,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isDisc ? AdminColors.rose : AdminColors.border,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: CachedNetworkImage(
-                            imageUrl: p.thumbnail,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                p.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                  decoration: isDisc
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${c.formatMoney(price)} • ${p.stock} đôi',
-                                style: const TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: AdminColors.forest,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  AdminBadge(
-                                    label: isDisc ? '🚫 Ngừng bán' : 'Đang bán',
-                                    color: isDisc
-                                        ? AdminColors.rose
-                                        : AdminColors.emerald,
-                                    bgColor: isDisc
-                                        ? AdminColors.roseBg
-                                        : AdminColors.emeraldBg,
-                                  ),
-                                  const Spacer(),
-                                  InkWell(
-                                    onTap: () => c.toggleProductDiscontinued(
-                                        p, !isDisc),
-                                    child: Text(
-                                      isDisc ? 'Mở lại' : 'Ngừng bán',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: isDisc
-                                            ? AdminColors.emerald
-                                            : AdminColors.rose,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Divider(height: 1, color: Color(0xFFE2E8F0)),
           ),
+          if (products.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'Chưa có mẫu giày nào trong danh mục này.',
+                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final itemCols = constraints.maxWidth >= 1080
+                    ? 4
+                    : (constraints.maxWidth >= 760
+                        ? 3
+                        : (constraints.maxWidth >= 500 ? 2 : 1));
+                final tileWidth =
+                    (constraints.maxWidth - (itemCols - 1) * 12) / itemCols;
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: products.map((p) {
+                    final price = p.salePrice > 0 ? p.salePrice : p.price;
+                    final isDisc = p.isDiscontinued;
+                    return SizedBox(
+                      width: tileWidth,
+                      child: InkWell(
+                        onTap: () => showAdminProductAndVideoPreviewDialog(
+                          context,
+                          controller: c,
+                          product: p,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Opacity(
+                          opacity: isDisc ? 0.6 : 1.0,
+                          child: Container(
+                            padding: const EdgeInsets.all(11),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border:
+                                  Border.all(color: const Color(0xFFE5E7EB)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 52,
+                                  height: 52,
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: CachedNetworkImage(
+                                    imageUrl: p.thumbnail,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF111827),
+                                          decoration: isDisc
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        '${c.formatMoney(price)} · ${p.stock} đôi',
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF475569),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Row(
+                                        children: [
+                                          // Single status badge per sneaker item
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 7,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isDisc
+                                                  ? const Color(0xFFFEF2F2)
+                                                  : const Color(0xFFF0FDF4),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              isDisc ? 'Ngừng bán' : 'Đang bán',
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDisc
+                                                    ? const Color(0xFFB91C1C)
+                                                    : const Color(0xFF15803D),
+                                              ),
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          InkWell(
+                                            onTap: () =>
+                                                c.toggleProductDiscontinued(
+                                                    p, !isDisc),
+                                            child: Text(
+                                              isDisc ? 'Mở lại' : 'Ngừng',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF64748B),
+                                                decoration:
+                                                    TextDecoration.underline,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          if (products.length > 8) ...[
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _toggleCategoryDrawer(cat.id),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF334155),
+                ),
+                icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 17),
+                label: const Text(
+                  'Thu gọn danh sách ↑',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _SmoothExpandableDrawer extends StatefulWidget {
+  const _SmoothExpandableDrawer({
+    required this.expanded,
+    required this.child,
+  });
+
+  final bool expanded;
+  final Widget? child;
+
+  @override
+  State<_SmoothExpandableDrawer> createState() =>
+      _SmoothExpandableDrawerState();
+}
+
+class _SmoothExpandableDrawerState extends State<_SmoothExpandableDrawer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _sizeFactor;
+  late final Animation<double> _opacity;
+  Widget? _cachedChild;
+
+  @override
+  void initState() {
+    super.initState();
+    _cachedChild = widget.child;
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+      reverseDuration: const Duration(milliseconds: 210),
+      value: widget.expanded ? 1.0 : 0.0,
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.dismissed && !widget.expanded && mounted) {
+          setState(() => _cachedChild = null);
+        }
+      });
+    _sizeFactor = CurvedAnimation(
+      parent: _ctrl,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInOutCubic,
+    );
+    _opacity = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.0, 0.75, curve: Curves.easeOut),
+      reverseCurve: const Interval(0.25, 1.0, curve: Curves.easeIn),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _SmoothExpandableDrawer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.child != null) {
+      _cachedChild = widget.child;
+    }
+    if (widget.expanded && !oldWidget.expanded) {
+      _ctrl.forward();
+    } else if (!widget.expanded && oldWidget.expanded) {
+      _ctrl.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_cachedChild == null && !widget.expanded) {
+      return const SizedBox(width: double.infinity, height: 0);
+    }
+    return ClipRect(
+      child: SizeTransition(
+        sizeFactor: _sizeFactor,
+        axisAlignment: -1.0,
+        child: FadeTransition(
+          opacity: _opacity,
+          child: RepaintBoundary(
+            child: _cachedChild ?? const SizedBox(width: double.infinity),
+          ),
+        ),
       ),
     );
   }

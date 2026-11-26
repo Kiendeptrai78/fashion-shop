@@ -242,34 +242,53 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AdminSectionToolbar(
-                  title: 'Quản lý Đánh giá sản phẩm ($total)',
-                  subtitle:
-                      'Hỗ trợ cả Trả lời Tự động theo số sao và Nhập tay chi tiết — tự động đẩy thông báo cho khách.',
+                  title: 'Đánh giá ($total)',
                   actions: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Tự động trả lời',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Switch(
+                          value: cfg.autoReviewReply,
+                          activeTrackColor: AdminColors.forest,
+                          onChanged: (v) => widget.controller
+                              .saveAutomationSettings(
+                                  cfg.copyWith(autoReviewReply: v)),
+                        ),
+                      ],
+                    ),
                     OutlinedButton.icon(
                       onPressed: _openAutoTemplatesDialog,
-                      icon: const Icon(Iconsax.setting_2, size: 17),
-                      label: const Text('Mẫu trả lời tự động'),
+                      icon: const Icon(Iconsax.setting_2, size: 16),
+                      label: const Text('Mẫu phản hồi'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AdminColors.forest,
-                        side: const BorderSide(color: AdminColors.borderStrong),
+                        foregroundColor: const Color(0xFF111827),
+                        side: const BorderSide(color: Color(0xFFD1D5DB)),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                     AdminPrimaryButton(
-                      label: 'Trả lời tự động tất cả ($unrepliedCount)',
-                      icon: Icons.auto_awesome_rounded,
+                      label: 'Trả lời tất cả ($unrepliedCount)',
+                      icon: Iconsax.tick_circle,
                       loading: _bulkReplying,
                       onPressed: unrepliedCount == 0
                           ? null
                           : () async {
                               final ok = await showAdminConfirmDialog(
                                 context,
-                                title: 'Tự động trả lời $unrepliedCount đánh giá?',
+                                title: 'Trả lời tự động $unrepliedCount đánh giá?',
                                 message:
-                                    'Hệ thống sẽ dùng đúng mẫu theo số sao (4-5★, 3★, 1-2★) để phản hồi toàn bộ đánh giá chưa trả lời và gửi thông báo tới khách hàng.',
-                                confirmLabel: 'Chạy tự động ngay',
+                                    'Áp dụng mẫu theo số sao cho các đánh giá chưa phản hồi.',
+                                confirmLabel: 'Xác nhận',
                                 destructive: false,
                               );
                               if (!ok) return;
@@ -280,52 +299,7 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
-
-                // Auto-reply status bar
-                AdminCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AdminColors.sageSoft,
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: const Icon(Icons.auto_awesome_rounded,
-                            color: AdminColors.forest, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Chế độ Trả lời Tự động + Thủ công',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                            ),
-                            Text(
-                              unrepliedCount == 0
-                                  ? 'Tuyệt vời! Toàn bộ đánh giá đều đã được phản hồi.'
-                                  : 'Còn $unrepliedCount đánh giá chưa phản hồi — bạn có thể bấm "Trả lời tự động" 1 chạm hoặc "Nhập tay" từng đánh giá bên dưới.',
-                              style: const TextStyle(
-                                  fontSize: 12, color: AdminColors.inkSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: cfg.autoReviewReply,
-                        activeColor: AdminColors.forest,
-                        onChanged: (v) => widget.controller
-                            .saveAutomationSettings(cfg.copyWith(autoReviewReply: v)),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
                 // Rating summary card
                 AdminCard(

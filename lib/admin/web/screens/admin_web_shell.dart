@@ -6,7 +6,6 @@ import 'package:fashion_business_app/admin/web/views/brands_view.dart';
 import 'package:fashion_business_app/admin/web/views/categories_view.dart';
 import 'package:fashion_business_app/admin/web/views/dashboard_view.dart';
 import 'package:fashion_business_app/admin/web/views/featured_reels_view.dart';
-import 'package:fashion_business_app/admin/web/views/finance_view.dart';
 import 'package:fashion_business_app/admin/web/views/notifications_view.dart';
 import 'package:fashion_business_app/admin/web/views/orders_view.dart';
 import 'package:fashion_business_app/admin/web/views/products_view.dart';
@@ -171,9 +170,8 @@ class _AdminWebShellState extends State<AdminWebShell> {
   Widget _buildActiveView(AdminSection section) {
     switch (section) {
       case AdminSection.dashboard:
-        return AdminDashboardView(controller: _controller);
       case AdminSection.finance:
-        return AdminFinanceView(controller: _controller);
+        return AdminDashboardView(controller: _controller);
       case AdminSection.orders:
         return AdminOrdersView(controller: _controller);
       case AdminSection.returns:
@@ -217,35 +215,32 @@ class _AdminTopBar extends StatelessWidget {
     final vi = controller.isVi.value;
     switch (section) {
       case AdminSection.dashboard:
-        return vi ? 'Tổng quan cửa hàng' : 'Store Overview';
       case AdminSection.finance:
-        return vi ? 'Doanh thu, Lãi / Lỗ & Thuế' : 'Revenue, P&L & Tax';
+        return vi ? 'Tổng quan & Doanh thu' : 'Overview & Revenue';
       case AdminSection.orders:
-        return vi ? 'Quản lý Đơn hàng' : 'Order Management';
+        return vi ? 'Đơn hàng' : 'Orders';
       case AdminSection.returns:
-        return vi ? 'Quản lý Đổi trả & Bảo hành' : 'Returns & Exchanges Center';
+        return vi ? 'Đổi trả' : 'Returns';
       case AdminSection.supportChat:
-        return vi ? 'Tin nhắn Khách hàng (Chat 1-1)' : 'Customer Support Chat (1-to-1)';
+        return vi ? 'Tin nhắn' : 'Messages';
       case AdminSection.products:
-        return vi ? 'Quản lý Sản phẩm' : 'Product & Inventory Management';
+        return vi ? 'Sản phẩm' : 'Products';
       case AdminSection.featured:
-        return vi
-            ? 'Quản lý Nổi bật (Video Quảng cáo & Tương tác)'
-            : 'Featured Tab (Promo Videos & Engagement)';
+        return vi ? 'Video Nổi bật' : 'Featured Videos';
       case AdminSection.vouchers:
-        return vi ? 'Quản lý Voucher & Mã giảm giá' : 'Voucher & Coupon Management';
+        return vi ? 'Mã giảm giá' : 'Vouchers';
       case AdminSection.brands:
-        return vi ? 'Quản lý Thương hiệu' : 'Brand Management';
+        return vi ? 'Thương hiệu' : 'Brands';
       case AdminSection.categories:
-        return vi ? 'Quản lý Danh mục' : 'Category Management';
+        return vi ? 'Danh mục' : 'Categories';
       case AdminSection.banners:
-        return vi ? 'Quản lý Banner & Chiến dịch' : 'Banners & Campaigns';
+        return vi ? 'Banner' : 'Banners';
       case AdminSection.users:
-        return vi ? 'Quản lý Người dùng' : 'Customer Management';
+        return vi ? 'Khách hàng' : 'Customers';
       case AdminSection.reviews:
-        return vi ? 'Quản lý Đánh giá' : 'Product Reviews';
+        return vi ? 'Đánh giá' : 'Reviews';
       case AdminSection.notifications:
-        return vi ? 'Quản lý Thông báo' : 'Notifications & AI Insights';
+        return vi ? 'Thông báo' : 'Notifications';
     }
   }
 
@@ -269,28 +264,15 @@ class _AdminTopBar extends StatelessWidget {
             const SizedBox(width: 8),
           ],
           Expanded(
-            child: Obx(() => Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _titleFor(controller.activeSection.value),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AdminColors.ink,
-                      ),
-                    ),
-                    if (!compact)
-                      Text(
-                        controller.isVi.value
-                            ? 'VELORA Admin • Đồng bộ Firebase Firestore'
-                            : 'VELORA Admin • Live Firebase Firestore Sync',
-                        style: const TextStyle(fontSize: 11.5, color: AdminColors.inkMuted),
-                      ),
-                  ],
+            child: Obx(() => Text(
+                  _titleFor(controller.activeSection.value),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AdminColors.ink,
+                  ),
                 )),
           ),
           // Language switcher pill (VI / EN)
@@ -305,12 +287,12 @@ class _AdminTopBar extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _CurrencyPill(
-                      label: 'VI 🇻🇳',
+                      label: 'VI',
                       selected: controller.isVi.value,
                       onTap: () => controller.setLanguage(true),
                     ),
                     _CurrencyPill(
-                      label: 'EN 🇬🇧',
+                      label: 'EN',
                       selected: !controller.isVi.value,
                       onTap: () => controller.setLanguage(false),
                     ),
@@ -330,12 +312,12 @@ class _AdminTopBar extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _CurrencyPill(
-                      label: 'VND ₫',
+                      label: 'VND',
                       selected: controller.showVnd.value,
                       onTap: () => controller.showVnd.value = true,
                     ),
                     _CurrencyPill(
-                      label: 'USD \$',
+                      label: 'USD',
                       selected: !controller.showVnd.value,
                       onTap: () => controller.showVnd.value = false,
                     ),
@@ -496,17 +478,12 @@ class _AdminSidebar extends StatelessWidget {
                     _SidebarGroupLabel(vi ? 'TỔNG QUAN' : 'OVERVIEW'),
                     _SidebarItem(
                       icon: Iconsax.chart_2,
-                      label: vi ? 'Tổng quan' : 'Dashboard',
-                      selected: active == AdminSection.dashboard,
+                      label: vi ? 'Tổng quan & Doanh thu' : 'Overview',
+                      selected: active == AdminSection.dashboard ||
+                          active == AdminSection.finance,
                       onTap: () => _go(AdminSection.dashboard),
                     ),
-                    _SidebarItem(
-                      icon: Iconsax.money_recive,
-                      label: vi ? 'Doanh thu & Lãi/Lỗ' : 'Revenue & P&L',
-                      selected: active == AdminSection.finance,
-                      onTap: () => _go(AdminSection.finance),
-                    ),
-                    _SidebarGroupLabel(vi ? 'KINH DOANH' : 'COMMERCE'),
+                    _SidebarGroupLabel(vi ? 'BÁN HÀNG' : 'COMMERCE'),
                     _SidebarItem(
                       icon: Iconsax.shopping_bag,
                       label: vi ? 'Đơn hàng' : 'Orders',
@@ -518,72 +495,56 @@ class _AdminSidebar extends StatelessWidget {
                     ),
                     _SidebarItem(
                       icon: Iconsax.refresh_circle,
-                      label: vi ? 'Đổi trả & Bảo hành' : 'Returns & Exchanges',
+                      label: vi ? 'Đổi trả' : 'Returns',
                       badge: controller.pendingReturnsCount > 0
                           ? '${controller.pendingReturnsCount}'
-                          : '${controller.returnRequests.length}',
-                      mutedBadge: controller.pendingReturnsCount == 0,
+                          : null,
                       selected: active == AdminSection.returns,
                       onTap: () => _go(AdminSection.returns),
                     ),
                     _SidebarItem(
                       icon: Iconsax.message_text_1,
-                      label: vi ? 'Tin nhắn Khách hàng' : 'Customer Chat (1-1)',
+                      label: vi ? 'Tin nhắn' : 'Messages',
                       badge: controller.unreadSupportChatsCount > 0
                           ? '${controller.unreadSupportChatsCount}'
-                          : '${controller.supportChats.length}',
-                      mutedBadge: controller.unreadSupportChatsCount == 0,
+                          : null,
                       selected: active == AdminSection.supportChat,
                       onTap: () => _go(AdminSection.supportChat),
                     ),
                     _SidebarItem(
                       icon: Iconsax.box,
                       label: vi ? 'Sản phẩm' : 'Products',
-                      badge: '${controller.products.length}',
-                      mutedBadge: true,
                       selected: active == AdminSection.products,
                       onTap: () => _go(AdminSection.products),
                     ),
                     _SidebarItem(
-                      icon: Icons.auto_awesome_rounded,
-                      label: vi ? 'Quản lý Nổi bật (Video)' : 'Featured & Videos',
-                      badge:
-                          '${controller.products.where((p) => p.isFeatured == true).length}',
-                      mutedBadge: true,
+                      icon: Iconsax.video_play,
+                      label: vi ? 'Video Nổi bật' : 'Featured Videos',
                       selected: active == AdminSection.featured,
                       onTap: () => _go(AdminSection.featured),
                     ),
                     _SidebarItem(
                       icon: Iconsax.ticket_discount,
-                      label: vi ? 'Voucher giảm giá' : 'Vouchers',
-                      badge: '${controller.vouchers.length}',
-                      mutedBadge: true,
+                      label: vi ? 'Mã giảm giá' : 'Vouchers',
                       selected: active == AdminSection.vouchers,
                       onTap: () => _go(AdminSection.vouchers),
                     ),
-                    _SidebarGroupLabel(vi ? 'DANH MỤC & HIỂN THỊ' : 'CATALOG & DISPLAY'),
                     _SidebarItem(
                       icon: Iconsax.category,
-                      label: vi ? 'Bộ sưu tập & Danh mục' : 'Athletic Collections',
-                      badge: '${controller.categories.length}',
-                      mutedBadge: true,
+                      label: vi ? 'Danh mục' : 'Categories',
                       selected: active == AdminSection.categories,
                       onTap: () => _go(AdminSection.categories),
                     ),
-                    _SidebarGroupLabel(vi ? 'KHÁCH HÀNG & TƯƠNG TÁC' : 'CUSTOMERS & ENGAGEMENT'),
+                    _SidebarGroupLabel(vi ? 'KHÁCH HÀNG' : 'CUSTOMERS'),
                     _SidebarItem(
                       icon: Iconsax.people,
-                      label: vi ? 'Người dùng' : 'Customers',
-                      badge: '${controller.users.length}',
-                      mutedBadge: true,
+                      label: vi ? 'Khách hàng' : 'Customers',
                       selected: active == AdminSection.users,
                       onTap: () => _go(AdminSection.users),
                     ),
                     _SidebarItem(
                       icon: Iconsax.star,
                       label: vi ? 'Đánh giá' : 'Reviews',
-                      badge: '${controller.reviews.length}',
-                      mutedBadge: true,
                       selected: active == AdminSection.reviews,
                       onTap: () => _go(AdminSection.reviews),
                     ),

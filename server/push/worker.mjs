@@ -2,6 +2,7 @@ import {initializeApp, applicationDefault} from 'firebase-admin/app';
 import {getFirestore, FieldValue, Timestamp} from 'firebase-admin/firestore';
 import {getMessaging} from 'firebase-admin/messaging';
 import {pendingWatch} from './pending-watch.mjs';
+import {readFileSync} from 'node:fs';
 import {orderNotice, productNotice, inboxNotice, messageFor, topicMessageFor} from './messages.mjs';
 
 initializeApp({credential: applicationDefault()});
@@ -11,6 +12,10 @@ const active = new Set();
 // Use once when enabling push for an existing store, to avoid replaying its old inbox.
 const newOnly = process.argv.includes('--new-only');
 const previousQueue = new Set();
+// A fixed first-install snapshot excludes old history, without dropping events
+// queued while the service was stopped on later restarts.
+const startupExclusions = new Set(process.env.PUSH_STARTUP_EXCLUSIONS
+  ? JSON.parse(readFileSync(process.env.PUSH_STARTUP_EXCLUSIONS, 'utf8')) : []);
 const userStops = new Map();
 const trackedUserIds = new Set();
 
@@ -172,7 +177,7 @@ function watchUser(uid, ignoreExisting = false) {
     .collection('Notifications')
     .where('pushPending', '==', true)
     .onSnapshot(
-      pendingWatch('inbox', newOnly && ignoreExisting, previousQueue, processDocument),
+      pendingWatch('inbox', newOnly && ignoreExisting, previousQueue, processDocument, startupExclusions),
       error => console.error('Notification listener (inbox):', uid, error.code ?? error.message),
     );
 
@@ -180,7 +185,7 @@ function watchUser(uid, ignoreExisting = false) {
     .collection('Orders')
     .where('notificationPending', '==', true)
     .onSnapshot(
-      pendingWatch('order', newOnly && ignoreExisting, previousQueue, processDocument),
+      pendingWatch('order', newOnly && ignoreExisting, previousQueue, processDocument, startupExclusions),
       error => console.error('Notification listener (order):', uid, error.code ?? error.message),
     );
 
@@ -216,7 +221,7 @@ const stopProducts = db
   .collection('Products')
   .where('notificationPending', '==', true)
   .onSnapshot(
-    pendingWatch('product', newOnly, previousQueue, processDocument),
+    pendingWatch('product', newOnly, previousQueue, processDocument, startupExclusions),
     error => console.error('Notification listener (product):', error.code ?? error.message),
   );
 

@@ -50,6 +50,10 @@ app.*.map.json
 # Push worker dependencies and server credentials
 server/push/node_modules/
 server/push/.env
+server/push/cloudflare/node_modules/
+server/push/cloudflare/.wrangler/
+server/push/cloudflare/.dev.vars*
+server/push/cloudflare/.env*
 **/*service-account*.json
 
 # Apple authentication private keys stay outside source control

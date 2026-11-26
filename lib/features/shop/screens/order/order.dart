@@ -18,15 +18,16 @@ import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
 class OrderScreen extends StatefulWidget {
-  const OrderScreen({super.key, this.loadOrders});
+  const OrderScreen({super.key, this.loadOrders, this.initialFilter = 0});
   final Future<List<OrderModel>> Function()? loadOrders;
+  final int initialFilter;
   @override
   State<OrderScreen> createState() => _OrderScreenState();
 }
 
 class _OrderScreenState extends State<OrderScreen> {
   late Future<List<OrderModel>> _orders;
-  int _filter = 0;
+  late int _filter = widget.initialFilter;
 
   static const _tabs = [
     'All orders',
@@ -410,19 +411,21 @@ class _OrderScreenState extends State<OrderScreen> {
                         ),
                       ),
                     ),
-                    FilledButton(
-                      onPressed: () {
+                    if (order.hasUnreviewedProducts) FilledButton(
+                      onPressed: () async {
                         if (order.items.length == 1) {
                           final item = order.items.first;
-                          Get.to(
+                          await Get.to(
                             () => ProductReview(
                               productId: item.productId,
                               productTitle: item.title,
+                              purchaseOrderId: order.id,
                             ),
                           );
                         } else {
-                          Get.to(() => OrderDetail(order: order));
+                          await Get.to(() => OrderDetail(order: order));
                         }
+                        if (mounted) _reload();
                       },
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF173E32),

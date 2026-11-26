@@ -148,7 +148,7 @@ class AccountActivity extends GetxController {
     final kind = (data['kind'] ?? '').toString().trim();
     final targetId = (data['targetId'] ?? '').toString().trim();
 
-    if (kind == 'order' && targetId.isNotEmpty) {
+    if ((kind == 'order' || kind == 'review_reminder') && targetId.isNotEmpty) {
       try {
         final orders = await OrderRepository().fetchUserOrders();
         final match = orders.where((o) => o.id == targetId).firstOrNull;

@@ -30,6 +30,8 @@ class OrderDetail extends StatefulWidget {
 
 class _OrderDetailState extends State<OrderDetail> {
   bool _busy = false;
+  late final Set<String> _reviewedProducts;
+  bool get _hasUnreviewedProducts => order.items.any((item) => !_reviewedProducts.contains(item.productId));
   String? _error;
   late final Map<int, Future<ProductAvailabilityResult>> _availabilityFutures;
   Stream<QuerySnapshot<Map<String, dynamic>>>? _orderReturnsStream;
@@ -38,6 +40,7 @@ class _OrderDetailState extends State<OrderDetail> {
   @override
   void initState() {
     super.initState();
+    _reviewedProducts = order.reviewedProductIds.toSet();
     _availabilityFutures = {
       for (var i = 0; i < order.items.length; i++)
         i: ProductAvailabilityHelper.checkCartItem(order.items[i]),
@@ -103,16 +106,22 @@ class _OrderDetailState extends State<OrderDetail> {
     }
   }
 
-  void _openReviewItem(CartItemModel item) {
-    Get.to(
-      () => ProductReview(productId: item.productId, productTitle: item.title),
-    );
+  Future<void> _openReviewItem(CartItemModel item) async {
+    if (_reviewedProducts.contains(item.productId)) return;
+    await Get.to(() => ProductReview(productId: item.productId, productTitle: item.title,
+      purchaseOrderId: order.id));
+    try {
+      final orders = await OrderRepository().fetchUserOrders();
+      final updated = orders.where((entry) => entry.id == order.id).firstOrNull;
+      if (updated != null && mounted) setState(() => _reviewedProducts.addAll(updated.reviewedProductIds));
+    } catch (_) {}
   }
 
   void _openReviewPicker() {
-    if (order.items.isEmpty) return;
-    if (order.items.length == 1) {
-      _openReviewItem(order.items.first);
+    final pending = order.items.where((item) => !_reviewedProducts.contains(item.productId)).toList();
+    if (pending.isEmpty) return;
+    if (pending.length == 1) {
+      _openReviewItem(pending.first);
       return;
     }
     showModalBottomSheet(
@@ -131,7 +140,7 @@ class _OrderDetailState extends State<OrderDetail> {
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
-              for (final item in order.items)
+              for (final item in pending)
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(vertical: 4),
                   leading: TRoundedImage(
@@ -473,9 +482,9 @@ class _OrderDetailState extends State<OrderDetail> {
                                       if (!unavailable)
                                         _neutralActionBtn(
                                           label: isEn
-                                              ? 'Review'
-                                              : 'Đánh giá',
-                                          onTap: () => _openReviewItem(item),
+                                              ? (_reviewedProducts.contains(item.productId) ? 'Reviewed' : 'Review')
+                                              : (_reviewedProducts.contains(item.productId) ? 'Đã đánh giá' : 'Đánh giá'),
+                                          onTap: _reviewedProducts.contains(item.productId) ? null : () => _openReviewItem(item),
                                         ),
                                     ],
                                   ),
@@ -688,7 +697,7 @@ class _OrderDetailState extends State<OrderDetail> {
         ),
       ),
       bottomNavigationBar:
-          (!canCancel && !canReceive && !(received && order.items.isNotEmpty))
+          (!canCancel && !canReceive && !(received && _hasUnreviewedProducts))
               ? null
               : SafeArea(
                   top: false,
@@ -702,7 +711,7 @@ class _OrderDetailState extends State<OrderDetail> {
                     ),
                     child: received
                         ? FilledButton(
-                            onPressed: _openReviewPicker,
+                            onPressed: _hasUnreviewedProducts ? _openReviewPicker : null,
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF111827),
                               foregroundColor: Colors.white,

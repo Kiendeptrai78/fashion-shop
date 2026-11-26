@@ -49,7 +49,7 @@ class AppRoutes {
     ),
     GetPage(
       name: TRoutes.adminFinance,
-      page: () => const AdminWebShell(initialSection: AdminSection.finance),
+      page: () => const AdminWebShell(initialSection: AdminSection.dashboard),
     ),
     GetPage(
       name: TRoutes.adminOrders,
