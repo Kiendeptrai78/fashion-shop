@@ -8,6 +8,7 @@ class TBillingAmountSection extends StatelessWidget {
   const TBillingAmountSection({
     super.key,
     this.discount = 0,
+    this.coinDiscount = 0,
     this.couponCode = '',
     this.productDiscount = 0,
     this.shippingDiscount = 0,
@@ -16,6 +17,7 @@ class TBillingAmountSection extends StatelessWidget {
   });
 
   final double discount;
+  final double coinDiscount;
   final String couponCode;
   final double productDiscount;
   final double shippingDiscount;
@@ -37,7 +39,7 @@ class TBillingAmountSection extends StatelessWidget {
             ? (productDiscount + shippingDiscount)
             : discount;
         final finalTotal =
-            (TPricingCalculator.calculateTotalPrice(subtotal, 'US') - totalOff)
+            (TPricingCalculator.calculateTotalPrice(subtotal, 'US') - totalOff - coinDiscount)
                 .clamp(0.0, double.infinity);
 
         final hasSeparateBreakdown =
@@ -80,11 +82,16 @@ class TBillingAmountSection extends StatelessWidget {
                 useShopTextLabel: true,
               ),
             ],
+            if (coinDiscount > 0) ...[
+              const SizedBox(height: 10),
+              _discountRow(label: isEn ? 'VELORA coins' : 'Quy đổi xu', code: '',
+                amount: coinDiscount, lang: lang),
+            ],
             const Divider(height: 26, color: Color(0xFFE5E7EB)),
             _amount(
               context,
               'Order total',
-              finalTotal.toStringAsFixed(2),
+              finalTotal.toString(),
               lang,
               total: true,
             ),

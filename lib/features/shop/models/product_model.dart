@@ -4,6 +4,7 @@ import 'package:fashion_business_app/features/shop/models/brand_model.dart';
 
 import 'product_attribute_model.dart';
 import 'product_variation_model.dart';
+import 'product_size_guide.dart';
 
 class ProductModel {
   String id;
@@ -25,6 +26,7 @@ class ProductModel {
   String catalogId;
   List<ProductAttributeModel>? productAttributes;
   List<ProductVariationModel>? productVariations;
+  ProductSizeGuide? sizeGuide;
 
   ProductModel(
       {required this.id,
@@ -41,6 +43,7 @@ class ProductModel {
         this.isDiscontinued = false,
         this.productAttributes,
         this.productVariations,
+        this.sizeGuide,
         this.description,
         this.brand,
         this.categoryId = '',
@@ -73,6 +76,7 @@ class ProductModel {
       ),
       'ProductAttributes': productAttributes != null ? productAttributes!.map((e) => e.toJson()).toList() : [],
       'ProductVariations': productVariations != null ? productVariations!.map((e) => e.toJson()).toList() : [],
+      if (sizeGuide != null) 'SizeGuide': sizeGuide!.toJson(),
     };
   }
 
@@ -94,6 +98,8 @@ class ProductModel {
       categoryId: data['CategoryId'] ?? '',
       categoryName: data['CategoryName'] ?? '',
       catalogId: data['CatalogId'] ?? '',
+      sizeGuide: data['SizeGuide'] is Map
+          ? ProductSizeGuide.fromJson(Map<String, dynamic>.from(data['SizeGuide'])) : null,
       images: List<String>.from(data['Images'] ?? []),
       videos: List<String>.from(data['Videos'] ?? []),
       productAttributes: (data['ProductAttributes'] as List? ?? [])

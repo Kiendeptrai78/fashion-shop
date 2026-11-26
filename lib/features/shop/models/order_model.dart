@@ -13,6 +13,9 @@ class OrderModel {
   final double totalAmount;
   final double discountAmount;
   final String couponCode;
+  final List<String> reviewedProductIds;
+  final int coinsUsed;
+  bool get hasUnreviewedProducts => items.any((item) => !reviewedProductIds.contains(item.productId));
   final DateTime orderDate;
   final String paymentMethod;
   final AddressModel? address;
@@ -26,6 +29,7 @@ class OrderModel {
       required this.status,
       required this.totalAmount,
       this.discountAmount = 0, this.couponCode = '',
+      this.reviewedProductIds = const [], this.coinsUsed = 0,
       required this.orderDate,
       this.paymentMethod = 'Paypal',
       this.address,
@@ -143,6 +147,7 @@ class OrderModel {
       'status': status.toString(),
       'totalAmount': totalAmount,
       'discountAmount': discountAmount, 'couponCode': couponCode,
+      'reviewedProductIds': reviewedProductIds, 'coinsUsed': coinsUsed,
       'orderDate': orderDate,
       'paymentMethod': paymentMethod,
       'address': address?.toJson(),
@@ -173,6 +178,8 @@ class OrderModel {
         totalAmount: (data['totalAmount'] as num? ?? 0).toDouble(),
         discountAmount: (data['discountAmount'] as num? ?? 0).toDouble(),
         couponCode: data['couponCode'] as String? ?? '',
+        reviewedProductIds: List<String>.from(data['reviewedProductIds'] as List? ?? []),
+        coinsUsed: (data['coinsUsed'] as num? ?? 0).toInt(),
         orderDate: parsedOrderDate,
         paymentMethod: (data['paymentMethod'] as String?) ?? 'Cash on delivery',
         address: data['address'] == null

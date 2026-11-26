@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/features/personalization/services/loyalty_coins.dart';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -557,7 +558,14 @@ class AdminWebRepository {
       'deliveryDate': autoDeliveryDate,
       if (nextStatus == OrderStatus.received) 'searchDate': DateTime.now(),
     };
-    await orderRef.update(updates);
+    await _db.runTransaction((tx) async {
+      final current = (await tx.get(orderRef)).data();
+      if (current == null) throw StateError('Order no longer exists.');
+      if (nextStatus == OrderStatus.cancelled) {
+        await LoyaltyCoins.refundInTransaction(tx, orderRef, current);
+      }
+      tx.update(orderRef, updates);
+    });
 
     // Immediately create an in-app notification using product name(s) & photo, never raw UUID
     final statusTitles = _orderStatusNotificationCopy(nextStatus, record.order);

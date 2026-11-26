@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/list_tiles/loyalty_coins_tile.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/data/repositories/reviews/review_repository.dart';
@@ -5,7 +6,6 @@ import 'package:fashion_business_app/data/services/image_storage_service.dart';
 import 'package:fashion_business_app/features/shop/models/product_review_model.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -16,11 +16,14 @@ class ProductReview extends StatefulWidget {
     super.key,
     this.productId,
     this.productTitle,
+    this.purchaseOrderId,
     this.loadReviews,
+    this.loadEligibility,
   });
 
-  final String? productId, productTitle;
+  final String? productId, productTitle, purchaseOrderId;
   final Future<List<ProductReviewEntry>> Function()? loadReviews;
+  final Future<ReviewEligibility> Function()? loadEligibility;
 
   @override
   State<ProductReview> createState() => _ProductReviewState();
@@ -31,6 +34,8 @@ class _ProductReviewState extends State<ProductReview> {
   final PageController _carouselCtrl = PageController(viewportFraction: 0.9);
   int _star = 0;
   bool _onlyWithMedia = false;
+  bool _openingReview = false;
+  bool _submittedReview = false;
 
   @override
   void initState() {
@@ -61,13 +66,33 @@ class _ProductReviewState extends State<ProductReview> {
   }
 
   Future<void> _write() async {
-    final saved = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => _WriteReview(productId: widget.productId!),
-    );
-    if (saved == true && mounted) _refresh();
+    if (_openingReview || _submittedReview) return;
+    setState(() => _openingReview = true);
+    try {
+      final permission = await (widget.loadEligibility?.call() ?? ReviewRepository()
+          .eligibility(widget.productId!, orderId: widget.purchaseOrderId));
+      if (!mounted) return;
+      if (!permission.allowed) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(permission.message)));
+        return;
+      }
+      setState(() => _openingReview = false);
+      final saved = await showModalBottomSheet<bool>(
+        context: context, isScrollControlled: true, useSafeArea: true,
+        builder: (_) => _WriteReview(productId: widget.productId!, purchaseOrderId: permission.orderDocumentId),
+      );
+      if (saved == true && mounted) {
+        setState(() => _submittedReview = true);
+        _refresh();
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Chưa kiểm tra được quyền đánh giá. Vui lòng thử lại.')));
+      }
+    } finally {
+      if (mounted) setState(() => _openingReview = false);
+    }
   }
 
   void _openMediaViewer(List<String> images, List<String> videos, int initialIndex) {
@@ -718,9 +743,12 @@ class _ProductReviewState extends State<ProductReview> {
               top: false,
               minimum: const EdgeInsets.fromLTRB(20, 10, 20, 18),
               child: ElevatedButton.icon(
-                onPressed: _write,
+                onPressed: _openingReview || _submittedReview ? null : _write,
                 icon: const Icon(Iconsax.camera, size: 18),
-                label: const ShopText('Write a review'),
+                label: _submittedReview ? Text(Localizations.localeOf(context).languageCode == 'en'
+                    ? 'Reviewed' : 'Đã đánh giá') : _openingReview
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const ShopText('Write a review'),
               ),
             ),
     );
@@ -743,9 +771,33 @@ class _ProductReviewState extends State<ProductReview> {
       );
 }
 
+class ReviewRewardNotice extends StatelessWidget {
+  const ReviewRewardNotice({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final colors = Theme.of(context).colorScheme;
+    return Container(padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE0B64F))),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const GoldCoinIcon(), const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(isEn ? 'Review to earn 1,000 coins' : 'Đánh giá nhận 1.000 xu',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.onSurface)),
+          const SizedBox(height: 6),
+          Text(isEn ? '1,000 coins = 1,000₫ off a future order. Each purchased product can be reviewed once per order, regardless of star rating.'
+              : '1.000 xu = 1.000đ để giảm cho đơn sau. Mỗi sản phẩm trong một đơn chỉ được đánh giá một lần, không phụ thuộc số sao.',
+            style: TextStyle(fontSize: 13, height: 1.5, color: colors.onSurfaceVariant)),
+        ])),
+      ]));
+  }
+}
+
 class _WriteReview extends StatefulWidget {
-  const _WriteReview({required this.productId});
+  const _WriteReview({required this.productId, this.purchaseOrderId});
   final String productId;
+  final String? purchaseOrderId;
   @override
   State<_WriteReview> createState() => _WriteReviewState();
 }
@@ -855,14 +907,22 @@ class _WriteReviewState extends State<_WriteReview> {
       _error = null;
     });
     try {
-      await ReviewRepository().save(
+      final reward = await ReviewRepository().save(
         widget.productId,
         _rating,
         _text.text,
+        purchaseOrderId: widget.purchaseOrderId,
         imageUrls: _imageUrls,
         videoUrls: _videoUrls,
       );
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        final isEn = Localizations.localeOf(context).languageCode == 'en';
+        Navigator.pop(context, true);
+        messenger.showSnackBar(SnackBar(content: Text(reward > 0
+          ? (isEn ? 'Review saved · +1,000 coins (1,000₫)' : 'Đã gửi đánh giá · +1.000 xu (1.000đ)')
+          : (isEn ? 'Review saved' : 'Đã gửi đánh giá'))));
+      }
     } catch (error) {
       if (mounted) {
         setState(
@@ -904,7 +964,9 @@ class _WriteReviewState extends State<_WriteReview> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 14),
+            const ReviewRewardNotice(),
+            const SizedBox(height: 14),
             Row(
               children: [
                 for (var star = 1; star <= 5; star++)

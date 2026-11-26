@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:fashion_business_app/common/widgets/list_tiles/loyalty_coins_tile.dart';
+import 'package:fashion_business_app/features/personalization/services/loyalty_coins.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
@@ -39,10 +42,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   ShopCoupon? _productCoupon;
   ShopCoupon? _shippingCoupon;
   String? _error;
+  bool _useCoins = false;
+  bool _submitting = false;
+  bool _coinsLoading = true;
+  int _coinBalance = 0;
+  String? _coinError;
+  StreamSubscription<int>? _coinSubscription;
+
+  int _coinsFor(double subtotal, ShopCoupon? productCoupon, ShopCoupon? shippingCoupon) =>
+      _useCoins ? LoyaltyCoins.redeemable(_coinBalance, _benefits.quoteDual(subtotal,
+        productCoupon: productCoupon, shippingCoupon: shippingCoupon).total) : 0;
+
+  @override
+  void dispose() {
+    _coinSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
+    _coinSubscription = LoyaltyCoins().watchBalance().listen((balance) {
+      if (mounted) { setState(() { _coinBalance = balance; _coinsLoading = false; _coinError = null; }); }
+    }, onError: (_) {
+      if (mounted) {
+        setState(() {
+          _coinsLoading = false; _useCoins = false;
+          _coinError = 'Không thể tải số dư xu / Balance unavailable';
+        });
+      }
+    });
     final addresses = AddressController.instance;
     if (addresses.selectedAddress.value.id.isEmpty) {
       addresses.getAllUserAddresses().catchError((_) => <AddressModel>[]);
@@ -101,7 +130,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _submit() async {
-    if (_benefits.busy.value) return;
+    if (_submitting || _benefits.busy.value) return;
+    setState(() => _submitting = true);
+    try { await _performSubmit(); }
+    finally { if (mounted) { setState(() => _submitting = false); } }
+  }
+
+  Future<void> _performSubmit() async {
     final address = AddressController.instance.selectedAddress.value;
     if (address.id.isEmpty) {
       await AddressController.instance.selectNewAddressPopup(context);
@@ -120,12 +155,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         : null;
     setState(() => _error = null);
 
+    final coins = _coinsFor(subtotal, activeProd, activeShip);
     VnPayTransactionResult? vnpayResult;
-    if (isVnPay) {
+    if (isVnPay && _benefits.quoteDual(subtotal, productCoupon: activeProd,
+        shippingCoupon: activeShip, coins: coins).totalVnd > 0) {
       final quote = _benefits.quoteDual(
         subtotal,
         productCoupon: activeProd,
         shippingCoupon: activeShip,
+        coins: coins,
       );
       final summaryInfo = cart.cartItems.isNotEmpty
           ? 'Thanh toan ${cart.cartItems.first.title} VELORA'
@@ -160,11 +198,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         bank: false,
         coupon: activeProd,
         shippingCoupon: activeShip,
+        coins: coins,
         saveOrder: (quote) async {
           final uid = AuthenticationRepository.instance.authUser.uid;
           final date = DateTime.now();
           final eta = ShippingRouteHelper.estimateForAddress(address);
-          finalMethodLabel = vnpayResult != null
+          finalMethodLabel = quote.totalVnd == 0 ? 'VELORA Coins' : vnpayResult != null
               ? 'VNPay (${vnpayResult.bankCode})'
               : CheckoutController.codMethodName;
           final order = OrderModel(
@@ -172,7 +211,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             userId: uid,
             status: OrderStatus.pending,
             totalAmount: quote.total,
-            discountAmount: quote.discount,
+            discountAmount: quote.discount + quote.coinDiscount,
+            coinsUsed: quote.coinsUsed,
             couponCode: appliedCouponCode,
             orderDate: date,
             searchDate: date,
@@ -181,19 +221,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             deliveryDate: eta.latestDeliveryDate(date),
             items: cart.cartItems.toList(),
           );
-          final db = FirebaseFirestore.instance;
-          final user = db.collection('Users').doc(uid);
-          final batch = db.batch();
-          batch.set(user.collection('Orders').doc(_orderId), {
+          final orderData = {
             ...order.toJson(),
-            'discountAmount': quote.discount,
+            'discountAmount': quote.discount + quote.coinDiscount,
             'productDiscount': quote.productDiscount,
             'shippingDiscount': quote.shippingDiscount,
             'couponCode': appliedCouponCode,
             'productCouponCode': activeProd?.id ?? '',
             'shippingCouponCode': activeShip?.id ?? '',
             'paymentStatus':
-                vnpayResult != null ? 'vnpay_paid' : 'pay_on_delivery',
+                quote.totalVnd == 0 ? 'coins_paid' : vnpayResult != null ? 'vnpay_paid' : 'pay_on_delivery',
             if (vnpayResult != null) ...{
               'vnpayTxnRef': vnpayResult.txnRef,
               'vnpayTransactionNo': vnpayResult.transactionNo,
@@ -202,12 +239,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               'vnpayPayDate': vnpayResult.payDate,
             },
             'notificationPending': true,
-          });
+          };
           final summaryVi = order.itemsSummary(english: false);
           final summaryEn = order.itemsSummary(english: true);
-          batch.set(
-            user.collection('Notifications').doc('order-$_orderId-pending'),
-            {
+          await LoyaltyCoins().placeOrder(orderId: _orderId, data: orderData,
+            coins: quote.coinsUsed, notification: {
               'kind': 'order',
               'targetId': _orderId,
               'read': false,
@@ -227,7 +263,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               'createdAt': FieldValue.serverTimestamp(),
             },
           );
-          await batch.commit();
         },
       );
       cart.clearCart();
@@ -236,7 +271,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         () => CheckoutCompleteScreen(
           vnpayResult: vnpayResult,
           orderTotal: completedQuote.total,
-          discountAmount: completedQuote.discount,
+          discountAmount: completedQuote.discount + completedQuote.coinDiscount,
           couponCode: appliedCouponCode,
           paymentMethodLabel: finalMethodLabel,
         ),
@@ -591,7 +626,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final isEn = lang == 'en';
 
     return PopScope(
-      canPop: !_benefits.busy.value,
+      canPop: !_submitting && !_benefits.busy.value,
       child: Scaffold(
         appBar: const TAppbar(
           showBackArrow: true,
@@ -825,6 +860,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               const SizedBox(height: 8),
 
+              LoyaltyCoinsTile(balance: _coinBalance, loading: _coinsLoading,
+                error: _coinError, useCoins: _useCoins,
+                onChanged: _submitting ? null : (value) => setState(() => _useCoins = value)),
+              const SizedBox(height: 16),
               // Dual Stackable Vouchers Section (1 Freeship + 1 Product Discount)
               Obx(() {
                 _benefits.revision.value;
@@ -859,9 +898,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   sub,
                   productCoupon: activeProd,
                   shippingCoupon: activeShip,
+                  coins: _coinsFor(sub, activeProd, activeShip),
                 );
                 return TBillingAmountSection(
                   discount: q.discount,
+                  coinDiscount: q.coinDiscount,
                   productDiscount: q.productDiscount,
                   shippingDiscount: q.shippingDiscount,
                   productCouponCode: activeProd?.id ?? '',
@@ -894,11 +935,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             subtotal,
             productCoupon: activeProd,
             shippingCoupon: activeShip,
+            coins: _coinsFor(subtotal, activeProd, activeShip),
           );
           final originalTotal = quote.subtotal + quote.shipping + quote.tax;
           final appliedLabel = _combinedCouponLabel(activeProd, activeShip);
           final isVnPay = _checkoutController.isVnPaySelected;
-          final busy = _benefits.busy.value;
+          final busy = _submitting || _benefits.busy.value;
 
           return SafeArea(
             top: false,
@@ -962,7 +1004,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          if (quote.discount > 0)
+                          if (quote.discount + quote.coinDiscount > 0)
                             Text(
                               formatShopMoney(originalTotal, language: lang),
                               style: const TextStyle(

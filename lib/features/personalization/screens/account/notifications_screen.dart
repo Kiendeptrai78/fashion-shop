@@ -131,7 +131,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         docId.startsWith('auto-sim-') ||
         bodyVi.contains('tab nổi bật');
 
-    if (kind == 'order') {
+    if (kind == 'order' || kind == 'review_reminder') {
       final matches = orders.where((order) => order.id == targetId);
       if (matches.isNotEmpty) Get.to(() => OrderDetail(order: matches.first));
     } else if ((isVideoCommentReply || isVideoReelPush) &&
@@ -397,7 +397,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           final rawImage =
                               (notice['imageUrl'] ?? '').toString().trim();
                           final matchedOrder =
-                              kind == 'order' ? orderMap[targetId] : null;
+                              (kind == 'order' || kind == 'review_reminder') ? orderMap[targetId] : null;
                           final imageUrl = rawImage.isNotEmpty
                               ? rawImage
                               : (matchedOrder != null &&
