@@ -130,7 +130,7 @@ class AdminStatCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.value,
-    required this.subtitle,
+    this.subtitle = '',
     required this.icon,
     required this.accentColor,
     required this.accentBg,
@@ -149,40 +149,37 @@ class AdminStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: AdminCard(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Row(
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: accentBg,
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Icon(icon, color: accentColor, size: 18),
-                ),
-                const SizedBox(width: 10),
+                Icon(icon, color: const Color(0xFF64748B), size: 16),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     title,
-                    softWrap: true,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
-                      height: 1.2,
-                      color: AdminColors.inkSecondary,
+                      color: Color(0xFF64748B),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
@@ -191,21 +188,23 @@ class AdminStatCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 21,
                   fontWeight: FontWeight.w700,
-                  color: AdminColors.ink,
+                  color: Color(0xFF111827),
                   letterSpacing: -0.4,
                 ),
               ),
             ),
-            const SizedBox(height: 3),
-            Text(
-              subtitle,
-              softWrap: true,
-              style: const TextStyle(
-                fontSize: 11.5,
-                height: 1.25,
-                color: AdminColors.inkMuted,
+            if (subtitle.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Color(0xFF64748B),
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -264,7 +263,7 @@ class AdminSectionToolbar extends StatelessWidget {
   const AdminSectionToolbar({
     super.key,
     required this.title,
-    required this.subtitle,
+    this.subtitle = '',
     this.actions = const [],
   });
 
@@ -287,20 +286,22 @@ class AdminSectionToolbar extends StatelessWidget {
             Text(
               title,
               style: const TextStyle(
-                fontSize: 22,
+                fontSize: 21,
                 fontWeight: FontWeight.w700,
-                color: AdminColors.ink,
+                color: Color(0xFF111827),
                 letterSpacing: -0.4,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AdminColors.inkSecondary,
+            if (subtitle.trim().isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: Color(0xFF64748B),
+                ),
               ),
-            ),
+            ],
           ],
         ),
         if (actions.isNotEmpty)

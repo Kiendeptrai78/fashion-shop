@@ -8,7 +8,10 @@ import 'package:fashion_business_app/features/personalization/models/address_mod
 import 'package:fashion_business_app/features/shop/models/banner_model.dart';
 import 'package:fashion_business_app/features/shop/models/brand_model.dart';
 import 'package:fashion_business_app/features/shop/models/category_model.dart';
+import 'package:fashion_business_app/features/shop/models/order_model.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
+import 'package:fashion_business_app/features/shop/models/product_review_model.dart';
+import 'package:fashion_business_app/features/shop/models/product_variation_model.dart';
 import 'package:fashion_business_app/features/shop/models/return_request_model.dart';
 import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
 import 'package:fashion_business_app/features/shop/models/support_chat_model.dart';
@@ -53,10 +56,15 @@ class AdminWebController extends GetxController {
   }
 
   /// Financial & accounting controls (adjustable live on Finance/Dashboard)
-  final cogsRatePercent = 60.0.obs; // % giá vốn hàng bán trên tổng tiền hàng
-  final vatRatePercent = 8.0.obs; // % thuế GTGT (0 = dùng thuế cố định đơn hàng $2)
+  final cogsRatePercent = 30.0.obs; // % giá vốn hàng bán mặc định 30%
+  final vatRatePercent = 8.0.obs; // % thuế GTGT mặc định 8%
   final onlyCompletedForFinance = false.obs; // false = tính mọi đơn chưa hủy, true = chỉ đơn Đã nhận
   final financePeriod = FinancePeriod.last6Months.obs;
+  final selectedTimeFilter = AdminTimeFilter.today.obs;
+  final customSelectedDate = Rxn<DateTime>();
+  final customSelectedMonth = Rxn<DateTime>();
+  final compareCustomMonth = Rxn<DateTime>();
+  final compareCustomDate = Rxn<DateTime>();
 
   final products = <ProductModel>[].obs;
   final vouchers = <AdminVoucherRecord>[].obs;
@@ -98,12 +106,30 @@ class AdminWebController extends GetxController {
     return formatShopMoney(usd, language: showVnd.value ? 'vi' : 'en');
   }
 
+  String formatCompactMoney(num usd) {
+    if (!showVnd.value) {
+      if (usd == 0) return '0';
+      return '\$${usd.toStringAsFixed(0)}';
+    }
+    final vnd = (usd * usdToVnd).round();
+    if (vnd == 0) return '0';
+    final absVnd = vnd.abs();
+    final sign = vnd < 0 ? '-' : '';
+    if (absVnd >= 1000000) {
+      final tr = (absVnd / 1000000).toStringAsFixed(1).replaceAll('.0', '');
+      return '$sign${tr}tr';
+    }
+    if (absVnd >= 1000) {
+      return '$sign${(absVnd / 1000).round()}k';
+    }
+    return '$sign$absVnd₫';
+  }
+
   static String routeForSection(AdminSection section) {
     switch (section) {
       case AdminSection.dashboard:
-        return TRoutes.adminDashboard;
       case AdminSection.finance:
-        return TRoutes.adminFinance;
+        return TRoutes.adminDashboard;
       case AdminSection.orders:
         return TRoutes.adminOrders;
       case AdminSection.returns:
@@ -132,9 +158,11 @@ class AdminWebController extends GetxController {
   }
 
   void selectSection(AdminSection section) {
-    activeSection.value = section;
+    final normalized =
+        section == AdminSection.finance ? AdminSection.dashboard : section;
+    activeSection.value = normalized;
     if (kIsWeb) {
-      syncBrowserPath(routeForSection(section));
+      syncBrowserPath(routeForSection(normalized));
     }
   }
 
@@ -179,7 +207,8 @@ class AdminWebController extends GetxController {
     }
     errorMessage.value = '';
     try {
-      final results = await Future.wait([
+      // Wave 1: Fire all 12 independent top-level fetches in parallel (1 round-trip!)
+      final wave1 = await Future.wait<dynamic>([
         repository.fetchProducts(),
         repository.fetchBrands(),
         repository.fetchCategories(),
@@ -187,15 +216,27 @@ class AdminWebController extends GetxController {
         repository.fetchUsers(),
         repository.fetchNotificationCampaigns(),
         repository.fetchVouchers(),
+        repository.fetchUserInterests(),
+        repository.fetchStockReceipts(),
+        repository.fetchAutomationSettings(),
+        repository.fetchReturnRequests().catchError((_) => <ReturnRequestModel>[]),
+        repository
+            .fetchSupportChatThreads()
+            .catchError((_) => <SupportChatThreadModel>[]),
       ]);
 
-      final loadedProducts = results[0] as List<ProductModel>;
-      final loadedBrands = results[1] as List<BrandModel>;
-      final rawCategories = results[2] as List<CategoryModel>;
-      final loadedBanners = results[3] as List<AdminBannerRecord>;
-      final loadedUsers = results[4] as List<UserModel>;
-      final loadedCampaigns = results[5] as List<AdminNotificationCampaign>;
-      final loadedVouchers = results[6] as List<AdminVoucherRecord>;
+      final loadedProducts = wave1[0] as List<ProductModel>;
+      final loadedBrands = wave1[1] as List<BrandModel>;
+      final rawCategories = wave1[2] as List<CategoryModel>;
+      final loadedBanners = wave1[3] as List<AdminBannerRecord>;
+      final loadedUsers = wave1[4] as List<UserModel>;
+      final loadedCampaigns = wave1[5] as List<AdminNotificationCampaign>;
+      final loadedVouchers = wave1[6] as List<AdminVoucherRecord>;
+      final loadedInterests = wave1[7] as List<AdminUserInterest>;
+      final loadedReceipts = wave1[8] as List<AdminStockReceipt>;
+      final loadedAutomation = wave1[9] as AdminAutomationSettings;
+      final loadedReturns = wave1[10] as List<ReturnRequestModel>;
+      final loadedChats = wave1[11] as List<SupportChatThreadModel>;
 
       // Merge any categories discovered from products or canonical VELORA sport categories
       final catById = <String, CategoryModel>{
@@ -238,38 +279,26 @@ class AdminWebController extends GetxController {
       users.assignAll(loadedUsers);
       campaigns.assignAll(loadedCampaigns);
       vouchers.assignAll(loadedVouchers);
+      userInterests.assignAll(loadedInterests);
+      stockReceipts.assignAll(loadedReceipts);
+      automation.value = loadedAutomation;
+      returnRequests.assignAll(loadedReturns);
+      supportChats.assignAll(loadedChats);
 
-      final secondary = await Future.wait([
+      // Wave 2: Fire all 4 collectionGroup / mapped fetches in parallel (1 round-trip!)
+      final wave2 = await Future.wait<dynamic>([
         repository.fetchAllOrders(loadedUsers),
         repository.fetchAllReviews(loadedProducts),
         repository.fetchEnabledPushDevicesCount(loadedUsers),
-        repository.fetchUserInterests(),
-        repository.fetchStockReceipts(),
-        repository.fetchAutomationSettings(),
+        repository
+            .fetchAllVideoComments(loadedProducts)
+            .catchError((_) => <AdminVideoCommentRecord>[]),
       ]);
 
-      orders.assignAll(secondary[0] as List<AdminOrderRecord>);
-      reviews.assignAll(secondary[1] as List<AdminReviewRecord>);
-      pushDeviceCount.value = secondary[2] as int;
-      userInterests.assignAll(secondary[3] as List<AdminUserInterest>);
-      stockReceipts.assignAll(secondary[4] as List<AdminStockReceipt>);
-      automation.value = secondary[5] as AdminAutomationSettings;
-
-      try {
-        final loadedVideoComments =
-            await repository.fetchAllVideoComments(loadedProducts);
-        videoComments.assignAll(loadedVideoComments);
-      } catch (_) {}
-
-      try {
-        final loadedReturns = await repository.fetchReturnRequests();
-        returnRequests.assignAll(loadedReturns);
-      } catch (_) {}
-
-      try {
-        final loadedChats = await repository.fetchSupportChatThreads();
-        supportChats.assignAll(loadedChats);
-      } catch (_) {}
+      orders.assignAll(wave2[0] as List<AdminOrderRecord>);
+      reviews.assignAll(wave2[1] as List<AdminReviewRecord>);
+      pushDeviceCount.value = wave2[2] as int;
+      videoComments.assignAll(wave2[3] as List<AdminVideoCommentRecord>);
     } catch (e) {
       errorMessage.value = 'Không thể tải dữ liệu quản trị: $e';
     } finally {
@@ -311,12 +340,14 @@ class AdminWebController extends GetxController {
     final grossSubtotal =
         itemsSubtotal > 0 ? itemsSubtotal : record.order.totalAmount;
     final discount = record.order.discountAmount;
-    final netRevenue = math.max(0.0, grossSubtotal - discount);
+    // Actual cash collected from customer for this order
+    final netRevenue = record.order.totalAmount > 0
+        ? record.order.totalAmount
+        : math.max(0.0, grossSubtotal - discount);
     final shipping = TPricingCalculator.getShippingCost('US');
-    final orderFixedTax = TPricingCalculator.getTaxRateForLocation('US');
     final tax = vatRatePercent.value > 0
         ? netRevenue * (vatRatePercent.value / 100.0)
-        : orderFixedTax;
+        : 0.0;
     final cogs = grossSubtotal * (cogsRatePercent.value / 100.0);
     final netProfit = netRevenue - cogs - tax;
 
@@ -330,6 +361,409 @@ class AdminWebController extends GetxController {
       shipping: shipping,
       netProfit: netProfit,
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Period-Aware Sales & Cashflow Helpers (Today / Yesterday / 7d / Month / All)
+  // ---------------------------------------------------------------------------
+  bool matchesTimeFilter(
+    DateTime orderDate,
+    AdminTimeFilter filter, {
+    DateTime? customDate,
+    DateTime? customMonth,
+  }) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(orderDate.year, orderDate.month, orderDate.day);
+    switch (filter) {
+      case AdminTimeFilter.today:
+        return d == today;
+      case AdminTimeFilter.yesterday:
+        return d == today.subtract(const Duration(days: 1));
+      case AdminTimeFilter.last7Days:
+        final start = today.subtract(const Duration(days: 6));
+        return !d.isBefore(start) && !d.isAfter(today);
+      case AdminTimeFilter.thisMonth:
+        return orderDate.year == now.year && orderDate.month == now.month;
+      case AdminTimeFilter.customMonth:
+        final m = customMonth ?? customSelectedMonth.value ?? now;
+        return orderDate.year == m.year && orderDate.month == m.month;
+      case AdminTimeFilter.customDate:
+        final target = customDate ?? customSelectedDate.value ?? today;
+        final t = DateTime(target.year, target.month, target.day);
+        return d == t;
+      case AdminTimeFilter.allTime:
+        return true;
+    }
+  }
+
+  String get selectedPeriodTitle {
+    final now = DateTime.now();
+    switch (selectedTimeFilter.value) {
+      case AdminTimeFilter.today:
+        return 'Hôm nay (${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')})';
+      case AdminTimeFilter.yesterday:
+        final y = now.subtract(const Duration(days: 1));
+        return 'Hôm qua (${y.day.toString().padLeft(2, '0')}/${y.month.toString().padLeft(2, '0')})';
+      case AdminTimeFilter.last7Days:
+        return '7 ngày qua';
+      case AdminTimeFilter.thisMonth:
+        return 'Tháng ${now.month}/${now.year}';
+      case AdminTimeFilter.customMonth:
+        final m = customSelectedMonth.value ?? now;
+        return 'Tháng ${m.month}/${m.year}';
+      case AdminTimeFilter.customDate:
+        final d = customSelectedDate.value ?? now;
+        return 'Ngày ${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+      case AdminTimeFilter.allTime:
+        return 'Toàn thời gian';
+    }
+  }
+
+  int countOrdersForFilter(AdminTimeFilter filter) => orders
+      .where((r) => matchesTimeFilter(r.order.orderDate, filter))
+      .length;
+
+  int countOrdersInMonth(int year, int month) => orders
+      .where((r) =>
+          r.order.status != OrderStatus.cancelled &&
+          r.order.orderDate.year == year &&
+          r.order.orderDate.month == month)
+      .length;
+
+  double revenueInMonthUsd(int year, int month) => orders
+      .where((r) =>
+          r.order.status != OrderStatus.cancelled &&
+          r.order.orderDate.year == year &&
+          r.order.orderDate.month == month)
+      .fold<double>(0.0, (s, r) => s + r.order.totalAmount);
+
+  List<AdminOrderRecord> get ordersInSelectedPeriod => orders
+      .where((r) => matchesTimeFilter(
+            r.order.orderDate,
+            selectedTimeFilter.value,
+            customDate: customSelectedDate.value,
+            customMonth: customSelectedMonth.value,
+          ))
+      .toList();
+
+  /// Orders in the comparison period (either user-picked month/date or automatic preceding period)
+  ({String label, List<AdminOrderRecord> records, bool active})
+      get comparisonPeriodData {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // 1. Explicit custom comparison date takes priority if set
+    if (compareCustomDate.value != null) {
+      final cd = compareCustomDate.value!;
+      final t = DateTime(cd.year, cd.month, cd.day);
+      final list = orders.where((r) {
+        if (onlyCompletedForFinance.value &&
+            r.order.status != OrderStatus.received) {
+          return false;
+        }
+        if (r.order.status == OrderStatus.cancelled) return false;
+        final d = DateTime(
+          r.order.orderDate.year,
+          r.order.orderDate.month,
+          r.order.orderDate.day,
+        );
+        return d == t;
+      }).toList();
+      final lbl =
+          '${cd.day.toString().padLeft(2, '0')}/${cd.month.toString().padLeft(2, '0')}/${cd.year}';
+      return (label: lbl, records: list, active: true);
+    }
+
+    // 2. Explicit custom comparison month if set
+    if (compareCustomMonth.value != null) {
+      final cm = compareCustomMonth.value!;
+      final list = orders.where((r) {
+        if (onlyCompletedForFinance.value &&
+            r.order.status != OrderStatus.received) {
+          return false;
+        }
+        if (r.order.status == OrderStatus.cancelled) return false;
+        return r.order.orderDate.year == cm.year &&
+            r.order.orderDate.month == cm.month;
+      }).toList();
+      return (label: 'T${cm.month}/${cm.year}', records: list, active: true);
+    }
+
+    // 3. Automatic preceding period matching the selected filter
+    bool eligible(AdminOrderRecord r) {
+      if (onlyCompletedForFinance.value) {
+        return r.order.status == OrderStatus.received;
+      }
+      return r.order.status != OrderStatus.cancelled;
+    }
+
+    switch (selectedTimeFilter.value) {
+      case AdminTimeFilter.today:
+        final prev = today.subtract(const Duration(days: 1));
+        final list = orders.where((r) {
+          if (!eligible(r)) return false;
+          final d = DateTime(
+            r.order.orderDate.year,
+            r.order.orderDate.month,
+            r.order.orderDate.day,
+          );
+          return d == prev;
+        }).toList();
+        return (label: 'Hôm qua', records: list, active: true);
+
+      case AdminTimeFilter.yesterday:
+        final prev = today.subtract(const Duration(days: 2));
+        final list = orders.where((r) {
+          if (!eligible(r)) return false;
+          final d = DateTime(
+            r.order.orderDate.year,
+            r.order.orderDate.month,
+            r.order.orderDate.day,
+          );
+          return d == prev;
+        }).toList();
+        return (
+          label:
+              '${prev.day.toString().padLeft(2, '0')}/${prev.month.toString().padLeft(2, '0')}',
+          records: list,
+          active: true,
+        );
+
+      case AdminTimeFilter.customDate:
+        final cur = customSelectedDate.value ?? today;
+        final prev = DateTime(cur.year, cur.month, cur.day)
+            .subtract(const Duration(days: 1));
+        final list = orders.where((r) {
+          if (!eligible(r)) return false;
+          final d = DateTime(
+            r.order.orderDate.year,
+            r.order.orderDate.month,
+            r.order.orderDate.day,
+          );
+          return d == prev;
+        }).toList();
+        return (
+          label:
+              '${prev.day.toString().padLeft(2, '0')}/${prev.month.toString().padLeft(2, '0')}',
+          records: list,
+          active: true,
+        );
+
+      case AdminTimeFilter.last7Days:
+        final endPrev = today.subtract(const Duration(days: 7));
+        final startPrev = today.subtract(const Duration(days: 13));
+        final list = orders.where((r) {
+          if (!eligible(r)) return false;
+          final d = DateTime(
+            r.order.orderDate.year,
+            r.order.orderDate.month,
+            r.order.orderDate.day,
+          );
+          return !d.isBefore(startPrev) && !d.isAfter(endPrev);
+        }).toList();
+        return (label: '7 ngày trước', records: list, active: true);
+
+      case AdminTimeFilter.thisMonth:
+        final prevMonth = DateTime(now.year, now.month - 1, 1);
+        final list = orders.where((r) {
+          if (!eligible(r)) return false;
+          return r.order.orderDate.year == prevMonth.year &&
+              r.order.orderDate.month == prevMonth.month;
+        }).toList();
+        return (
+          label: 'T${prevMonth.month}/${prevMonth.year}',
+          records: list,
+          active: true,
+        );
+
+      case AdminTimeFilter.customMonth:
+        final curM = customSelectedMonth.value ?? now;
+        final prevMonth = DateTime(curM.year, curM.month - 1, 1);
+        final list = orders.where((r) {
+          if (!eligible(r)) return false;
+          return r.order.orderDate.year == prevMonth.year &&
+              r.order.orderDate.month == prevMonth.month;
+        }).toList();
+        return (
+          label: 'T${prevMonth.month}/${prevMonth.year}',
+          records: list,
+          active: true,
+        );
+
+      case AdminTimeFilter.allTime:
+        return (label: '', records: const [], active: false);
+    }
+  }
+
+  /// 6-month series anchored at the active month (when customMonth is chosen) or current month
+  List<({String label, double revenue, int orderCount})>
+      get activeMonthlyComparisonSeries {
+    final anchor = selectedTimeFilter.value == AdminTimeFilter.customMonth
+        ? (customSelectedMonth.value ?? DateTime.now())
+        : DateTime.now();
+    return List.generate(6, (i) {
+      final d = DateTime(anchor.year, anchor.month - (5 - i), 1);
+      final matching = orders.where((r) =>
+          r.order.status != OrderStatus.cancelled &&
+          r.order.orderDate.year == d.year &&
+          r.order.orderDate.month == d.month);
+      final rev =
+          matching.fold<double>(0.0, (sum, r) => sum + r.order.totalAmount);
+      return (
+        label: 'T${d.month}/${d.year.toString().substring(2)}',
+        revenue: rev,
+        orderCount: matching.length,
+      );
+    });
+  }
+
+  List<AdminOrderRecord> get validOrdersInSelectedPeriod =>
+      ordersInSelectedPeriod
+          .where((r) => r.order.status != OrderStatus.cancelled)
+          .toList();
+
+  List<AdminOrderRecord> get financeFilteredOrders =>
+      ordersInSelectedPeriod.where((r) {
+        if (onlyCompletedForFinance.value) {
+          return r.order.status == OrderStatus.received;
+        }
+        return r.order.status != OrderStatus.cancelled;
+      }).toList();
+
+  List<OrderFinancialBreakdown> get periodFinanceBreakdowns =>
+      financeFilteredOrders.map(breakdownForOrder).toList();
+
+  double get periodCollectedUsd => validOrdersInSelectedPeriod.fold<double>(
+        0.0,
+        (s, r) => s + r.order.totalAmount,
+      );
+
+  double get periodVnPayCollectedUsd => validOrdersInSelectedPeriod
+      .where((r) => r.order.paymentMethod.toLowerCase().contains('vnpay'))
+      .fold<double>(0.0, (s, r) => s + r.order.totalAmount);
+
+  double get periodCodCollectedUsd => validOrdersInSelectedPeriod
+      .where((r) => !r.order.paymentMethod.toLowerCase().contains('vnpay'))
+      .fold<double>(0.0, (s, r) => s + r.order.totalAmount);
+
+  double get periodDeliveredUsd => validOrdersInSelectedPeriod
+      .where((r) => r.order.status == OrderStatus.received)
+      .fold<double>(0.0, (s, r) => s + r.order.totalAmount);
+
+  int get periodPairsSold => validOrdersInSelectedPeriod.fold<int>(
+        0,
+        (s, r) => s + r.order.items.fold<int>(0, (isum, i) => isum + i.quantity),
+      );
+
+  int get periodDeliveredCount => ordersInSelectedPeriod
+      .where((r) => r.order.status == OrderStatus.received)
+      .length;
+
+  int get periodInProgressCount => ordersInSelectedPeriod
+      .where((r) =>
+          r.order.status == OrderStatus.pending ||
+          r.order.status == OrderStatus.processing ||
+          r.order.status == OrderStatus.shipped)
+      .length;
+
+  int get periodCancelledCount => ordersInSelectedPeriod
+      .where((r) => r.order.status == OrderStatus.cancelled)
+      .length;
+
+  double get periodCancelledUsd => ordersInSelectedPeriod
+      .where((r) => r.order.status == OrderStatus.cancelled)
+      .fold<double>(0.0, (s, r) => s + r.order.totalAmount);
+
+  /// Aggregated sneakers sold in the selected period ("Bán được gì?")
+  List<AdminSoldProductSummary> soldProductsForRecords(
+    List<AdminOrderRecord> records,
+  ) {
+    final map = <String, ({
+      String productId,
+      String title,
+      String thumb,
+      int qty,
+      Set<String> orderIds,
+      double grossUsd,
+      Map<String, int> varCounts,
+    })>{};
+
+    for (final r in records) {
+      for (final item in r.order.items) {
+        final key = item.productId.trim().isNotEmpty
+            ? item.productId.trim()
+            : item.title.trim();
+        final existing = map[key];
+        final orderIds = existing?.orderIds ?? <String>{};
+        orderIds.add(r.order.id);
+        final varCounts = existing?.varCounts ?? <String, int>{};
+        final varLabel = (item.selectedVariation?.entries ?? const [])
+            .map((e) => '${e.value}')
+            .where((s) => s.trim().isNotEmpty)
+            .join('/');
+        if (varLabel.isNotEmpty) {
+          varCounts[varLabel] = (varCounts[varLabel] ?? 0) + item.quantity;
+        }
+        final thumb = (existing?.thumb.isNotEmpty == true)
+            ? existing!.thumb
+            : (item.image ?? '');
+        map[key] = (
+          productId: item.productId,
+          title: item.title,
+          thumb: thumb,
+          qty: (existing?.qty ?? 0) + item.quantity,
+          orderIds: orderIds,
+          grossUsd: (existing?.grossUsd ?? 0.0) + (item.price * item.quantity),
+          varCounts: varCounts,
+        );
+      }
+    }
+
+    final list = map.values.map((e) {
+      final varStr = e.varCounts.entries
+          .take(4)
+          .map((kv) => '${kv.key} (x${kv.value})')
+          .join(', ');
+      return AdminSoldProductSummary(
+        productId: e.productId,
+        title: e.title,
+        thumbnail: e.thumb,
+        quantitySold: e.qty,
+        orderCount: e.orderIds.length,
+        grossRevenueUsd: e.grossUsd,
+        variationsSummary: varStr,
+      );
+    }).toList();
+
+    list.sort((a, b) {
+      final c = b.quantitySold.compareTo(a.quantitySold);
+      if (c != 0) return c;
+      return b.grossRevenueUsd.compareTo(a.grossRevenueUsd);
+    });
+    return list;
+  }
+
+  List<AdminSoldProductSummary> get periodSoldProducts =>
+      soldProductsForRecords(validOrdersInSelectedPeriod);
+
+  /// Clean daily revenue series for the last 7 days
+  List<({String label, double revenue, int orderCount})> get last7DaysRevenueSeries {
+    final now = DateTime.now();
+    return List.generate(7, (index) {
+      final day = DateTime(now.year, now.month, now.day)
+          .subtract(Duration(days: 6 - index));
+      final matches = orders.where((r) =>
+          r.order.status != OrderStatus.cancelled &&
+          r.order.orderDate.year == day.year &&
+          r.order.orderDate.month == day.month &&
+          r.order.orderDate.day == day.day);
+      final rev = matches.fold<double>(0.0, (s, r) => s + r.order.totalAmount);
+      final label = index == 6
+          ? 'Hôm nay'
+          : '${day.day.toString().padLeft(2, '0')}/${day.month.toString().padLeft(2, '0')}';
+      return (label: label, revenue: rev, orderCount: matches.length);
+    });
   }
 
   List<OrderFinancialBreakdown> get financeBreakdowns =>
@@ -417,6 +851,81 @@ class AdminWebController extends GetxController {
   int get unreadSupportChatsCount =>
       supportChats.fold<int>(0, (sum, c) => sum + c.unreadByAdmin);
 
+  void _upsertSupportChatLocal({
+    required String userId,
+    required String customerName,
+    String customerEmail = '',
+    required String lastMessage,
+    String orderId = '',
+    String returnRequestId = '',
+    String productTitle = '',
+    String productThumbnail = '',
+    String contextSummary = '',
+  }) {
+    if (userId.trim().isEmpty) return;
+    final idx = supportChats.indexWhere((c) => c.userId == userId);
+    final prev = idx >= 0 ? supportChats[idx] : null;
+    final updated = SupportChatThreadModel(
+      userId: userId,
+      customerName: customerName.trim().isNotEmpty
+          ? customerName.trim()
+          : (prev?.customerName ?? 'Khách hàng VELORA'),
+      customerEmail: customerEmail.trim().isNotEmpty
+          ? customerEmail.trim()
+          : (prev?.customerEmail ?? ''),
+      lastMessage: lastMessage,
+      lastSender: 'admin',
+      unreadByAdmin: 0,
+      unreadByCustomer: (prev?.unreadByCustomer ?? 0) + 1,
+      activeOrderId:
+          orderId.isNotEmpty ? orderId : (prev?.activeOrderId ?? ''),
+      activeReturnId: returnRequestId.isNotEmpty
+          ? returnRequestId
+          : (prev?.activeReturnId ?? ''),
+      activeProductTitle: productTitle.isNotEmpty
+          ? productTitle
+          : (prev?.activeProductTitle ?? ''),
+      activeProductThumbnail: productThumbnail.isNotEmpty
+          ? productThumbnail
+          : (prev?.activeProductThumbnail ?? ''),
+      activeContextSummary: contextSummary.isNotEmpty
+          ? contextSummary
+          : (prev?.activeContextSummary ?? ''),
+      updatedAt: DateTime.now(),
+    );
+    if (idx >= 0) {
+      supportChats.removeAt(idx);
+    }
+    supportChats.insert(0, updated);
+  }
+
+  void _prependCampaignLogLocal({
+    required String titleVi,
+    String titleEn = '',
+    required String bodyVi,
+    String bodyEn = '',
+    required String kind,
+    String targetId = '',
+    required String audienceLabel,
+    required int recipientCount,
+  }) {
+    campaigns.insert(
+      0,
+      AdminNotificationCampaign(
+        id: 'local-${DateTime.now().microsecondsSinceEpoch}',
+        titleVi: titleVi,
+        bodyVi: bodyVi,
+        titleEn: titleEn.isNotEmpty ? titleEn : titleVi,
+        bodyEn: bodyEn.isNotEmpty ? bodyEn : bodyVi,
+        kind: kind,
+        targetId: targetId,
+        audienceLabel: audienceLabel,
+        recipientCount: recipientCount,
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
   Future<bool> sendAdminSupportMessage({
     required String userId,
     required String customerName,
@@ -432,6 +941,22 @@ class AdminWebController extends GetxController {
     String contextSummary = '',
   }) async {
     try {
+      final preview = text.trim().isNotEmpty
+          ? text.trim()
+          : (videoUrl.isNotEmpty
+              ? '🎬 VELORA đã gửi video đính kèm'
+              : '📷 VELORA đã gửi hình ảnh');
+      _upsertSupportChatLocal(
+        userId: userId,
+        customerName: customerName,
+        customerEmail: customerEmail,
+        lastMessage: preview,
+        orderId: orderId,
+        returnRequestId: returnRequestId,
+        productTitle: productTitle,
+        productThumbnail: productThumbnail,
+        contextSummary: contextSummary,
+      );
       await repository.sendAdminSupportMessage(
         userId: userId,
         customerName: customerName,
@@ -446,8 +971,6 @@ class AdminWebController extends GetxController {
         productThumbnail: productThumbnail,
         contextSummary: contextSummary,
       );
-      final refreshed = await repository.fetchSupportChatThreads();
-      supportChats.assignAll(refreshed);
       return true;
     } catch (e) {
       _toastError('Lỗi gửi tin nhắn cho khách', e.toString());
@@ -455,10 +978,7 @@ class AdminWebController extends GetxController {
     }
   }
 
-  /// Sends a 1-1 New Product introduction message via Support Chat to either:
-  /// - a specific customer (`singleUserId`),
-  /// - customers interested in the same category (`onlyMatchingCategory: true`), or
-  /// - all client customers (`clientUsers`).
+  /// Sends a 1-1 New Product introduction message via Support Chat in parallel.
   Future<int> broadcastNewProductChat({
     required ProductModel product,
     String? customTemplate,
@@ -492,8 +1012,7 @@ class AdminWebController extends GetxController {
       final priceStr = formatMoney(effPrice);
       final catLabel = localizeCategory(product.categoryName);
 
-      var sent = 0;
-      for (final u in targets) {
+      await Future.wait(targets.map((u) async {
         final name = u.fullName.trim().isNotEmpty
             ? u.fullName.trim()
             : (u.email.split('@').first);
@@ -505,6 +1024,16 @@ class AdminWebController extends GetxController {
             .replaceAll('{product}', product.title)
             .replaceAll('{category}', catLabel)
             .replaceAll('{price}', priceStr);
+
+        _upsertSupportChatLocal(
+          userId: u.id,
+          customerName: name,
+          customerEmail: u.email,
+          lastMessage: text,
+          productTitle: product.title,
+          productThumbnail: product.thumbnail,
+          contextSummary: 'Sản phẩm mới • $catLabel • $priceStr',
+        );
 
         await repository.sendAdminSupportMessage(
           userId: u.id,
@@ -518,11 +1047,9 @@ class AdminWebController extends GetxController {
           contextSummary: 'Sản phẩm mới • $catLabel • $priceStr',
           sendPushNotification: true,
         );
-        sent++;
-      }
+      }));
 
-      final refreshed = await repository.fetchSupportChatThreads();
-      supportChats.assignAll(refreshed);
+      final sent = targets.length;
       if (!silentToast) {
         _toastSuccess(
           'Đã nhắn tin giới thiệu sản phẩm mới',
@@ -626,32 +1153,66 @@ class AdminWebController extends GetxController {
     );
   }
 
+  void _upsertProductInMemory(ProductModel saved) {
+    final idx = products.indexWhere((p) => p.id == saved.id);
+    if (idx >= 0) {
+      products[idx] = saved;
+    } else {
+      products.add(saved);
+      products.sort(
+        (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+      );
+    }
+  }
+
   Future<bool> saveProduct(
     ProductModel product, {
     required bool isNew,
     bool sendNotification = false,
   }) async {
     try {
-      await repository.saveProduct(
+      final docId = await repository.saveProduct(
         product,
         isNew: isNew,
         sendNotification: sendNotification,
       );
+      final saved = ProductModel(
+        id: docId,
+        title: product.title.trim(),
+        stock: product.stock,
+        price: product.price,
+        salePrice: product.salePrice,
+        thumbnail: product.thumbnail.trim(),
+        images: product.images,
+        videos: product.videos,
+        description: product.description,
+        productType: product.productType,
+        isFeatured: product.isFeatured,
+        isDiscontinued: product.isDiscontinued,
+        brand: product.brand,
+        categoryId: product.categoryId,
+        categoryName: product.categoryName,
+        catalogId: product.catalogId,
+        productAttributes: product.productAttributes,
+        productVariations: product.productVariations,
+      );
+      _upsertProductInMemory(saved);
+
       if (isNew && automation.value.autoChatOnNewProduct) {
-        await broadcastNewProductChat(
-          product: product,
+        // Dispatch 1-1 intro chats in background so product save finishes immediately!
+        broadcastNewProductChat(
+          product: saved,
           onlyMatchingCategory: false,
           silentToast: true,
         );
       }
-      await loadAll(silent: true);
       _toastSuccess(
         'Đã lưu sản phẩm',
         isNew
             ? (automation.value.autoChatOnNewProduct
-                ? 'Đã thêm "${product.title}" và tự động nhắn tin giới thiệu tới khách hàng.'
-                : 'Đã thêm "${product.title}" vào cửa hàng.')
-            : 'Đã cập nhật "${product.title}".',
+                ? 'Đã thêm "${saved.title}" và đang gửi tin nhắn giới thiệu tới khách hàng.'
+                : 'Đã thêm "${saved.title}" vào cửa hàng.')
+            : 'Đã cập nhật "${saved.title}".',
       );
       return true;
     } catch (e) {
@@ -694,17 +1255,18 @@ class AdminWebController extends GetxController {
       productAttributes: product.productAttributes,
       productVariations: product.productVariations,
     );
+    _upsertProductInMemory(updated);
     try {
       await repository.saveProduct(updated, isNew: false);
-      await loadAll(silent: true);
       _toastSuccess(
         isDiscontinued ? 'Đã chuyển sang Ngừng bán' : 'Đã mở bán trở lại',
         isDiscontinued
-            ? '"${product.title}" đã chuyển vào danh sách Ngừng bán. Khách hàng đã mua vẫn xem được lịch sử với nhãn Đã ngừng bán.'
+            ? '"${product.title}" đã chuyển vào danh sách Ngừng bán.'
             : '"${product.title}" đã được mở bán trở lại trên cửa hàng.',
       );
       return true;
     } catch (e) {
+      _upsertProductInMemory(product);
       _toastError('Lỗi cập nhật trạng thái bán', e.toString());
       return false;
     }
@@ -794,7 +1356,52 @@ class AdminWebController extends GetxController {
         note: note,
         notifyBackInStock: notifyBackInStock,
       );
-      await loadAll(silent: true);
+      final updatedVars = product.productVariations?.map((v) {
+        final add = variationDeltas[v.id] ?? 0;
+        if (add == 0) return v;
+        final json = v.toJson();
+        json['Stock'] = (v.stock + add).clamp(0, 999999);
+        return ProductVariationModel.fromJson(json);
+      }).toList();
+      _upsertProductInMemory(
+        ProductModel(
+          id: product.id,
+          title: product.title,
+          stock: newStock,
+          price: product.price,
+          salePrice: product.salePrice,
+          thumbnail: product.thumbnail,
+          images: product.images,
+          videos: product.videos,
+          description: product.description,
+          productType: product.productType,
+          isFeatured: product.isFeatured,
+          isDiscontinued: product.isDiscontinued,
+          brand: product.brand,
+          categoryId: product.categoryId,
+          categoryName: product.categoryName,
+          catalogId: product.catalogId,
+          productAttributes: product.productAttributes,
+          productVariations: updatedVars,
+        ),
+      );
+      stockReceipts.insert(
+        0,
+        AdminStockReceipt(
+          id: 'local-${DateTime.now().microsecondsSinceEpoch}',
+          productId: product.id,
+          productTitle: product.title,
+          productThumbnail: product.thumbnail,
+          addedQuantity: totalAdded,
+          previousStock: product.stock,
+          newStock: newStock,
+          unitCostUsd: unitCostUsd,
+          supplier: supplier,
+          note: note,
+          variationDeltas: variationDeltas,
+          createdAt: DateTime.now(),
+        ),
+      );
       _toastSuccess(
         'Đã nhập kho +$totalAdded đôi',
         '"${product.title}" hiện còn $newStock đôi trong kho.',
@@ -827,32 +1434,59 @@ class AdminWebController extends GetxController {
     return replyToReview(record, text);
   }
 
+  void _applyReviewReplyLocal(AdminReviewRecord record, String replyText) {
+    final idx = reviews.indexWhere(
+      (r) => r.productId == record.productId && r.review.id == record.review.id,
+    );
+    if (idx < 0) return;
+    final old = reviews[idx].review;
+    reviews[idx] = AdminReviewRecord(
+      productId: record.productId,
+      productTitle: record.productTitle,
+      productThumbnail: record.productThumbnail,
+      purchaseOrderId: record.purchaseOrderId,
+      review: ProductReviewEntry(
+        id: old.id,
+        userId: old.userId,
+        authorName: old.authorName,
+        rating: old.rating,
+        text: old.text,
+        createdAt: old.createdAt,
+        adminReply: replyText.trim(),
+        adminReplyAt: DateTime.now(),
+        imageUrls: old.imageUrls,
+        videoUrls: old.videoUrls,
+        verifiedPurchase: old.verifiedPurchase,
+      ),
+    );
+  }
+
   Future<int> autoReplyAllUnrepliedReviews() async {
     final pending = reviews.where((r) => !r.review.hasAdminReply).toList();
     if (pending.isEmpty) {
       _toastSuccess('Không còn đánh giá chờ', 'Tất cả đánh giá đều đã được phản hồi.');
       return 0;
     }
-    var count = 0;
     try {
-      for (final rec in pending) {
+      await Future.wait(pending.map((rec) async {
         final text = automation.value.renderAutoReply(
           authorName: rec.review.authorName,
           productTitle: rec.productTitle,
           rating: rec.review.rating,
         );
+        _applyReviewReplyLocal(rec, text);
         await repository.replyToReview(rec, text);
-        count++;
-      }
-      await loadAll(silent: true);
+      }));
+      final count = pending.length;
       _toastSuccess(
         'Đã tự động trả lời $count đánh giá',
         'Toàn bộ phản hồi đã lưu và gửi thông báo tới từng khách hàng.',
       );
+      return count;
     } catch (e) {
       _toastError('Lỗi trả lời tự động', e.toString());
+      return 0;
     }
-    return count;
   }
 
   Future<bool> issueAutoVoucherNow(String preset) async {
@@ -922,57 +1556,95 @@ class AdminWebController extends GetxController {
       );
       return;
     }
+    final idx = orders.indexWhere(
+      (o) => o.docId == record.docId && o.userId == record.userId,
+    );
+    final eta = ShippingRouteHelper.estimateForAddress(record.order.address);
+    final nextDelivery = eta.latestDeliveryDate(record.order.orderDate);
+    final updatedOrder = OrderModel(
+      id: record.order.id,
+      userId: record.order.userId,
+      status: nextStatus,
+      totalAmount: record.order.totalAmount,
+      discountAmount: record.order.discountAmount,
+      couponCode: record.order.couponCode,
+      reviewedProductIds: record.order.reviewedProductIds,
+      coinsUsed: record.order.coinsUsed,
+      orderDate: record.order.orderDate,
+      paymentMethod: record.order.paymentMethod,
+      address: record.order.address,
+      deliveryDate: nextDelivery,
+      items: record.order.items,
+      searchDate: nextStatus == OrderStatus.received
+          ? DateTime.now()
+          : record.order.searchDate,
+    );
+    final updatedRecord = AdminOrderRecord(
+      docId: record.docId,
+      userId: record.userId,
+      order: updatedOrder,
+      customer: record.customer,
+    );
+
+    // Optimistic in-memory update for instant UI responsiveness!
+    if (idx >= 0) {
+      orders[idx] = updatedRecord;
+    }
+
+    String? autoChatText;
+    String? autoChatContext;
+    if (automation.value.autoChatOnOrderStatus && record.userId.isNotEmpty) {
+      final statusLabel = switch (nextStatus) {
+        OrderStatus.pending => 'Chờ xác nhận',
+        OrderStatus.processing => 'Đang đóng gói',
+        OrderStatus.shipped => 'Đang vận chuyển',
+        OrderStatus.received => 'Giao thành công',
+        OrderStatus.cancelled => 'Đã hủy đơn',
+      };
+      final etaNote = nextStatus == OrderStatus.received
+          ? 'Cảm ơn bạn đã tin chọn VELORA — nhớ đánh giá đôi giày để nhận ưu đãi nhé!'
+          : (nextStatus == OrderStatus.cancelled
+              ? 'Nếu bạn cần đặt lại mẫu khác, cứ nhắn VELORA hỗ trợ ngay.'
+              : 'Lộ trình từ Kho Hà Nội → ${eta.destinationCity} (dự kiến ${eta.minDays}–${eta.maxDays} ngày)');
+      autoChatText = automation.value.renderOrderStatusChat(
+        customerName: record.customerName,
+        itemsSummary: record.order.itemsSummary(),
+        statusLabel: statusLabel,
+        etaNote: etaNote,
+      );
+      autoChatContext = 'Cập nhật tự động • $statusLabel';
+      final thumb = record.order.items.isNotEmpty
+          ? (record.order.items.first.image ?? '')
+          : '';
+      _upsertSupportChatLocal(
+        userId: record.userId,
+        customerName: record.customerName,
+        customerEmail: record.customerEmail,
+        lastMessage: autoChatText,
+        orderId: record.order.id,
+        productTitle: record.order.itemsSummary(),
+        productThumbnail: thumb,
+        contextSummary: autoChatContext,
+      );
+    }
+
     try {
-      await repository.updateOrderStatus(record, nextStatus);
-
-      // Auto 1-1 Support Chat message when an order status changes
-      if (automation.value.autoChatOnOrderStatus && record.userId.isNotEmpty) {
-        final eta = ShippingRouteHelper.estimateForAddress(record.order.address);
-        final statusLabel = switch (nextStatus) {
-          OrderStatus.pending => 'Chờ xác nhận',
-          OrderStatus.processing => 'Đang đóng gói',
-          OrderStatus.shipped => 'Đang vận chuyển',
-          OrderStatus.received => 'Giao thành công',
-          OrderStatus.cancelled => 'Đã hủy đơn',
-        };
-        final etaNote = nextStatus == OrderStatus.received
-            ? 'Cảm ơn bạn đã tin chọn VELORA — nhớ đánh giá đôi giày để nhận ưu đãi nhé!'
-            : (nextStatus == OrderStatus.cancelled
-                ? 'Nếu bạn cần đặt lại mẫu khác, cứ nhắn VELORA hỗ trợ ngay.'
-                : 'Lộ trình từ Kho Hà Nội → ${eta.destinationCity} (dự kiến ${eta.minDays}–${eta.maxDays} ngày)');
-        final autoMsg = automation.value.renderOrderStatusChat(
-          customerName: record.customerName,
-          itemsSummary: record.order.itemsSummary(),
-          statusLabel: statusLabel,
-          etaNote: etaNote,
-        );
-        final thumb = record.order.items.isNotEmpty
-            ? (record.order.items.first.image ?? '')
-            : '';
-        await repository.sendAdminSupportMessage(
-          userId: record.userId,
-          customerName: record.customerName,
-          customerEmail: record.customerEmail,
-          text: autoMsg,
-          orderId: record.order.id,
-          productId: record.order.items.isNotEmpty
-              ? record.order.items.first.productId
-              : '',
-          productTitle: record.order.itemsSummary(),
-          productThumbnail: thumb,
-          contextSummary: 'Cập nhật tự động • $statusLabel',
-          sendPushNotification: false,
-        );
-      }
-
-      await loadAll(silent: true);
+      await repository.updateOrderStatus(
+        record,
+        nextStatus,
+        autoChatText: autoChatText,
+        autoChatContext: autoChatContext,
+      );
       _toastSuccess(
         'Đã cập nhật đơn hàng',
         automation.value.autoChatOnOrderStatus
-            ? 'Đã chuyển trạng thái đơn hàng, gửi thông báo & tự động nhắn tin 1-1 tới ${record.customerName}.'
+            ? 'Đã chuyển trạng thái đơn hàng, gửi thông báo & nhắn tin 1-1 tới ${record.customerName}.'
             : 'Đơn hàng đã chuyển trạng thái và gửi thông báo tới khách hàng.',
       );
     } catch (e) {
+      if (idx >= 0 && idx < orders.length) {
+        orders[idx] = record;
+      }
       _toastError('Lỗi cập nhật đơn hàng', e.toString());
     }
   }
@@ -981,11 +1653,39 @@ class AdminWebController extends GetxController {
     AdminOrderRecord record,
     DateTime deliveryDate,
   ) async {
+    final idx = orders.indexWhere(
+      (o) => o.docId == record.docId && o.userId == record.userId,
+    );
+    if (idx >= 0) {
+      orders[idx] = AdminOrderRecord(
+        docId: record.docId,
+        userId: record.userId,
+        customer: record.customer,
+        order: OrderModel(
+          id: record.order.id,
+          userId: record.order.userId,
+          status: record.order.status,
+          totalAmount: record.order.totalAmount,
+          discountAmount: record.order.discountAmount,
+          couponCode: record.order.couponCode,
+          reviewedProductIds: record.order.reviewedProductIds,
+          coinsUsed: record.order.coinsUsed,
+          orderDate: record.order.orderDate,
+          paymentMethod: record.order.paymentMethod,
+          address: record.order.address,
+          deliveryDate: deliveryDate,
+          items: record.order.items,
+          searchDate: record.order.searchDate,
+        ),
+      );
+    }
     try {
       await repository.updateOrderDeliveryDate(record, deliveryDate);
-      await loadAll(silent: true);
       _toastSuccess('Đã cập nhật ngày giao', 'Ngày giao dự kiến đã được lưu.');
     } catch (e) {
+      if (idx >= 0 && idx < orders.length) {
+        orders[idx] = record;
+      }
       _toastError('Lỗi cập nhật ngày giao', e.toString());
     }
   }
@@ -1003,6 +1703,40 @@ class AdminWebController extends GetxController {
   // ---------------------------------------------------------------------------
   // Return & Exchange Requests Management
   // ---------------------------------------------------------------------------
+  void _applyReturnUpdateLocal(
+    ReturnRequestModel request,
+    ReturnRequestStatus nextStatus,
+    String responseText,
+  ) {
+    final idx = returnRequests.indexWhere((r) => r.id == request.id);
+    if (idx < 0) return;
+    returnRequests[idx] = ReturnRequestModel(
+      id: request.id,
+      orderId: request.orderId,
+      userId: request.userId,
+      customerName: request.customerName,
+      customerEmail: request.customerEmail,
+      customerPhone: request.customerPhone,
+      pickupAddress: request.pickupAddress,
+      productId: request.productId,
+      productTitle: request.productTitle,
+      productThumbnail: request.productThumbnail,
+      refundAmountUsd: request.refundAmountUsd,
+      quantity: request.quantity,
+      currentVariation: request.currentVariation,
+      requestedSizeOrColor: request.requestedSizeOrColor,
+      type: request.type,
+      reasonCategory: request.reasonCategory,
+      description: request.description,
+      imageUrls: request.imageUrls,
+      videoUrls: request.videoUrls,
+      status: nextStatus,
+      adminResponse: responseText,
+      createdAt: request.createdAt,
+      updatedAt: DateTime.now(),
+    );
+  }
+
   Future<bool> updateReturnRequest({
     required ReturnRequestModel request,
     required ReturnRequestStatus nextStatus,
@@ -1020,12 +1754,12 @@ class AdminWebController extends GetxController {
                   typeLabel: request.typeLabel(),
                   requestedSizeOrColor: request.requestedSizeOrColor,
                 ));
+      _applyReturnUpdateLocal(request, nextStatus, responseText);
       await repository.updateReturnRequest(
         request: request,
         nextStatus: nextStatus,
         adminResponse: responseText,
       );
-      await loadAll(silent: true);
       _toastSuccess(
         'Đã cập nhật yêu cầu Đổi / Trả',
         'Yêu cầu của ${request.customerName} đã chuyển sang "${ReturnRequestModel.statusLabelOf(nextStatus)}" và gửi thông báo tới khách.',
@@ -1048,31 +1782,31 @@ class AdminWebController extends GetxController {
       );
       return 0;
     }
-    var count = 0;
     try {
-      for (final req in pending) {
+      await Future.wait(pending.map((req) async {
         final reply = automation.value.renderReturnReply(
           customerName: req.customerName,
           productTitle: req.productTitle,
           typeLabel: req.typeLabel(),
           requestedSizeOrColor: req.requestedSizeOrColor,
         );
+        _applyReturnUpdateLocal(req, ReturnRequestStatus.approvedPickup, reply);
         await repository.updateReturnRequest(
           request: req,
           nextStatus: ReturnRequestStatus.approvedPickup,
           adminResponse: reply,
         );
-        count++;
-      }
-      await loadAll(silent: true);
+      }));
+      final count = pending.length;
       _toastSuccess(
         'Đã tự động duyệt & điều Shipper cho $count yêu cầu',
         'Toàn bộ khách hàng đã nhận thông báo Shipper VELORA đến thu hồi tận nơi.',
       );
+      return count;
     } catch (e) {
       _toastError('Lỗi tự động duyệt đổi trả', e.toString());
+      return 0;
     }
-    return count;
   }
 
   Future<void> deleteReturnRequest(ReturnRequestModel request) async {
@@ -1088,7 +1822,12 @@ class AdminWebController extends GetxController {
   Future<bool> saveBrand(BrandModel brand, {required bool isNew}) async {
     try {
       await repository.saveBrand(brand, isNew: isNew);
-      await loadAll(silent: true);
+      if (!isNew && brand.id.isNotEmpty) {
+        final idx = brands.indexWhere((b) => b.id == brand.id);
+        if (idx >= 0) brands[idx] = brand;
+      } else {
+        brands.assignAll(await repository.fetchBrands());
+      }
       _toastSuccess(
         'Đã lưu thương hiệu',
         isNew ? 'Đã thêm thương hiệu "${brand.name}".' : 'Đã cập nhật "${brand.name}".',
@@ -1113,7 +1852,12 @@ class AdminWebController extends GetxController {
   Future<bool> saveCategory(CategoryModel category, {required bool isNew}) async {
     try {
       await repository.saveCategory(category, isNew: isNew);
-      await loadAll(silent: true);
+      if (!isNew && category.id.isNotEmpty) {
+        final idx = categories.indexWhere((c) => c.id == category.id);
+        if (idx >= 0) categories[idx] = category;
+      } else {
+        categories.assignAll(await repository.fetchCategories());
+      }
       _toastSuccess(
         'Đã lưu danh mục',
         isNew ? 'Đã thêm danh mục "${category.name}".' : 'Đã cập nhật "${category.name}".',
@@ -1138,7 +1882,14 @@ class AdminWebController extends GetxController {
   Future<bool> saveBanner(BannerModel banner, {String? docId}) async {
     try {
       await repository.saveBanner(banner, docId: docId);
-      await loadAll(silent: true);
+      if (docId != null && docId.isNotEmpty) {
+        final idx = banners.indexWhere((b) => b.docId == docId);
+        if (idx >= 0) {
+          banners[idx] = AdminBannerRecord(docId: docId, banner: banner);
+        }
+      } else {
+        banners.assignAll(await repository.fetchBanners());
+      }
       _toastSuccess(
         'Đã lưu banner',
         docId == null ? 'Đã tạo chiến dịch banner mới.' : 'Đã cập nhật banner.',
@@ -1151,10 +1902,26 @@ class AdminWebController extends GetxController {
   }
 
   Future<void> toggleBannerActive(AdminBannerRecord record, bool active) async {
+    final idx = banners.indexWhere((b) => b.docId == record.docId);
+    if (idx >= 0) {
+      banners[idx] = AdminBannerRecord(
+        docId: record.docId,
+        banner: BannerModel(
+          imageUrl: record.banner.imageUrl,
+          targetScreen: record.banner.targetScreen,
+          active: active,
+          title: record.banner.title,
+          subtitle: record.banner.subtitle,
+          sortOrder: record.banner.sortOrder,
+          categoryId: record.banner.categoryId,
+          brandId: record.banner.brandId,
+        ),
+      );
+    }
     try {
       await repository.toggleBannerActive(record.docId, active);
-      await loadAll(silent: true);
     } catch (e) {
+      if (idx >= 0 && idx < banners.length) banners[idx] = record;
       _toastError('Lỗi cập nhật banner', e.toString());
     }
   }
@@ -1176,7 +1943,8 @@ class AdminWebController extends GetxController {
   Future<bool> updateUser(UserModel user) async {
     try {
       await repository.updateUserProfile(user);
-      await loadAll(silent: true);
+      final idx = users.indexWhere((u) => u.id == user.id);
+      if (idx >= 0) users[idx] = user;
       _toastSuccess('Đã cập nhật người dùng', 'Thông tin của ${user.fullName} đã được lưu.');
       return true;
     } catch (e) {
@@ -1200,9 +1968,9 @@ class AdminWebController extends GetxController {
   }
 
   Future<bool> replyToReview(AdminReviewRecord record, String replyText) async {
+    _applyReviewReplyLocal(record, replyText);
     try {
       await repository.replyToReview(record, replyText);
-      await loadAll(silent: true);
       _toastSuccess(
         'Đã gửi phản hồi',
         'Phản hồi của VELORA đã được lưu và gửi thông báo tới ${record.review.authorName}.',
@@ -1258,6 +2026,7 @@ class AdminWebController extends GetxController {
       description: product.description,
       productType: product.productType,
       isFeatured: isFeatured,
+      isDiscontinued: product.isDiscontinued,
       brand: product.brand,
       categoryId: product.categoryId,
       categoryName: product.categoryName,
@@ -1265,9 +2034,9 @@ class AdminWebController extends GetxController {
       productAttributes: product.productAttributes,
       productVariations: product.productVariations,
     );
+    _upsertProductInMemory(updated);
     try {
       await repository.saveProduct(updated, isNew: false);
-      await loadAll(silent: true);
       _toastSuccess(
         isFeatured ? 'Đã ghim lên tab Nổi bật' : 'Đã gỡ khỏi tab Nổi bật',
         isFeatured
@@ -1276,6 +2045,7 @@ class AdminWebController extends GetxController {
       );
       return true;
     } catch (e) {
+      _upsertProductInMemory(product);
       _toastError('Lỗi cập nhật Nổi bật', e.toString());
       return false;
     }
@@ -1303,6 +2073,7 @@ class AdminWebController extends GetxController {
       description: product.description,
       productType: product.productType,
       isFeatured: makeFeatured ? true : product.isFeatured,
+      isDiscontinued: product.isDiscontinued,
       brand: product.brand,
       categoryId: product.categoryId,
       categoryName: product.categoryName,
@@ -1313,11 +2084,36 @@ class AdminWebController extends GetxController {
     return saveProduct(updated, isNew: false);
   }
 
+  void _applyVideoCommentReplyLocal(
+    AdminVideoCommentRecord record,
+    String replyText,
+  ) {
+    final idx = videoComments.indexWhere(
+      (c) => c.productId == record.productId && c.id == record.id,
+    );
+    if (idx < 0) return;
+    videoComments[idx] = AdminVideoCommentRecord(
+      id: record.id,
+      productId: record.productId,
+      productTitle: record.productTitle,
+      productThumbnail: record.productThumbnail,
+      categoryId: record.categoryId,
+      categoryName: record.categoryName,
+      userId: record.userId,
+      authorName: record.authorName,
+      text: record.text,
+      videoUrl: record.videoUrl,
+      createdAt: record.createdAt,
+      adminReply: replyText.trim(),
+      adminReplyAt: DateTime.now(),
+    );
+  }
+
   Future<bool> replyToVideoComment(
       AdminVideoCommentRecord record, String replyText) async {
+    _applyVideoCommentReplyLocal(record, replyText);
     try {
       await repository.replyToVideoComment(record, replyText);
-      await loadAll(silent: true);
       _toastSuccess(
         'Đã trả lời bình luận video',
         'Phản hồi đã hiển thị trên video "${record.productTitle}" và báo tới ${record.authorName}.',
@@ -1348,26 +2144,26 @@ class AdminWebController extends GetxController {
       );
       return 0;
     }
-    var count = 0;
     try {
-      for (final rec in pending) {
+      await Future.wait(pending.map((rec) async {
         final text = automation.value.renderVideoCommentReply(
           authorName: rec.authorName,
           productTitle: rec.productTitle,
           categoryName: rec.categoryName,
         );
+        _applyVideoCommentReplyLocal(rec, text);
         await repository.replyToVideoComment(rec, text);
-        count++;
-      }
-      await loadAll(silent: true);
+      }));
+      final count = pending.length;
       _toastSuccess(
         'Đã tự động trả lời $count bình luận video',
         'Toàn bộ phản hồi theo mẫu tự động đã gửi tới khách hàng.',
       );
+      return count;
     } catch (e) {
       _toastError('Lỗi trả lời tự động', e.toString());
+      return 0;
     }
-    return count;
   }
 
   Future<void> deleteVideoComment(AdminVideoCommentRecord record) async {
@@ -1410,7 +2206,14 @@ class AdminWebController extends GetxController {
         similarProducts: similarProducts,
         bodyVi: bodyVi,
       );
-      await loadAll(silent: true);
+      _prependCampaignLogLocal(
+        titleVi: 'Gợi ý tương tự ${watchedProduct.title}: ${similarProducts.first.title}',
+        bodyVi: bodyVi,
+        kind: 'product',
+        targetId: similarProducts.first.id,
+        audienceLabel: 'Đẩy ${similarProducts.length} sản phẩm tương tự tới $userName',
+        recipientCount: 1,
+      );
       _toastSuccess(
         'Đã tung ${similarProducts.length} sản phẩm tương tự tới $userName',
         'Các mẫu ($simTitles) đã được mở khóa trên tab Nổi bật & gửi thông báo tới $userName.',
@@ -1470,9 +2273,9 @@ class AdminWebController extends GetxController {
 
     var count = 0;
     try {
-      for (final entry in targets.values) {
+      await Future.wait(targets.values.map((entry) async {
         final sims = similarProductsFor(entry.product, limit: 3);
-        if (sims.isEmpty) continue;
+        if (sims.isEmpty) return;
         final simTitles = sims.map((p) => p.title).join(', ');
         final bodyVi = automation.value.renderVideoSimilarPush(
           userName: entry.userName,
@@ -1488,8 +2291,7 @@ class AdminWebController extends GetxController {
           bodyVi: bodyVi,
         );
         count++;
-      }
-      await loadAll(silent: true);
+      }));
       _toastSuccess(
         'Đã tự động đẩy sản phẩm tương tự cho $count khách hàng',
         'Mỗi khách hàng đã được mở khóa 3 mẫu giày cùng gu trên tab Nổi bật kèm thông báo.',
@@ -1498,6 +2300,31 @@ class AdminWebController extends GetxController {
       _toastError('Lỗi tự động đẩy sản phẩm', e.toString());
     }
     return count;
+  }
+
+  void _upsertVoucherLocal(AdminVoucherRecord voucher) {
+    final code = voucher.code.trim().toUpperCase();
+    final normalized = AdminVoucherRecord(
+      code: code,
+      title: voucher.title,
+      expires: voucher.expires,
+      percent: voucher.percent,
+      maxUsd: voucher.maxUsd,
+      minUsd: voucher.minUsd,
+      shipping: voucher.shipping,
+      active: voucher.active,
+      targetAudience: voucher.targetAudience,
+      targetUserIds: voucher.targetUserIds,
+      excludeBomHang: voucher.excludeBomHang,
+      autoTag: voucher.autoTag,
+      createdAt: voucher.createdAt ?? DateTime.now(),
+    );
+    final idx = vouchers.indexWhere((v) => v.code.toUpperCase() == code);
+    if (idx >= 0) {
+      vouchers[idx] = normalized;
+    } else {
+      vouchers.insert(0, normalized);
+    }
   }
 
   Future<bool> saveVoucher(
@@ -1511,13 +2338,25 @@ class AdminWebController extends GetxController {
         targetUserIds: voucher.targetUserIds,
         excludeBomHang: voucher.excludeBomHang,
       );
+      _upsertVoucherLocal(voucher);
       await repository.saveVoucher(
         voucher,
         isNew: isNew,
         recipients: recipients,
         sendNotification: sendNotification,
       );
-      await loadAll(silent: true);
+      if (sendNotification && voucher.active && recipients.isNotEmpty) {
+        final code = voucher.code.trim().toUpperCase();
+        _prependCampaignLogLocal(
+          titleVi: 'Mã giảm giá mới: $code',
+          bodyVi: voucher.title,
+          kind: 'voucher',
+          targetId: code,
+          audienceLabel:
+              'Voucher $code • ${voucher.audienceSummary} (${recipients.length})',
+          recipientCount: recipients.length,
+        );
+      }
       _toastSuccess(
         'Đã lưu Voucher ${voucher.code}',
         sendNotification
@@ -1532,10 +2371,28 @@ class AdminWebController extends GetxController {
   }
 
   Future<void> toggleVoucherActive(AdminVoucherRecord record, bool active) async {
+    final idx = vouchers.indexWhere((v) => v.code == record.code);
+    if (idx >= 0) {
+      vouchers[idx] = AdminVoucherRecord(
+        code: record.code,
+        title: record.title,
+        expires: record.expires,
+        percent: record.percent,
+        maxUsd: record.maxUsd,
+        minUsd: record.minUsd,
+        shipping: record.shipping,
+        active: active,
+        targetAudience: record.targetAudience,
+        targetUserIds: record.targetUserIds,
+        excludeBomHang: record.excludeBomHang,
+        autoTag: record.autoTag,
+        createdAt: record.createdAt,
+      );
+    }
     try {
       await repository.toggleVoucherActive(record.code, active);
-      await loadAll(silent: true);
     } catch (e) {
+      if (idx >= 0 && idx < vouchers.length) vouchers[idx] = record;
       _toastError('Lỗi cập nhật Voucher', e.toString());
     }
   }
@@ -1587,7 +2444,16 @@ class AdminWebController extends GetxController {
         recipients: targetUsers,
         audienceLabel: audienceLabel,
       );
-      await loadAll(silent: true);
+      _prependCampaignLogLocal(
+        titleVi: titleVi.trim(),
+        titleEn: titleEn.trim(),
+        bodyVi: bodyVi.trim(),
+        bodyEn: bodyEn.trim(),
+        kind: kind,
+        targetId: targetId,
+        audienceLabel: audienceLabel,
+        recipientCount: count,
+      );
       _toastSuccess(
         'Đã gửi thông báo',
         'Đã gửi thành công đến $count tài khoản khách hàng.',

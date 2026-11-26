@@ -23,6 +23,36 @@ enum AdminSection {
 
 enum FinancePeriod { last7Days, last6Months, last12Months }
 
+enum AdminTimeFilter {
+  today,
+  yesterday,
+  last7Days,
+  thisMonth,
+  customMonth,
+  allTime,
+  customDate,
+}
+
+class AdminSoldProductSummary {
+  const AdminSoldProductSummary({
+    required this.productId,
+    required this.title,
+    required this.thumbnail,
+    required this.quantitySold,
+    required this.orderCount,
+    required this.grossRevenueUsd,
+    required this.variationsSummary,
+  });
+
+  final String productId;
+  final String title;
+  final String thumbnail;
+  final int quantitySold;
+  final int orderCount;
+  final double grossRevenueUsd;
+  final String variationsSummary;
+}
+
 enum CustomerSegment {
   vip,
   loyal,

@@ -741,14 +741,66 @@ class _ProductReviewState extends State<ProductReview> {
           ? null
           : SafeArea(
               top: false,
-              minimum: const EdgeInsets.fromLTRB(20, 10, 20, 18),
-              child: ElevatedButton.icon(
-                onPressed: _openingReview || _submittedReview ? null : _write,
-                icon: const Icon(Iconsax.camera, size: 18),
-                label: _submittedReview ? Text(Localizations.localeOf(context).languageCode == 'en'
-                    ? 'Reviewed' : 'Đã đánh giá') : _openingReview
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const ShopText('Write a review'),
+              minimum: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!_submittedReview)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: Row(
+                        children: [
+                          const GoldCoinIcon(size: 22),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              Localizations.localeOf(context).languageCode ==
+                                      'en'
+                                  ? 'First review of delivered pair earns +1,000 coins'
+                                  : 'Đánh giá lần đầu đơn đã nhận tích ngay +1.000 xu',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          _openingReview || _submittedReview ? null : _write,
+                      icon: const Icon(Iconsax.camera, size: 18),
+                      label: _submittedReview
+                          ? Text(
+                              Localizations.localeOf(context).languageCode ==
+                                      'en'
+                                  ? 'Reviewed'
+                                  : 'Đã đánh giá',
+                            )
+                          : _openingReview
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const ShopText('Write a review'),
+                    ),
+                  ),
+                ],
               ),
             ),
     );
@@ -773,24 +825,73 @@ class _ProductReviewState extends State<ProductReview> {
 
 class ReviewRewardNotice extends StatelessWidget {
   const ReviewRewardNotice({super.key});
+
   @override
   Widget build(BuildContext context) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final colors = Theme.of(context).colorScheme;
-    return Container(padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE0B64F))),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const GoldCoinIcon(), const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(isEn ? 'Review to earn 1,000 coins' : 'Đánh giá nhận 1.000 xu',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.onSurface)),
-          const SizedBox(height: 6),
-          Text(isEn ? '1,000 coins = 1,000₫ off a future order. Each purchased product can be reviewed once per order, regardless of star rating.'
-              : '1.000 xu = 1.000đ để giảm cho đơn sau. Mỗi sản phẩm trong một đơn chỉ được đánh giá một lần, không phụ thuộc số sao.',
-            style: TextStyle(fontSize: 13, height: 1.5, color: colors.onSurfaceVariant)),
-        ])),
-      ]));
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF19251F) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : const Color(0xFFE5E7EB),
+        ),
+      ),
+      child: Row(
+        children: [
+          const GoldCoinIcon(size: 28),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isEn
+                      ? 'Complete review for +1,000 coins'
+                      : 'Hoàn tất đánh giá nhận +1.000 xu',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: dark ? Colors.white : const Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isEn
+                      ? 'Save 1,000 ₫ on your next order · 1 reward per item'
+                      : 'Giảm trực tiếp 1.000 ₫ cho đơn sau · Tính thưởng 1 lần/SP',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.35,
+                    color: dark ? Colors.white70 : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              isEn ? '+1,000' : '+1.000 xu',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFB45309),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -936,13 +1037,28 @@ class _WriteReviewState extends State<_WriteReview> {
     }
   }
 
+  String _ratingSentiment(int r) {
+    switch (r) {
+      case 5:
+        return 'Rất hài lòng';
+      case 4:
+        return 'Hài lòng';
+      case 3:
+        return 'Bình thường';
+      case 2:
+        return 'Chưa ưng ý';
+      default:
+        return 'Không hài lòng';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(
         20,
-        16,
+        10,
         20,
         MediaQuery.viewInsetsOf(context).bottom + 24,
       ),
@@ -950,44 +1066,71 @@ class _WriteReviewState extends State<_WriteReview> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
             Row(
               children: [
                 const Expanded(
                   child: Text(
-                    'Đánh giá & Chụp ảnh / Quay video',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    'Viết đánh giá sản phẩm',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded),
+                  icon: const Icon(Icons.close_rounded, size: 20),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             const ReviewRewardNotice(),
             const SizedBox(height: 14),
-            Row(
-              children: [
-                for (var star = 1; star <= 5; star++)
-                  IconButton(
-                    tooltip: '$star ★',
-                    onPressed: _saving ? null : () => setState(() => _rating = star),
-                    icon: Icon(
-                      star <= _rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                      size: 34,
-                      color: theme.colorScheme.primary,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Row(
+                children: [
+                  for (var star = 1; star <= 5; star++)
+                    GestureDetector(
+                      onTap:
+                          _saving ? null : () => setState(() => _rating = star),
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: Icon(
+                          star <= _rating
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
+                          size: 30,
+                          color: star <= _rating
+                              ? const Color(0xFFF59E0B)
+                              : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                    ),
+                  const Spacer(),
+                  Text(
+                    '$_rating/5 · ${_ratingSentiment(_rating)}',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF334155),
                     ),
                   ),
-                const SizedBox(width: 6),
-                Text(
-                  '$_rating / 5 sao',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -997,63 +1140,97 @@ class _WriteReviewState extends State<_WriteReview> {
               maxLength: 1000,
               enabled: !_saving,
               decoration: const InputDecoration(
-                hintText: 'Chia sẻ cảm giác mang, độ êm, form size và chất lượng đôi giày VELORA...',
+                hintText:
+                    'Chia sẻ cảm giác mang, độ êm, form size và chất lượng đôi giày VELORA...',
               ),
             ),
             const SizedBox(height: 8),
 
-            // Photo & Video capture buttons
+            // Clean 2x2 aligned media buttons
             const Text(
-              'Đính kèm hình ảnh hoặc video thực tế',
-              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+              'Hình ảnh & Video thực tế (tùy chọn)',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            const SizedBox(height: 8),
+            Row(
               children: [
-                OutlinedButton.icon(
-                  onPressed: _uploadingMedia || _saving
-                      ? null
-                      : () => _pickPhoto(ImageSource.camera),
-                  icon: const Icon(Iconsax.camera, size: 17),
-                  label: const Text('Chụp ảnh', style: TextStyle(fontSize: 12.5)),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _uploadingMedia || _saving
+                        ? null
+                        : () => _pickPhoto(ImageSource.camera),
+                    icon: const Icon(Iconsax.camera, size: 16),
+                    label:
+                        const Text('Chụp ảnh', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 38),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
                   ),
                 ),
-                OutlinedButton.icon(
-                  onPressed: _uploadingMedia || _saving
-                      ? null
-                      : () => _pickPhoto(ImageSource.gallery),
-                  icon: const Icon(Iconsax.gallery, size: 17),
-                  label: const Text('Chọn ảnh', style: TextStyle(fontSize: 12.5)),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _uploadingMedia || _saving
+                        ? null
+                        : () => _pickPhoto(ImageSource.gallery),
+                    icon: const Icon(Iconsax.gallery, size: 16),
+                    label:
+                        const Text('Chọn ảnh', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 38),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
                   ),
                 ),
-                OutlinedButton.icon(
-                  onPressed: _uploadingMedia || _saving
-                      ? null
-                      : () => _pickVideo(ImageSource.camera),
-                  icon: const Icon(Iconsax.video, size: 17),
-                  label: const Text('Quay video', style: TextStyle(fontSize: 12.5)),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _uploadingMedia || _saving
+                        ? null
+                        : () => _pickVideo(ImageSource.camera),
+                    icon: const Icon(Iconsax.video, size: 16),
+                    label: const Text(
+                      'Quay video',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 38),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
                   ),
                 ),
-                OutlinedButton.icon(
-                  onPressed: _uploadingMedia || _saving
-                      ? null
-                      : () => _pickVideo(ImageSource.gallery),
-                  icon: const Icon(Iconsax.video_play, size: 17),
-                  label: const Text('Chọn video', style: TextStyle(fontSize: 12.5)),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _uploadingMedia || _saving
+                        ? null
+                        : () => _pickVideo(ImageSource.gallery),
+                    icon: const Icon(Iconsax.video_play, size: 16),
+                    label: const Text(
+                      'Chọn video',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 38),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
                   ),
                 ),
               ],

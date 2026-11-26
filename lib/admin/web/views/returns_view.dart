@@ -983,13 +983,6 @@ class _AdminReturnsViewState extends State<AdminReturnsView> {
       final filtered = _filtered(all);
       final pendingCount =
           all.where((r) => r.status == ReturnRequestStatus.pending).length;
-      final activeCount = all
-          .where((r) =>
-              r.status == ReturnRequestStatus.approvedPickup ||
-              r.status == ReturnRequestStatus.inspecting)
-          .length;
-      final completedCount =
-          all.where((r) => r.status == ReturnRequestStatus.completed).length;
 
       return SingleChildScrollView(
         padding: EdgeInsets.all(width < 700 ? 16 : 28),
@@ -1001,115 +994,64 @@ class _AdminReturnsViewState extends State<AdminReturnsView> {
               children: [
                 AdminSectionToolbar(
                   title: c.tr(
-                    'Quản lý Đổi trả & Bảo hành (${all.length})',
-                    'Return & Exchange Center (${all.length})',
-                  ),
-                  subtitle: c.tr(
-                    'Xử lý yêu cầu Đổi kích cỡ EU, Đổi đôi mới 1-1 do lỗi/giao sai hoặc Hoàn tiền 100% — hỗ trợ Mẫu Tự động & Thủ công.',
-                    'Process size exchanges, 1-to-1 defective replacements, and 100% refunds with automatic and manual workflows.',
+                    'Đổi trả (${all.length})',
+                    'Returns (${all.length})',
                   ),
                   actions: [
                     AdminSearchField(
-                      hint: 'Tìm theo tên giày, khách hàng, lý do...',
-                      width: 260,
+                      hint: 'Tìm sản phẩm, khách hàng...',
+                      width: 240,
                       onChanged: (v) => setState(() => _query = v),
                     ),
                     OutlinedButton.icon(
                       onPressed: _openReturnTemplatesDialog,
                       icon: const Icon(Iconsax.setting_2, size: 16),
-                      label: const Text('Mẫu tự động Đổi trả'),
+                      label: const Text('Mẫu phản hồi'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AdminColors.forest,
-                        side: const BorderSide(color: AdminColors.borderStrong),
+                        foregroundColor: const Color(0xFF111827),
+                        side: const BorderSide(color: Color(0xFFD1D5DB)),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 12),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(11)),
+                            borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                     AdminPrimaryButton(
-                      label:
-                          '⚡ Tự động duyệt & điều Shipper ($pendingCount chờ)',
-                      icon: Iconsax.flash_1,
+                      label: 'Duyệt tự động ($pendingCount)',
+                      icon: Iconsax.tick_circle,
                       onPressed: c.autoApproveAllPendingReturnRequests,
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
-                // KPI Cards
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final cols = constraints.maxWidth >= 1020
-                        ? 4
-                        : (constraints.maxWidth >= 620 ? 2 : 1);
-                    return GridView.count(
-                      crossAxisCount: cols,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 14,
-                      crossAxisSpacing: 14,
-                      childAspectRatio: 2.15,
+                // Colorless underline filter tabs
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
                       children: [
-                        AdminStatCard(
-                          title: 'Tổng yêu cầu Đổi / Trả',
-                          value: '${all.length} yêu cầu',
-                          subtitle: 'Đổi size • Đổi lỗi 1-1 • Hoàn tiền 100%',
-                          icon: Iconsax.refresh_circle,
-                          accentColor: AdminColors.forest,
-                          accentBg: AdminColors.sageSoft,
+                        _ReturnStatusChip(
+                          label: 'Tất cả (${all.length})',
+                          selected: _selectedStatus == null,
+                          onTap: () => setState(() => _selectedStatus = null),
                         ),
-                        AdminStatCard(
-                          title: 'Chờ duyệt đổi trả',
-                          value: '$pendingCount yêu cầu',
-                          subtitle: 'Cần xác nhận hoặc chạy tự động',
-                          icon: Iconsax.clock,
-                          accentColor: AdminColors.amber,
-                          accentBg: AdminColors.amberBg,
-                        ),
-                        AdminStatCard(
-                          title: 'Đang thu hồi & Đổi mới',
-                          value: '$activeCount đơn đổi',
-                          subtitle: 'Shipper thu hồi về Tổng Kho Hà Nội',
-                          icon: Iconsax.truck_fast,
-                          accentColor: AdminColors.sky,
-                          accentBg: AdminColors.skyBg,
-                        ),
-                        AdminStatCard(
-                          title: 'Đã hoàn tất Đổi / Hoàn tiền',
-                          value: '$completedCount hoàn tất',
-                          subtitle: 'Khách đã nhận đôi mới / tiền hoàn',
-                          icon: Iconsax.tick_circle,
-                          accentColor: AdminColors.emerald,
-                          accentBg: AdminColors.emeraldBg,
-                        ),
+                        for (final st in ReturnRequestStatus.values)
+                          _ReturnStatusChip(
+                            label:
+                                '${ReturnRequestModel.statusLabelOf(st)} (${all.where((e) => e.status == st).length})',
+                            selected: _selectedStatus == st,
+                            onTap: () => setState(() => _selectedStatus = st),
+                          ),
                       ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 18),
-
-                // Multi-Color Status Filter Chips
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _ReturnStatusChip(
-                      label: 'Tất cả (${all.length})',
-                      selected: _selectedStatus == null,
-                      onTap: () => setState(() => _selectedStatus = null),
                     ),
-                    for (final st in ReturnRequestStatus.values)
-                      _ReturnStatusChip(
-                        label:
-                            '${ReturnRequestModel.statusLabelOf(st)} (${all.where((e) => e.status == st).length})',
-                        selected: _selectedStatus == st,
-                        accentColor: ReturnRequestModel.statusColorOf(st),
-                        accentBg: ReturnRequestModel.statusBgColorOf(st),
-                        icon: ReturnRequestModel.statusIconOf(st),
-                        onTap: () => setState(() => _selectedStatus = st),
-                      ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 18),
 
@@ -1590,47 +1532,26 @@ class _ReturnStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeTone = accentColor ?? const Color(0xFF334155);
-    final idleBg = accentBg ?? AdminColors.surface;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      child: Container(
+        margin: const EdgeInsets.only(right: 22),
+        padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: selected ? activeTone : idleBg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected
-                ? activeTone
-                : (accentColor != null
-                    ? activeTone.withValues(alpha: 0.35)
-                    : AdminColors.border),
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? const Color(0xFF111827) : Colors.transparent,
+              width: 2.2,
+            ),
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 14,
-                color: selected ? Colors.white : activeTone,
-              ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: selected
-                    ? Colors.white
-                    : (accentColor ?? AdminColors.inkSecondary),
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? const Color(0xFF111827) : const Color(0xFF64748B),
+          ),
         ),
       ),
     );

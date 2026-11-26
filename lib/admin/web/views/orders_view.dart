@@ -444,7 +444,7 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                                         if (discontinued) ...[
                                           const SizedBox(width: 8),
                                           const AdminBadge(
-                                            label: '🚫 Đã ngừng bán',
+                                            label: 'Ngừng bán',
                                             color: AdminColors.rose,
                                             bgColor: AdminColors.roseBg,
                                           ),
@@ -560,39 +560,44 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AdminSectionToolbar(
-                  title: 'Quản lý Đơn hàng',
-                  subtitle:
-                      'Xem chi tiết đơn, cập nhật trạng thái giao hàng và tự động gửi thông báo cho khách.',
+                  title: 'Đơn hàng (${all.length})',
                   actions: [
                     AdminSearchField(
-                      hint: 'Tìm theo mã đơn, khách hàng, phương thức...',
+                      hint: 'Tìm mã đơn, khách hàng...',
                       onChanged: (v) => setState(() => _query = v),
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
-                // Status Filter Pills
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _StatusFilterChip(
-                      label: 'Tất cả (${all.length})',
-                      selected: _selectedStatus == null,
-                      onTap: () => setState(() => _selectedStatus = null),
+                // Colorless underline status tabs
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _StatusFilterChip(
+                          label: 'Tất cả (${all.length})',
+                          selected: _selectedStatus == null,
+                          onTap: () => setState(() => _selectedStatus = null),
+                        ),
+                        for (final status in OrderStatus.values)
+                          _StatusFilterChip(
+                            label:
+                                '${AdminOrderStatusMeta.of(status).label} (${widget.controller.countOrdersByStatus(status)})',
+                            selected: _selectedStatus == status,
+                            onTap: () =>
+                                setState(() => _selectedStatus = status),
+                          ),
+                      ],
                     ),
-                    for (final status in OrderStatus.values)
-                      _StatusFilterChip(
-                        label:
-                            '${AdminOrderStatusMeta.of(status).label} (${widget.controller.countOrdersByStatus(status)})',
-                        selected: _selectedStatus == status,
-                        accentColor: AdminOrderStatusMeta.of(status).color,
-                        accentBg: AdminOrderStatusMeta.of(status).bgColor,
-                        icon: AdminOrderStatusMeta.of(status).icon,
-                        onTap: () => setState(() => _selectedStatus = status),
-                      ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 18),
 
@@ -1065,47 +1070,26 @@ class _StatusFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeTone = accentColor ?? const Color(0xFF334155);
-    final idleBg = accentBg ?? AdminColors.surface;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      child: Container(
+        margin: const EdgeInsets.only(right: 22),
+        padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: selected ? activeTone : idleBg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected
-                ? activeTone
-                : (accentColor != null
-                    ? activeTone.withValues(alpha: 0.35)
-                    : AdminColors.border),
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? const Color(0xFF111827) : Colors.transparent,
+              width: 2.2,
+            ),
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 14,
-                color: selected ? Colors.white : activeTone,
-              ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: selected
-                    ? Colors.white
-                    : (accentColor ?? AdminColors.inkSecondary),
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? const Color(0xFF111827) : const Color(0xFF64748B),
+          ),
         ),
       ),
     );

@@ -18,15 +18,16 @@ import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
 class OrderScreen extends StatefulWidget {
-  const OrderScreen({super.key, this.loadOrders});
+  const OrderScreen({super.key, this.loadOrders, this.initialFilter = 0});
   final Future<List<OrderModel>> Function()? loadOrders;
+  final int initialFilter;
   @override
   State<OrderScreen> createState() => _OrderScreenState();
 }
 
 class _OrderScreenState extends State<OrderScreen> {
   late Future<List<OrderModel>> _orders;
-  int _filter = 0;
+  late int _filter = widget.initialFilter;
 
   static const _tabs = [
     'All orders',

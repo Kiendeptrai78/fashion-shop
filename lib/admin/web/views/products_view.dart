@@ -118,54 +118,55 @@ class _AdminProductsViewState extends State<AdminProductsView> {
               children: [
                 AdminSectionToolbar(
                   title: vi
-                      ? 'Quản lý Sản phẩm & Kho hàng (${all.length})'
-                      : 'Product & Inventory Management (${all.length})',
-                  subtitle: vi
-                      ? 'Nhập bổ sung tồn kho theo từng mẫu / size, theo dõi phiếu nhập hàng hoặc thêm mẫu giày mới.'
-                      : 'Restock inventory by model & EU size, track stock receipts, or add new VELORA models.',
+                      ? 'Sản phẩm (${all.length})'
+                      : 'Products (${all.length})',
                   actions: [
                     OutlinedButton.icon(
                       onPressed: _openStockHistoryDialog,
-                      icon: const Icon(Iconsax.receipt_text, size: 17),
+                      icon: const Icon(Iconsax.receipt_text, size: 16),
                       label: Text(
                         vi
-                            ? 'Lịch sử nhập kho (${widget.controller.stockReceipts.length})'
-                            : 'Stock Receipts (${widget.controller.stockReceipts.length})',
+                            ? 'Phiếu nhập (${widget.controller.stockReceipts.length})'
+                            : 'Receipts (${widget.controller.stockReceipts.length})',
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AdminColors.forest,
-                        side: const BorderSide(color: AdminColors.borderStrong),
+                        foregroundColor: const Color(0xFF111827),
+                        side: const BorderSide(color: Color(0xFFD1D5DB)),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                     AdminPrimaryButton(
-                      label: vi ? 'Nhập hàng vào kho' : 'Restock Inventory',
+                      label: vi ? 'Nhập kho' : 'Restock',
                       icon: Iconsax.box_add,
                       onPressed: all.isEmpty ? null : () => _openRestockDialog(),
                     ),
                     OutlinedButton.icon(
                       onPressed: () => _openProductEditor(),
-                      icon: const Icon(Iconsax.add_circle, size: 17),
-                      label: Text(vi ? 'Thêm mẫu mới' : 'Add New Model'),
+                      icon: const Icon(Iconsax.add_circle, size: 16),
+                      label: Text(vi ? 'Thêm mới' : 'Add Product'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AdminColors.ink,
-                        side: const BorderSide(color: AdminColors.borderStrong),
+                        foregroundColor: const Color(0xFF111827),
+                        side: const BorderSide(color: Color(0xFFD1D5DB)),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
-                // Filter toolbar
-                AdminCard(
-                  padding: const EdgeInsets.all(16),
+                // Clean Filter Bar (colorless underline tabs + search + category dropdown)
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Selling Status Tabs (Đang mở bán vs Sản phẩm Ngừng bán)
                       Builder(builder: (_) {
                         final activeCount =
                             all.where((p) => !p.isDiscontinued).length;
@@ -173,151 +174,127 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                             all.where((p) => p.isDiscontinued).length;
                         final lowCount =
                             widget.controller.lowStockProducts.length;
-                        Widget buildStatusChip({
+                        Widget buildTab({
                           required String label,
                           required bool selected,
-                          required Color activeColor,
-                          required Color idleBg,
-                          required Color idleText,
                           required VoidCallback onTap,
                         }) {
                           return InkWell(
                             onTap: onTap,
-                            borderRadius: BorderRadius.circular(10),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 160),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 9,
-                              ),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 22),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
-                                color: selected ? activeColor : idleBg,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: selected
-                                      ? activeColor
-                                      : activeColor.withValues(alpha: 0.32),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: selected
+                                        ? const Color(0xFF111827)
+                                        : Colors.transparent,
+                                    width: 2.2,
+                                  ),
                                 ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (selected) ...[
-                                    const Icon(
-                                      Icons.check_rounded,
-                                      size: 15,
-                                      color: Colors.white,
-                                    ),
-                                    const SizedBox(width: 6),
-                                  ],
-                                  Text(
-                                    label,
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: selected ? Colors.white : idleText,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                label,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: selected
+                                      ? const Color(0xFF111827)
+                                      : const Color(0xFF64748B),
+                                ),
                               ),
                             ),
                           );
                         }
 
-                        return Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            buildStatusChip(
-                              label: vi
-                                  ? 'Tất cả kho (${all.length})'
-                                  : 'All Inventory (${all.length})',
-                              selected: _sellingTab == 'all',
-                              activeColor: AdminColors.forest,
-                              idleBg: AdminColors.surfaceMuted,
-                              idleText: AdminColors.ink,
-                              onTap: () => setState(() {
-                                _sellingTab = 'all';
-                                _onlyLowStock = false;
-                              }),
-                            ),
-                            buildStatusChip(
-                              label: vi
-                                  ? '✅ Đang mở bán ($activeCount)'
-                                  : '✅ Active ($activeCount)',
-                              selected: _sellingTab == 'active',
-                              activeColor: const Color(0xFF15803D),
-                              idleBg: AdminColors.emeraldBg,
-                              idleText: const Color(0xFF166534),
-                              onTap: () => setState(() {
-                                _sellingTab = 'active';
-                                _onlyLowStock = false;
-                              }),
-                            ),
-                            buildStatusChip(
-                              label: vi
-                                  ? '⚠️ Sắp hết hàng ($lowCount)'
-                                  : '⚠️ Low Stock ($lowCount)',
-                              selected: _sellingTab == 'lowStock' || _onlyLowStock,
-                              activeColor: const Color(0xFFD97706),
-                              idleBg: AdminColors.amberBg,
-                              idleText: const Color(0xFFB45309),
-                              onTap: () => setState(() {
-                                _sellingTab = 'lowStock';
-                                _onlyLowStock = true;
-                              }),
-                            ),
-                            buildStatusChip(
-                              label: vi
-                                  ? '🚫 Sản phẩm Ngừng bán ($discontinuedCount)'
-                                  : '🚫 Discontinued ($discontinuedCount)',
-                              selected: _sellingTab == 'discontinued',
-                              activeColor: const Color(0xFFDC2626),
-                              idleBg: AdminColors.roseBg,
-                              idleText: const Color(0xFFBE123C),
-                              onTap: () => setState(() {
-                                _sellingTab = 'discontinued';
-                                _onlyLowStock = false;
-                              }),
-                            ),
-                          ],
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              buildTab(
+                                label: vi
+                                    ? 'Tất cả (${all.length})'
+                                    : 'All (${all.length})',
+                                selected: _sellingTab == 'all',
+                                onTap: () => setState(() {
+                                  _sellingTab = 'all';
+                                  _onlyLowStock = false;
+                                }),
+                              ),
+                              buildTab(
+                                label: vi
+                                    ? 'Đang bán ($activeCount)'
+                                    : 'Active ($activeCount)',
+                                selected: _sellingTab == 'active',
+                                onTap: () => setState(() {
+                                  _sellingTab = 'active';
+                                  _onlyLowStock = false;
+                                }),
+                              ),
+                              buildTab(
+                                label: vi
+                                    ? 'Sắp hết ($lowCount)'
+                                    : 'Low Stock ($lowCount)',
+                                selected:
+                                    _sellingTab == 'lowStock' || _onlyLowStock,
+                                onTap: () => setState(() {
+                                  _sellingTab = 'lowStock';
+                                  _onlyLowStock = true;
+                                }),
+                              ),
+                              buildTab(
+                                label: vi
+                                    ? 'Ngừng bán ($discontinuedCount)'
+                                    : 'Discontinued ($discontinuedCount)',
+                                selected: _sellingTab == 'discontinued',
+                                onTap: () => setState(() {
+                                  _sellingTab = 'discontinued';
+                                  _onlyLowStock = false;
+                                }),
+                              ),
+                            ],
+                          ),
                         );
                       }),
+                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
-                        runSpacing: 12,
+                        runSpacing: 10,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           AdminSearchField(
-                            hint: vi
-                                ? 'Tìm tên mẫu giày VELORA, danh mục'
-                                : 'Search VELORA model, SKU, or category',
+                            hint: vi ? 'Tìm sản phẩm...' : 'Search product...',
                             onChanged: (v) => setState(() => _query = v),
-                            width: 330,
+                            width: 300,
                           ),
                           SizedBox(
-                            width: 240,
+                            width: 220,
                             child: DropdownButtonFormField<String>(
                               value: safeCategoryValue,
                               isExpanded: true,
                               decoration: adminInputDecoration(
-                                label: vi ? 'Danh mục giày thể thao' : 'Athletic Category',
+                                label: vi ? 'Danh mục' : 'Category',
                               ),
                               items: [
                                 DropdownMenuItem(
                                   value: '',
                                   child: Text(
                                     vi
-                                        ? 'Tất cả danh mục (${all.length})'
-                                        : 'All categories (${all.length})',
+                                        ? 'Tất cả (${all.length})'
+                                        : 'All (${all.length})',
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 ...categories.map((c) {
-                                  final count =
-                                      all.where((p) => _matchesCategory(p, c.id)).length;
-                                  final label = widget.controller.localizeCategory(c.name);
+                                  final count = all
+                                      .where((p) => _matchesCategory(p, c.id))
+                                      .length;
+                                  final label =
+                                      widget.controller.localizeCategory(c.name);
                                   return DropdownMenuItem(
                                     value: c.id,
                                     child: Text(
@@ -327,39 +304,11 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                                   );
                                 }),
                               ],
-                              onChanged: (v) => setState(() => _categoryFilter = v ?? ''),
+                              onChanged: (v) =>
+                                  setState(() => _categoryFilter = v ?? ''),
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 12),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            ChoiceChip(
-                              label: Text(
-                                vi ? 'Tất cả (${all.length})' : 'All (${all.length})',
-                              ),
-                              selected: safeCategoryValue.isEmpty,
-                              onSelected: (_) => setState(() => _categoryFilter = ''),
-                            ),
-                            ...categories.map((c) {
-                              final count =
-                                  all.where((p) => _matchesCategory(p, c.id)).length;
-                              final label = widget.controller.localizeCategory(c.name);
-                              return Padding(
-                                padding: const EdgeInsets.only(left: 8),
-                                child: ChoiceChip(
-                                  label: Text('$label ($count)'),
-                                  selected: safeCategoryValue == c.id,
-                                  onSelected: (_) =>
-                                      setState(() => _categoryFilter = c.id),
-                                ),
-                              );
-                            }),
-                          ],
-                        ),
                       ),
                     ],
                   ),
@@ -393,11 +342,11 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                               dataRowMinHeight: 68,
                               dataRowMaxHeight: 76,
                               columns: [
-                                DataColumn(label: Text(vi ? 'Sản phẩm VELORA' : 'VELORA Product', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text(vi ? 'Sản phẩm' : 'Product', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
                                 DataColumn(label: Text(vi ? 'Danh mục' : 'Category', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
                                 DataColumn(label: Text(vi ? 'Giá bán' : 'Price', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text(vi ? 'Tồn kho & Nhập nhanh (từ bên ngoài)' : 'Stock & Quick Restock', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
-                                DataColumn(label: Text(vi ? 'Trạng thái bán' : 'Status', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text(vi ? 'Tồn kho' : 'Stock', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
+                                DataColumn(label: Text(vi ? 'Trạng thái' : 'Status', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
                                 DataColumn(label: Text(vi ? 'Thao tác' : 'Actions', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5))),
                               ],
                               rows: filtered.map((product) {

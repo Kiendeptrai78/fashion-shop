@@ -390,12 +390,10 @@ class _AdminUsersViewState extends State<AdminUsersView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AdminSectionToolbar(
-                  title: 'Quản lý & Phân loại Khách hàng (${allStats.length})',
-                  subtitle:
-                      'Tự động phân hạng Khách VIP, Khách lâu năm, Thành viên mới và Cảnh báo bom hàng dựa trên lịch sử mua thực tế.',
+                  title: 'Khách hàng (${allStats.length})',
                   actions: [
                     AdminSearchField(
-                      hint: 'Tìm theo tên, email, số điện thoại...',
+                      hint: 'Tìm tên, email, SĐT...',
                       onChanged: (v) => setState(() => _query = v),
                     ),
                   ],
