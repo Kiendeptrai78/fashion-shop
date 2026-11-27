@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -95,7 +96,7 @@ void main() {
     await applyCode('SHIPNEW');
     expect(find.text('Bỏ áp dụng'), findsNWidgets(2));
 
-    await tester.tap(find.byType(IconButton).first);
+    await tester.tap(find.byType(ShopGlassBackButton).first);
     await tester.pumpAndSettle();
     expect(find.byType(CouponsScreen), findsNothing);
     expect(find.text('Choose'), findsOneWidget);
@@ -135,7 +136,7 @@ void main() {
     )))));
     await tester.tap(find.text('OpenPicker'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(IconButton).first);
+    await tester.tap(find.byType(ShopGlassBackButton).first);
     await tester.pumpAndSettle();
     expect(poppedResult, isNull);
     expect(tester.takeException(), isNull);

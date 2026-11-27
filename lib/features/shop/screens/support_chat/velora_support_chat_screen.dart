@@ -1,3 +1,8 @@
+import 'package:fashion_business_app/common/widgets/chat/shop_chat_background.dart';
+import 'package:fashion_business_app/common/widgets/chat/shop_chat_send_button.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
@@ -375,7 +380,7 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
   }
 
   void _openMediaPickerSheet() {
-    showModalBottomSheet<void>(
+    showShopBottomSheet<void>(
       context: context,
       showDragHandle: true,
       builder: (sheetCtx) => SafeArea(
@@ -446,9 +451,10 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
             Positioned(
               top: 8,
               right: 8,
-              child: IconButton(
+              child: ShopGlassIconButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                icon: const Icon(Icons.close_rounded, color: Colors.white),
+                icon: Icons.close_rounded,
+                iconColor: Colors.white,
               ),
             ),
           ],
@@ -536,89 +542,10 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
     final user =
         Firebase.apps.isNotEmpty ? FirebaseAuth.instance.currentUser : null;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-        child: Scaffold(
-        backgroundColor:
-            dark ? const Color(0xFF101915) : const Color(0xFFF6F8F6),
-        appBar: AppBar(
-          systemOverlayStyle: SystemUiOverlayStyle.light,
-          backgroundColor:
-              dark ? const Color(0xFF13221B) : const Color(0xFF173E32),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          automaticallyImplyLeading: !widget.embeddedInNav,
-          titleSpacing: widget.embeddedInNav ? 16 : 0,
-          leading: widget.embeddedInNav
-              ? null
-              : IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-          title: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDDEABB),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: const Text(
-                  'V',
-                  style: TextStyle(
-                    color: Color(0xFF102B23),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 11),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Chat trực tiếp với VELORA',
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      'CSKH & Hỗ trợ Đổi trả 1-1 từ Tổng Kho Hà Nội',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFFDDEABB),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        body: user == null || _messagesStream == null
-            ? const Center(
-                child: Text('Vui lòng đăng nhập để nhắn tin với VELORA.'),
-              )
-            : Column(
-                children: [
-                  if (_hasActiveContext)
-                    Container(
+    final contextBanner = _hasActiveContext ? Container(
                       margin: const EdgeInsets.fromLTRB(14, 12, 14, 4),
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
+                      decoration: ShopGlassDecoration(
                         color: dark
                             ? const Color(0xFF1A2D24)
                             : const Color(0xFFEFF6F2),
@@ -687,7 +614,37 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
                           ),
                         ],
                       ),
-                    ),
+                    ) : null;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: ShopChatBackground(child: Scaffold(
+        extendBodyBehindAppBar: true,
+        backgroundColor: Colors.transparent,
+        appBar: TAppbar(
+          showBackArrow: !widget.embeddedInNav,
+          title: const Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Chat trực tiếp với VELORA',
+                style: shopAppbarTitleStyle,
+              ),
+            ],
+          ),
+        ),
+        body: user == null || _messagesStream == null
+            ? const Center(
+                child: Text('Vui lòng đăng nhập để nhắn tin với VELORA.'),
+              )
+            : Column(
+                children: [
+
 
                   Expanded(
                     child: Stack(
@@ -709,9 +666,10 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
                               controller: _scroll,
                               reverse: true,
                               physics: const ClampingScrollPhysics(),
-                              padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
-                              itemCount: reversed.length + 1,
+                              padding: shopAppbarContentPadding(context, const EdgeInsets.fromLTRB(16, 14, 16, 18)),
+                              itemCount: reversed.length + 1 + (contextBanner == null ? 0 : 1),
                               itemBuilder: (_, index) {
+                                if (index > reversed.length) return contextBanner!;
                                 if (index == reversed.length) {
                                   return _buildAdminWelcomeCard(dark);
                                 }
@@ -774,7 +732,7 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
 
                   Container(
                     height: 44,
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: dark
                           ? const Color(0xFF15241D)
                           : const Color(0xFFF0F4F1),
@@ -834,96 +792,65 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
                     ),
                   ],
 
-                  Container(
-                    decoration: BoxDecoration(
-                      color: dark ? const Color(0xFF14211B) : Colors.white,
-                      border: Border(
-                        top: BorderSide(
-                          color: dark
-                              ? Colors.white10
-                              : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                    ),
-                    child: SafeArea(
-                      top: false,
-                      bottom: !widget.embeddedInNav,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 8, 12, 10),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              tooltip: 'Gửi Ảnh hoặc Video',
-                              onPressed: _uploadingMedia
-                                  ? null
-                                  : _openMediaPickerSheet,
-                              icon: const Icon(
-                                Iconsax.gallery_add,
-                                color: Color(0xFF173E32),
-                              ),
+                  SafeArea(
+                    top: false,
+                    bottom: !widget.embeddedInNav,
+                    child: ShopGlass(
+                      radius: 26,
+                      margin: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+                      padding: const EdgeInsets.fromLTRB(6, 6, 8, 6),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'Gửi Ảnh hoặc Video',
+                            onPressed: _uploadingMedia
+                                ? null
+                                : _openMediaPickerSheet,
+                            icon: const Icon(
+                              Iconsax.gallery_add,
+                              color: Color(0xFF173E32),
                             ),
-                            IconButton(
-                              tooltip: 'Gửi Video',
-                              onPressed: _uploadingMedia
-                                  ? null
-                                  : () =>
-                                      _pickAndSendVideo(ImageSource.gallery),
-                              icon: const Icon(
-                                Iconsax.video_play,
-                                color: Color(0xFF0284C7),
-                              ),
+                          ),
+                          IconButton(
+                            tooltip: 'Gửi Video',
+                            onPressed: _uploadingMedia
+                                ? null
+                                : () => _pickAndSendVideo(ImageSource.gallery),
+                            icon: const Icon(
+                              Iconsax.video_play,
+                              color: Color(0xFF0284C7),
                             ),
-                            Expanded(
-                              child: TextField(
-                                controller: _input,
-                                textInputAction: TextInputAction.send,
-                                onSubmitted: (_) => _sendMessage(),
-                                maxLines: 3,
-                                minLines: 1,
-                                decoration: InputDecoration(
-                                  hintText:
-                                      'Nhắn tin cho VELORA',
-                                  hintStyle: const TextStyle(fontSize: 12.5),
-                                  filled: true,
-                                  fillColor: dark
-                                      ? const Color(0xFF1E3028)
-                                      : const Color(0xFFF3F6F3),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 15,
-                                    vertical: 11,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(22),
-                                    borderSide: BorderSide.none,
-                                  ),
+                          ),
+                          Expanded(
+                            child: TextField(
+                              controller: _input,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) => _sendMessage(),
+                              maxLines: 3,
+                              minLines: 1,
+                              decoration: const InputDecoration(
+                                hintText: 'Nhắn tin cho VELORA',
+                                hintStyle: TextStyle(fontSize: 12.5),
+                                filled: false,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
                                 ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 44,
-                              height: 44,
-                              child: FilledButton(
-                                onPressed:
-                                    _sending ? null : () => _sendMessage(),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF173E32),
-                                  foregroundColor: const Color(0xFFDDEABB),
-                                  padding: EdgeInsets.zero,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                child: const Icon(Iconsax.send_1, size: 19),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 6),
+                          ShopChatSendButton(onPressed: _sending ? null : () => _sendMessage()),
+                        ],
                       ),
                     ),
                   ),
                 ],
               ),
+      ),
       ),
       ),
     );
@@ -933,7 +860,7 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: dark ? const Color(0xFF1A2821) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -990,29 +917,42 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
         ),
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: isCustomer
-              ? const Color(0xFF173E32)
-              : (dark ? const Color(0xFF1D2F27) : Colors.white),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isCustomer ? 16 : 4),
-            bottomRight: Radius.circular(isCustomer ? 4 : 16),
-          ),
-          border: isCustomer
-              ? null
-              : Border.all(
+        decoration: isCustomer
+            ? BoxDecoration(
+                color: const Color(0xFF173E32),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(4),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              )
+            : ShopGlassDecoration(
+                color: dark ? const Color(0xFF1D2F27) : Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                  bottomLeft: Radius.circular(4),
+                  bottomRight: Radius.circular(16),
+                ),
+                border: Border.all(
                   color: const Color(0xFF173E32).withValues(alpha: 0.22),
                 ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1057,7 +997,7 @@ class _VeloraSupportChatScreenState extends State<VeloraSupportChatScreen> {
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
+                  decoration: ShopGlassDecoration(
                     color: isCustomer
                         ? Colors.white.withValues(alpha: 0.14)
                         : const Color(0xFFF1F5F9),
@@ -1303,9 +1243,10 @@ class _ChatVideoPlayerDialogState extends State<_ChatVideoPlayerDialog> {
             Positioned(
               top: 8,
               right: 8,
-              child: IconButton(
+              child: ShopGlassIconButton(
                 onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close_rounded, color: Colors.white),
+                icon: Icons.close_rounded,
+                iconColor: Colors.white,
               ),
             ),
           ],

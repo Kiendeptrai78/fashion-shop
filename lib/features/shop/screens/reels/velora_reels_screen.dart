@@ -1,4 +1,11 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
+import 'package:fashion_business_app/common/widgets/videos/video_seek_bar.dart';
+import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
+import 'package:fashion_business_app/common/widgets/tabs/shop_tab_body.dart';
 import 'dart:async';
+import 'entertainment_video_source.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +18,7 @@ import 'package:fashion_business_app/features/shop/screens/reels/velora_review_v
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -25,6 +33,7 @@ class VeloraReelItem {
     required this.videoIndex,
     required this.totalProductVideos,
     this.isPersonalizedRecommendation = false,
+    this.source,
   });
 
   final String id;
@@ -33,6 +42,7 @@ class VeloraReelItem {
   final int videoIndex;
   final int totalProductVideos;
   final bool isPersonalizedRecommendation;
+  final Map<String, dynamic>? source;
 }
 
 class VeloraReelsScreen extends StatefulWidget {
@@ -53,9 +63,9 @@ class VeloraReelsScreen extends StatefulWidget {
 
 class _VeloraReelsScreenState extends State<VeloraReelsScreen> {
   final _db = FirebaseFirestore.instance;
-  PageController _pageController = PageController();
 
   List<ProductModel> _allProducts = [];
+  List<Map<String, dynamic>> _entertainment = [];
   List<VeloraReelItem> _reels = [];
   Set<String> _recommendedProductIds = {};
   Set<String> _favoriteCategoryIds = {};
@@ -64,25 +74,24 @@ class _VeloraReelsScreenState extends State<VeloraReelsScreen> {
   bool _loading = true;
   bool _muted = false;
 
-  static const List<Map<String, String>> _categories = [
+  List<Map<String, String>> get _categories => [
     {'id': 'all', 'name': 'Dành cho bạn'},
-    {'id': 'running-category', 'name': 'Chạy bộ'},
-    {'id': 'lifestyle-category', 'name': 'Hằng ngày'},
-    {'id': 'training-category', 'name': 'Tập luyện'},
-    {'id': 'basketball-category', 'name': 'Bóng rổ'},
-    {'id': 'trail-category', 'name': 'Địa hình'},
+    if (widget.initialProduct == null)
+      for (final entry in EntertainmentVideoSource.categories.entries)
+        {'id': entry.key, 'name': entry.value}
+    else ...[
+      {'id': 'running-category', 'name': 'Chạy bộ'},
+      {'id': 'lifestyle-category', 'name': 'Hằng ngày'},
+      {'id': 'training-category', 'name': 'Tập luyện'},
+      {'id': 'basketball-category', 'name': 'Bóng rổ'},
+      {'id': 'trail-category', 'name': 'Địa hình'},
+    ],
   ];
 
   @override
   void initState() {
     super.initState();
     _loadReels();
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
   }
 
   List<String> _videosForProduct(ProductModel p) {
@@ -112,6 +121,10 @@ class _VeloraReelsScreenState extends State<VeloraReelsScreen> {
 
       final snap = await _db.collection('Products').get();
       final products = snap.docs.map(ProductModel.fromSnapshot).toList();
+      if (widget.initialProduct == null) {
+        _entertainment = await EntertainmentVideoSource.load();
+      }
+      if (!mounted) return;
       _allProducts = products;
       _rebuildReelList();
     } catch (_) {
@@ -186,16 +199,16 @@ class _VeloraReelsScreenState extends State<VeloraReelsScreen> {
       final aFavCat = _favoriteCategoryIds.contains(a.categoryId);
       final bFavCat = _favoriteCategoryIds.contains(b.categoryId);
       if (aFavCat != bFavCat) return aFavCat ? -1 : 1;
+      final aWithAudio = (a.videoSources ?? []).any((source) => source['hasAudio'] == true);
+      final bWithAudio = (b.videoSources ?? []).any((source) => source['hasAudio'] == true);
+      if (aWithAudio != bWithAudio) return aWithAudio ? -1 : 1;
       return a.title.compareTo(b.title);
     });
 
     final items = <VeloraReelItem>[];
     final usedUrls = <String>{};
     for (final p in filteredProducts) {
-      final customExplicit = (p.videos ?? const <String>[])
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty && !VeloraReviewVideoCatalog.isLegacyAiVideoUrl(e))
-          .toList();
+      final customExplicit = _videosForProduct(p);
       final isInitial =
           widget.initialProduct != null && p.id == widget.initialProduct!.id;
       final isRec = _recommendedProductIds.contains(p.id);
@@ -223,32 +236,25 @@ class _VeloraReelsScreenState extends State<VeloraReelsScreen> {
           totalProductVideos: customExplicit.length,
           isPersonalizedRecommendation: isRec,
         ));
-      } else {
-        // Pick a fresh real-human reviewer clip so consecutive slides never repeat.
-        final pool = VeloraReviewVideoCatalog.clipsForCategory(p.categoryId);
-        if (pool.every((c) => usedUrls.contains(c.url))) {
-          for (final c in pool) {
-            usedUrls.remove(c.url);
-          }
-        }
-        final picked = VeloraReviewVideoCatalog.pickDiverseClipForProduct(
-          p,
-          recentlyUsedUrls: usedUrls,
-        );
-        usedUrls.add(picked.url);
-        items.add(VeloraReelItem(
-          id: '${p.id}_v0',
-          product: p,
-          videoUrl: picked.url,
-          videoIndex: 0,
-          totalProductVideos: 2,
-          isPersonalizedRecommendation: isRec,
-        ));
       }
     }
 
-    _pageController.dispose();
-    _pageController = PageController(initialPage: 0);
+    if (widget.initialProduct == null && _allProducts.isNotEmpty) {
+      final suggestions = pool.isEmpty ? _allProducts : pool;
+      final stock = _entertainment.where((video) =>
+          _selectedCategoryId == 'all' || video['category'] == _selectedCategoryId).toList();
+      final entertainmentItems = <VeloraReelItem>[];
+      for (var i = 0; i < stock.length; i++) {
+        final source = stock[i];
+        final url = source['url'].toString();
+        if (!usedUrls.add(url)) continue;
+        entertainmentItems.add(VeloraReelItem(
+          id: 'entertainment_${source['id']}', product: suggestions[i % suggestions.length],
+          videoUrl: url, videoIndex: 0, totalProductVideos: 1, source: source,
+        ));
+      }
+      items.insertAll(0, entertainmentItems);
+    }
     setState(() {
       _reels = items;
       _currentIndex = 0;
@@ -259,10 +265,14 @@ class _VeloraReelsScreenState extends State<VeloraReelsScreen> {
   Widget build(BuildContext context) {
     final lang = Localizations.localeOf(context).languageCode;
     final isVi = lang != 'en';
+    final category = _selectedCategoryId;
+    final reels = _reels;
+    final noOriginalAudio = reels.isNotEmpty && _currentIndex < reels.length &&
+        reels[_currentIndex].source?['hasAudio'] == false;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: const Color(0xFF07130F),
+        backgroundColor: const Color(0xFF0B0E0D),
         body: Stack(
           children: [
             if (_loading)
@@ -278,19 +288,19 @@ class _VeloraReelsScreenState extends State<VeloraReelsScreen> {
                     const SizedBox(height: 12),
                     Text(
                       isVi
-                          ? 'Chưa có video review thực tế nào trong danh mục này.'
-                          : 'No product review videos in this category yet.',
+                          ? 'Chưa tải được video cho danh mục này.'
+                          : 'No videos available in this category yet.',
                       style: const TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton(
                       onPressed: () {
                         _selectedCategoryId = 'all';
-                        _rebuildReelList();
+                        _loadReels();
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFDDEABB),
-                        side: const BorderSide(color: Color(0xFFDDEABB)),
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white38),
                       ),
                       child: Text(isVi ? 'Xem tất cả Video VELORA' : 'View all VELORA Reels'),
                     ),
@@ -298,13 +308,17 @@ class _VeloraReelsScreenState extends State<VeloraReelsScreen> {
                 ),
               )
             else
-              PageView.builder(
-                controller: _pageController,
+              ShopTabBody(
+                index: _categories.indexWhere((item) => item['id'] == category),
+                backgroundColor: const Color(0xFF0B0E0D),
+                child: PageView.builder(
                 scrollDirection: Axis.vertical,
-                itemCount: _reels.length,
-                onPageChanged: (idx) => setState(() => _currentIndex = idx),
+                itemCount: reels.length,
+                onPageChanged: (idx) {
+                  if (category == _selectedCategoryId) setState(() => _currentIndex = idx);
+                },
                 itemBuilder: (context, index) {
-                  final reel = _reels[index];
+                  final reel = reels[index];
                   return _VeloraReelSlide(
                     key: ValueKey(reel.id),
                     reel: reel,
@@ -316,126 +330,62 @@ class _VeloraReelsScreenState extends State<VeloraReelsScreen> {
                     onUserInteracted: () => _injectSimilarProductsFor(reel.product),
                   );
                 },
-              ),
-
-            // Top header + category filter tabs (TikTok style)
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        if (widget.showBackButton || Navigator.of(context).canPop())
-                          IconButton(
-                            onPressed: () => Navigator.of(context).maybePop(),
-                            icon: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: const Color(0xFFDDEABB).withValues(alpha: 0.35),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.play_circle_filled_rounded,
-                                color: Color(0xFFDDEABB),
-                                size: 15,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                isVi ? 'VELORA REVIEW' : 'VELORA REVIEWS',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Spacer(),
-                        if (_reels.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.35),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              '${_currentIndex + 1} / ${_reels.length}',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 34,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _categories.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (_, idx) {
-                          final cat = _categories[idx];
-                          final selected = _selectedCategoryId == cat['id'];
-                          return GestureDetector(
-                            onTap: () {
-                              if (_selectedCategoryId != cat['id']) {
-                                _selectedCategoryId = cat['id']!;
-                                _rebuildReelList();
-                              }
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? const Color(0xFFDDEABB)
-                                    : Colors.black.withValues(alpha: 0.42),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: selected
-                                      ? const Color(0xFFDDEABB)
-                                      : Colors.white.withValues(alpha: 0.22),
-                                ),
-                              ),
-                              child: ShopText(
-                                cat['name']!,
-                                style: TextStyle(
-                                  color: selected
-                                      ? const Color(0xFF102B23)
-                                      : Colors.white,
-                                  fontSize: 12.5,
-                                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
                 ),
               ),
-            ),
+
+            Theme(
+              data: Theme.of(context).copyWith(brightness: Brightness.dark),
+              child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 4, 0),
+                child: Row(children: [
+                  if (widget.showBackButton || Navigator.of(context).canPop())
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ShopGlassBackButton(
+                        onDark: true,
+                        iconColor: Colors.white,
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                    ),
+                  Expanded(child: ShopFilterTabs(
+                    tabs: _categories.map((category) => ShopFilterTab(
+                      label: category['id'] == 'all'
+                          ? (isVi ? 'Đề xuất' : 'For you') : category['name']!,
+                      count: 0,
+                      selected: _selectedCategoryId == category['id'],
+                      onTap: () {
+                        if (_selectedCategoryId != category['id']) {
+                          _selectedCategoryId = category['id']!;
+                          _rebuildReelList();
+                        }
+                      },
+                    )).toList(),
+                  )),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, right: 6),
+                    child: ShopGlassIconButton(
+                      size: 38,
+                      iconSize: 20,
+                      onPressed: () {
+                        if (noOriginalAudio) {
+                          TLoaders.customToast(message: isVi
+                              ? 'Video gốc không có âm thanh.' : 'This original video has no audio track.');
+                        } else {
+                          setState(() => _muted = !_muted);
+                        }
+                      },
+                      tooltip: noOriginalAudio ? (isVi ? 'Video gốc không có tiếng' : 'No original audio')
+                          : _muted ? (isVi ? 'Bật tiếng' : 'Unmute') : (isVi ? 'Tắt tiếng' : 'Mute'),
+                      icon: _muted || noOriginalAudio ? CupertinoIcons.speaker_slash : CupertinoIcons.speaker_2,
+                      onDark: true,
+                      iconColor: Colors.white,
+                    ),
+                  ),
+                ]),
+              ),
+            )),
           ],
         ),
       ),
@@ -465,30 +415,37 @@ class _VeloraReelSlide extends StatefulWidget {
   State<_VeloraReelSlide> createState() => _VeloraReelSlideState();
 }
 
-class _VeloraReelSlideState extends State<_VeloraReelSlide> {
+class _VeloraReelSlideState extends State<_VeloraReelSlide> with WidgetsBindingObserver {
   final _db = FirebaseFirestore.instance;
   VideoPlayerController? _videoController;
   bool _initialized = false;
   bool _pausedByUser = false;
   bool _liked = false;
   bool _videoSaved = false;
-  int _likesCount = 24;
-  int _commentsCount = 3;
+  int _likesCount = 0;
+  int _commentsCount = 0;
   bool _showHeartBurst = false;
+  bool _videoFailed = false;
 
   @override
   void initState() {
     super.initState();
-    // Base organic counts from product hash so every video looks active
-    final seed = widget.reel.product.id.hashCode.abs();
-    _likesCount = 18 + (seed % 95);
-    _commentsCount = 3 + (seed % 14);
+    WidgetsBinding.instance.addObserver(this);
     _loadInteractionState();
     _initVideo();
     if (widget.autoOpenComments) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _openCommentsSheet();
       });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.isActive && !_pausedByUser) {
+      _videoController?.play();
+    } else {
+      _videoController?.pause();
     }
   }
 
@@ -509,23 +466,45 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _videoController?.dispose();
     super.dispose();
   }
 
   Future<void> _initVideo() async {
+    final previous = _videoController;
+    _videoController = null;
+    if (previous != null) unawaited(previous.dispose());
+    if (mounted) {
+      setState(() {
+        _initialized = false;
+        _videoFailed = false;
+      });
+    }
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.reel.videoUrl),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false));
+    _videoController = ctrl;
     try {
-      final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.reel.videoUrl));
-      _videoController = ctrl;
-      await ctrl.initialize();
+      await ctrl.initialize().timeout(const Duration(seconds: 20));
+      if (!mounted || _videoController != ctrl) { await ctrl.dispose(); return; }
+      setState(() => _initialized = true);
       await ctrl.setLooping(true);
       await ctrl.setVolume(widget.isMuted ? 0 : 1);
+      final start = (widget.reel.source?['startAtSeconds'] as num? ?? 0).toInt();
+      if (start > 0 && start < ctrl.value.duration.inSeconds) {
+        await ctrl.seekTo(Duration(seconds: start));
+      }
       if (widget.isActive && !_pausedByUser) {
         await ctrl.play();
       }
-      if (mounted) setState(() => _initialized = true);
-    } catch (_) {
-      if (mounted) setState(() => _initialized = false);
+    } catch (error, stack) {
+      debugPrint('Reel ${widget.reel.id} playback failed (${widget.reel.videoUrl}): $error\n$stack');
+      if (mounted && _videoController == ctrl) {
+        setState(() {
+          _initialized = false;
+          _videoFailed = true;
+        });
+      }
     }
   }
 
@@ -537,12 +516,12 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
       final data = doc.data();
       if (data != null && mounted) {
         final likedIds = List<String>.from(data['videoLikedUserIds'] as List? ?? const []);
-        final storedLikes = (data['videoLikesCount'] as num?)?.toInt();
-        final storedComments = (data['videoCommentsCount'] as num?)?.toInt();
+        final storedLikes = likedIds.length;
+        final storedComments = (await _db.collection('Products').doc(pId).collection('VideoComments').count().get()).count ?? 0;
         setState(() {
           if (user != null && likedIds.contains(user.uid)) _liked = true;
-          if (storedLikes != null && storedLikes > 0) _likesCount = storedLikes;
-          if (storedComments != null && storedComments > 0) _commentsCount = storedComments;
+          _likesCount = storedLikes;
+          _commentsCount = storedComments;
         });
       }
       if (user != null) {
@@ -592,13 +571,12 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
     final isVi = lang != 'en';
     final effectivePrice = p.salePrice > 0 ? p.salePrice : p.price;
 
-    await showModalBottomSheet<void>(
+    await showShopBottomSheet<void>(
       context: context,
       showDragHandle: false,
-      backgroundColor: const Color(0xFF0E211B),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
+
+
+      dark: true,
       builder: (sheetCtx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
           final isSaved = _videoSaved ||
@@ -672,12 +650,10 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
                           ],
                         ),
                       ),
-                      IconButton(
+                      ShopGlassIconButton(
                         onPressed: () => Navigator.of(ctx).pop(),
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: Colors.white70,
-                        ),
+                        icon: Icons.close_rounded,
+                        iconColor: Colors.white70,
                       ),
                     ],
                   ),
@@ -685,7 +661,7 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
 
                   // 1. Lưu video & sản phẩm
                   _ReelSheetActionTile(
-                    icon: isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                    icon: isSaved ? Iconsax.bookmark5 : Iconsax.bookmark,
                     iconColor: isSaved
                         ? const Color(0xFF102B23)
                         : const Color(0xFFDDEABB),
@@ -720,7 +696,7 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
                         : 'Copy shareable link & sneaker info to clipboard',
                     onTap: () async {
                       final shareText =
-                          '🔥 Xem ngay mẫu ${p.title} (${formatShopMoney(effectivePrice, language: lang)}) chính hãng VELORA!\n🎬 Video thực tế: ${widget.reel.videoUrl}';
+                          '🔥 Xem ngay mẫu ${p.title} (${formatShopMoney(effectivePrice, language: lang)}) chính hãng VELORA!\n🎬 Video: ${widget.reel.videoUrl}';
                       await Clipboard.setData(ClipboardData(text: shareText));
                       if (ctx.mounted) Navigator.of(ctx).pop();
                       TLoaders.successSnackBar(
@@ -890,14 +866,14 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
 
   Future<void> _openCommentsSheet() async {
     final p = widget.reel.product;
-    await showModalBottomSheet<void>(
+    await showShopBottomSheet<void>(
       context: context,
+      borderless: true,
       isScrollControlled: true,
       showDragHandle: false,
-      backgroundColor: const Color(0xFF10221C),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+
+
+      dark: true,
       builder: (sheetCtx) => _ReelCommentsSheet(
         product: p,
         videoUrl: widget.reel.videoUrl,
@@ -927,6 +903,7 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
     final clipMeta = VeloraReviewVideoCatalog.metadataForUrl(
       widget.reel.videoUrl,
       p,
+      sourceOverride: widget.reel.source,
     );
 
     return GestureDetector(
@@ -946,7 +923,7 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Real video player or clean dark buffering placeholder
+          // 1. Video and its loading surface fill the entire viewport.
           if (_initialized && _videoController != null)
             FittedBox(
               fit: BoxFit.cover,
@@ -957,20 +934,33 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
               ),
             )
           else
-            const ColoredBox(
-              color: Color(0xFF0A0D0C),
+            ColoredBox(
+              color: const Color(0xFF0B0E0D),
               child: Center(
-                child: SizedBox(
+                child: _videoFailed ? Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.videocam_off_outlined, size: 36, color: Colors.white70),
+                  const SizedBox(height: 12),
+                  Text(isVi ? 'Chưa thể phát video này' : 'This video could not be played',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  Text(isVi ? 'Thử lại hoặc vuốt sang video khác.' : 'Retry or swipe to another video.',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(onPressed: _initVideo,
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: Text(isVi ? 'Thử lại' : 'Retry')),
+                ]) : const SizedBox(
                   width: 28,
                   height: 28,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.2,
-                    color: Colors.white54,
+                    color: Color(0xFFDDEABB),
                   ),
                 ),
               ),
             ),
 
+          if (_initialized) ...[
           // 2. Subtle top & bottom gradient scrim for legible text
           const DecoratedBox(
             decoration: BoxDecoration(
@@ -981,9 +971,9 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
                   Color(0x9905100C),
                   Colors.transparent,
                   Colors.transparent,
-                  Color(0xE605100C),
+                  Color(0xB305100C),
                 ],
-                stops: [0.0, 0.22, 0.58, 1.0],
+                stops: [0.0, 0.16, 0.78, 1.0],
               ),
             ),
           ),
@@ -998,7 +988,7 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
                   color: Colors.black.withValues(alpha: 0.45),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 42),
+                child: const Icon(CupertinoIcons.play_fill, color: Colors.white, size: 34),
               ),
             ),
 
@@ -1006,408 +996,108 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
           if (_showHeartBurst)
             const Center(
               child: Icon(
-                Icons.favorite_rounded,
+                CupertinoIcons.heart_fill,
                 color: Color(0xFFFF4D6D),
                 size: 110,
               ),
             ),
 
-          // 5. Right-side refined Reels action rail (Like, Comment, Unified Save & Share, Mute)
           Positioned(
-            right: 12,
-            bottom: 138,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Like / Heart button
-                _ReelActionButton(
-                  icon: _liked
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  iconColor: _liked ? const Color(0xFFFF4D6D) : Colors.white,
-                  activeBg: _liked
-                      ? const Color(0xFFFF4D6D).withValues(alpha: 0.22)
-                      : null,
-                  label: '$_likesCount',
-                  onTap: _toggleLike,
-                ),
-                const SizedBox(height: 16),
-                // Comment button
-                _ReelActionButton(
-                  icon: Iconsax.message_text_15,
-                  iconColor: Colors.white,
-                  label: '$_commentsCount',
-                  onTap: _openCommentsSheet,
-                ),
-                const SizedBox(height: 16),
-                // Unified Save Video + Share single icon button
-                _ReelActionButton(
-                  icon: _videoSaved
-                      ? Icons.bookmark_added_rounded
-                      : Iconsax.share,
-                  iconColor:
-                      _videoSaved ? const Color(0xFFDDEABB) : Colors.white,
-                  activeBg: _videoSaved
-                      ? const Color(0xFF173E32).withValues(alpha: 0.78)
-                      : null,
-                  showHighlightDot: _videoSaved,
-                  label: lang == 'en' ? 'Save / Share' : 'Lưu · Chia sẻ',
-                  onTap: _openSaveAndShareSheet,
-                ),
-                const SizedBox(height: 16),
-                // Mute / Unmute
-                _ReelActionButton(
-                  icon: widget.isMuted
-                      ? Iconsax.volume_cross
-                      : Iconsax.volume_high,
-                  iconColor: Colors.white,
-                  label: lang == 'en'
-                      ? (widget.isMuted ? 'Unmute' : 'Mute')
-                      : (widget.isMuted ? 'Bật tiếng' : 'Tắt tiếng'),
-                  onTap: widget.onToggleMute,
-                ),
-              ],
-            ),
+            right: 8,
+            bottom: 126 + MediaQuery.paddingOf(context).bottom,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _ReelActionButton(icon: _liked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                iconColor: _liked ? const Color(0xFFFF375F) : Colors.white,
+                label: '$_likesCount', onTap: _toggleLike),
+              const SizedBox(height: 18),
+              _ReelActionButton(icon: CupertinoIcons.chat_bubble_fill,
+                iconColor: Colors.white, label: '$_commentsCount', onTap: _openCommentsSheet),
+              const SizedBox(height: 18),
+              _ReelActionButton(icon: _videoSaved ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
+                iconColor: _videoSaved ? const Color(0xFFDDEABB) : Colors.white,
+                label: isVi ? (_videoSaved ? 'Đã lưu' : 'Lưu') : 'Save',
+                onTap: _toggleSaveVideoAndProduct),
+              const SizedBox(height: 18),
+              _ReelActionButton(icon: CupertinoIcons.arrowshape_turn_up_right_fill,
+                iconColor: Colors.white, label: isVi ? 'Chia sẻ' : 'Share',
+                onTap: _openSaveAndShareSheet),
+            ]),
           ),
-
-          // 6. Bottom caption, sleek product glass card & thin video scrubber
           Positioned(
-            left: 16,
-            right: 84,
-            bottom: 18,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Real reviewer creator strip (TikTok / Shopee Video style)
-                Row(
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF1F5444), Color(0xFF0E2921)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFDDEABB),
-                          width: 1.4,
-                        ),
-                      ),
-                      child: Text(
-                        clipMeta.creatorInitials,
-                        style: const TextStyle(
-                          color: Color(0xFFDDEABB),
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  clipMeta.creatorName,
-                                  softWrap: true,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w800,
-                                    shadows: [
-                                      Shadow(
-                                        color: Colors.black54,
-                                        blurRadius: 6,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.verified_rounded,
-                                color: Color(0xFFDDEABB),
-                                size: 14,
-                              ),
-                            ],
-                          ),
-                          Text(
-                            '${clipMeta.creatorHandle} · ${clipMeta.reviewTag}',
-                            softWrap: true,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.78),
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDDEABB),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: ShopText(
-                        'VELORA · ${p.categoryName.isNotEmpty ? p.categoryName : "Running"}',
-                        style: const TextStyle(
-                          color: Color(0xFF102B23),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    if (widget.reel.totalProductVideos > 1)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.42),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Text(
-                          'Review ${widget.reel.videoIndex + 1}/${widget.reel.totalProductVideos}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    if (widget.reel.isPersonalizedRecommendation)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD166).withValues(alpha: 0.22),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: const Color(0xFFFFD166).withValues(alpha: 0.6),
-                          ),
-                        ),
-                        child: const Text(
-                          'Hợp gu bạn',
-                          style: TextStyle(
-                            color: Color(0xFFFFE599),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  p.title,
-                  softWrap: true,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black54,
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '“${isVi ? clipMeta.reviewQuoteVi : clipMeta.reviewQuoteEn}”',
-                  softWrap: true,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 12.5,
-                    height: 1.42,
-                    fontWeight: FontWeight.w500,
-                    shadows: const [
-                      Shadow(
-                        color: Colors.black54,
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Luxury Glass Product Card CTA
+            left: 12,
+            right: 76,
+            bottom: 32 + MediaQuery.paddingOf(context).bottom,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min, children: [
                 InkWell(
                   onTap: () {
                     _videoController?.pause();
                     Get.to(() => ProductDetail(product: p));
                   },
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(7),
                   child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFF14362B).withValues(alpha: 0.94),
-                          const Color(0xFF0C221B).withValues(alpha: 0.96),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: const Color(0xFFDDEABB).withValues(alpha: 0.35),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          child: CachedNetworkImage(
-                            imageUrl: p.thumbnail,
-                            fit: BoxFit.contain,
-                            errorWidget: (_, __, ___) => const Icon(
-                              Iconsax.shopping_bag,
-                              color: Colors.white54,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                p.title,
-                                softWrap: true,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13.5,
-                                  height: 1.25,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 2,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text(
-                                    formatShopMoney(effectivePrice, language: lang),
-                                    style: const TextStyle(
-                                      color: Color(0xFFDDEABB),
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13.5,
-                                    ),
-                                  ),
-                                  if (p.salePrice > 0 && p.salePrice < p.price)
-                                    Text(
-                                      formatShopMoney(p.price, language: lang),
-                                      style: const TextStyle(
-                                        color: Colors.white54,
-                                        fontSize: 11,
-                                        decoration: TextDecoration.lineThrough,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 9,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFDDEABB),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ShopText(
-                                'Buy now',
-                                style: TextStyle(
-                                  color: Color(0xFF102B23),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              SizedBox(width: 3),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 13,
-                                color: Color(0xFF102B23),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.42),
+                      borderRadius: BorderRadius.circular(7)),
+                    child: Row(children: [
+                      const Icon(Iconsax.shopping_bag, color: Color(0xFFFFD56A), size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min, children: [
+                          Text(p.title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white, fontSize: 13,
+                              fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 2),
+                          Text('${isVi ? "Giày gợi ý" : "Suggested pair"} · ${formatShopMoney(effectivePrice, language: lang)}',
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        ])),
+                      const Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 17),
+                    ]),
                   ),
                 ),
-              ],
-            ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () {
+                    final source = widget.reel.source ?? (p.videoSources ?? []).where(
+                      (entry) => entry['url'] == widget.reel.videoUrl ||
+                          entry['originalUrl'] == widget.reel.videoUrl).firstOrNull;
+                    final uri = Uri.tryParse((source?['sourceUrl'] ?? '').toString());
+                    final license = Uri.tryParse((source?['licenseUrl'] ?? '').toString());
+                    if (license != null && license.scheme == 'https') {
+                      showShopBottomSheet(context: context, showDragHandle: true,
+                        builder: (_) => SafeArea(child: Padding(padding: const EdgeInsets.all(24),
+                          child: Column(mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(source?['title'] ?? '', style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 12),
+                            Text('© ${source?['author'] ?? ''}', style: const TextStyle(height: 1.6)),
+                            const SizedBox(height: 16),
+                            if (uri != null && uri.scheme == 'https')
+                              TextButton(onPressed: () => launchUrl(uri),
+                                child: Text(isVi ? 'Xem bản phim gốc' : 'Original film')),
+                            TextButton(onPressed: () => launchUrl(license),
+                              child: Text(isVi ? 'Giấy phép Creative Commons' : 'Creative Commons license')),
+                          ]))),
+                      );
+                    } else if (uri != null && uri.scheme == 'https') {
+                      launchUrl(uri);
+                    }
+                  },
+                  child: Text('${clipMeta.creatorName} · ${clipMeta.creatorHandle} ↗',
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 6)])),
+                ),
+              ]),
           ),
 
-          // 7. Sleek thin video progress bar along the very bottom edge
           if (_initialized && _videoController != null)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: VideoProgressIndicator(
-                _videoController!,
-                allowScrubbing: true,
-                padding: EdgeInsets.zero,
-                colors: VideoProgressColors(
-                  playedColor: const Color(0xFFDDEABB),
-                  bufferedColor: Colors.white.withValues(alpha: 0.25),
-                  backgroundColor: Colors.white.withValues(alpha: 0.12),
-                ),
-              ),
-            ),
+            Positioned(left: 0, right: 0, bottom: MediaQuery.paddingOf(context).bottom,
+              child: VideoSeekBar(controller: _videoController!, isActive: widget.isActive, compact: true)),
+          ],
         ],
       ),
     );
@@ -1415,93 +1105,25 @@ class _VeloraReelSlideState extends State<_VeloraReelSlide> {
 }
 
 class _ReelActionButton extends StatelessWidget {
-  const _ReelActionButton({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-    required this.onTap,
-    this.activeBg,
-    this.showHighlightDot = false,
-  });
-
+  const _ReelActionButton({required this.icon, required this.iconColor,
+    required this.label, required this.onTap});
   final IconData icon;
   final Color iconColor;
   final String label;
   final VoidCallback onTap;
-  final Color? activeBg;
-  final bool showHighlightDot;
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: activeBg ?? Colors.black.withValues(alpha: 0.42),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: showHighlightDot
-                        ? const Color(0xFFDDEABB).withValues(alpha: 0.7)
-                        : Colors.white.withValues(alpha: 0.24),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Icon(icon, color: iconColor, size: 22),
-              ),
-              if (showHighlightDot)
-                Positioned(
-                  right: 1,
-                  top: 1,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFDDEABB),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF0A1E17),
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              shadows: [
-                Shadow(
-                  color: Colors.black87,
-                  blurRadius: 6,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Semantics(button: true, label: label, excludeSemantics: true,
+    child: GestureDetector(onTap: onTap, behavior: HitTestBehavior.opaque,
+      child: SizedBox(width: 52, height: 48, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: iconColor, size: 27,
+          shadows: const [Shadow(color: Colors.black38, blurRadius: 6)]),
+        const SizedBox(height: 4),
+        Text(label, maxLines: 1, style: const TextStyle(color: Colors.white,
+          fontSize: 12, fontWeight: FontWeight.w600,
+          shadows: [Shadow(color: Colors.black54, blurRadius: 4)])),
+      ])),
+    ));
 }
 
 class _ReelSheetActionTile extends StatelessWidget {
@@ -1713,9 +1335,10 @@ class _ReelCommentsSheetState extends State<_ReelCommentsSheet> {
                       ),
                     ),
                   ),
-                  IconButton(
+                  ShopGlassIconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                    icon: Icons.close_rounded,
+                    iconColor: Colors.white70,
                   ),
                 ],
               ),
@@ -1732,24 +1355,6 @@ class _ReelCommentsSheetState extends State<_ReelCommentsSheet> {
                     .snapshots(),
                 builder: (context, snapshot) {
                   final docs = snapshot.data?.docs ?? const [];
-                  final defaultComments = [
-                    {
-                      'authorName': 'Minh Hoàng',
-                      'text': 'Form giày VELORA nhìn ngoài thực tế cực kỳ sắc nét, đệm đi êm lắm!',
-                      'time': '2 giờ trước',
-                    },
-                    {
-                      'authorName': 'Thanh Thảo',
-                      'text': 'Mình mới nhận đôi này hôm qua, mang chạy 5km nhẹ tênh luôn ❤️',
-                      'time': '5 giờ trước',
-                    },
-                    {
-                      'authorName': 'Tuấn Kiệt',
-                      'text': 'Phối đồ đi làm hay đi tập đều hợp, chuẩn hãng thiết kế riêng.',
-                      'time': '1 ngày trước',
-                    },
-                  ];
-
                   return ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
@@ -1764,12 +1369,10 @@ class _ReelCommentsSheetState extends State<_ReelCommentsSheet> {
                           adminReply: doc.data()['adminReply'] as String?,
                           highlight: true,
                         ),
-                      for (final c in defaultComments)
-                        _buildCommentTile(
-                          author: c['authorName']!,
-                          text: c['text']!,
-                          time: c['time']!,
-                        ),
+                      if (docs.isEmpty)
+                        const Padding(padding: EdgeInsets.all(24), child: Text(
+                          'Chưa có bình luận. Hãy chia sẻ cảm nhận của bạn.',
+                          style: TextStyle(color: Colors.white70), textAlign: TextAlign.center)),
                     ],
                   );
                 },

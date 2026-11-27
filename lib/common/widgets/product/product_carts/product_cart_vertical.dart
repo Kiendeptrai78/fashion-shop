@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -28,17 +29,16 @@ class TProductCartVertical extends StatelessWidget {
     return Semantics(
       button: true,
       label: '${product.brand?.name ?? ''} ${product.title}',
-      child: Material(
-        color: dark ? const Color(0xFF1A2721) : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(
-            color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE7EAE3),
-          ),
+      child: Container(
+        decoration: ShopGlassDecoration(
+          color: dark ? const Color(0xFF1A2721) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
         ),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => Get.to(() => ProductDetail(product: product)),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => Get.to(() => ProductDetail(product: product)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -64,18 +64,8 @@ class TProductCartVertical extends StatelessWidget {
                         Positioned(
                           top: 6,
                           right: 6,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: (dark ? const Color(0xFF13201A) : Colors.white).withValues(alpha: 0.88),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.08),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
+                          child: ShopGlass(
+                            radius: 999,
                             child: TFavouriteIcon(productId: product.id),
                           ),
                         ),
@@ -185,6 +175,7 @@ class TProductCartVertical extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

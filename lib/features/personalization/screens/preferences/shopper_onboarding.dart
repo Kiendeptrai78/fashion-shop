@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/features/personalization/services/account_activity.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -54,23 +55,37 @@ class _ShopperOnboardingState extends State<ShopperOnboarding> {
     final theme = Theme.of(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return PopScope(canPop: widget.editing, child: Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: widget.editing,
-        leading: _step > (widget.editing ? 1 : 0) ? IconButton(
-            tooltip: 'Back'.tr, onPressed: _saving ? null : () => setState(() => _step--),
-            icon: const Icon(Icons.arrow_back)) : null,
-        title: const ShopText('Make it yours', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        actions: [if (!widget.editing) TextButton(onPressed: _saving ? null : () => _finish(skip: true),
-            child: const ShopText('Skip for now'))],
+      extendBodyBehindAppBar: true,
+      appBar: TAppbar(
+        showBackArrow: widget.editing,
+        leading: _step > (widget.editing ? 1 : 0)
+            ? ShopGlassBackButton(
+                tooltip: 'Back'.tr,
+                onPressed: _saving ? null : () => setState(() => _step--),
+              )
+            : null,
+        title: const ShopText('Make it yours', style: shopAppbarTitleStyle),
+        actions: [
+          if (!widget.editing)
+            ShopGlassPillButton(
+              height: 36,
+              onTap: _saving ? null : () => _finish(skip: true),
+              child: const ShopText(
+                'Skip for now',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+            ),
+        ],
       ),
-      body: SafeArea(child: Column(children: [
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      body: SafeArea(top: false, child: ShopScrollUnderHeader(
+        header: Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
           child: Row(children: [for (var i = 0; i < 3; i++) Expanded(child: AnimatedContainer(
             duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 250),
             margin: const EdgeInsets.only(right: 6), height: 3,
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(4),
                 color: i <= _step ? theme.colorScheme.primary : theme.dividerColor.withValues(alpha: 0.15)),
           ))])),
+        body: Column(children: [
         Expanded(child: AnimatedSwitcher(
           duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 320),
           transitionBuilder: (child, animation) => FadeTransition(opacity: animation,
@@ -92,8 +107,8 @@ class _ShopperOnboardingState extends State<ShopperOnboarding> {
           const SizedBox(height: 12),
           ShopText('Saved on this device only. You’re in control.', textAlign: TextAlign.center,
               style: theme.textTheme.labelSmall),
-        ])),
-      ])),
+        ]))]),
+      )),
     ));
   }
 

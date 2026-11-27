@@ -3,6 +3,8 @@ import 'package:fashion_business_app/admin/screen/home/home_admin.dart';
 import 'package:fashion_business_app/admin/web/data/admin_web_models.dart';
 import 'package:fashion_business_app/admin/web/screens/admin_web_shell.dart';
 import 'package:fashion_business_app/features/authentication/screens/splash/splash_screen.dart';
+import 'package:fashion_business_app/features/personalization/services/account_activity.dart';
+import 'package:fashion_business_app/navigation_menu.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get_navigation/src/routes/get_route.dart';
 import 'package:fashion_business_app/features/authentication/screens/onboarding/onboarding.dart';
@@ -13,7 +15,6 @@ import 'package:fashion_business_app/features/personalization/screens/address/ad
 import 'package:fashion_business_app/features/personalization/screens/profile/profile_screen.dart';
 import 'package:fashion_business_app/features/personalization/screens/settings/setting_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/checkout/checkout.dart';
-import 'package:fashion_business_app/features/shop/screens/home/home_screen.dart';
 import 'package:fashion_business_app/features/shop/screens/order/order.dart';
 import 'package:fashion_business_app/features/shop/screens/product_reviews/product_review.dart';
 import 'package:fashion_business_app/features/shop/screens/store/store_screen.dart';
@@ -25,7 +26,9 @@ class AppRoutes {
   static final pages = [
     GetPage(
       name: TRoutes.home,
-      page: () => kIsWeb ? const SplashScreen() : const HomeScreen(),
+      // OAuth callbacks must not construct shopping controllers before storage is ready.
+      page: () => !kIsWeb && AccountActivity.current != null
+          ? const NavigationMenu() : const SplashScreen(),
     ),
     GetPage(name: TRoutes.store, page: () => const StoreScreen()),
     GetPage(name: TRoutes.favourites, page: () => const WishList()),

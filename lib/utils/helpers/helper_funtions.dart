@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -43,7 +44,7 @@ class THelperFunctions{
     showDialog(
       context: Get.context!,
       builder: (context){
-        return AlertDialog(
+        return ShopGlassAlertDialog(
           title: Text(title),
           content: Text(message),
           actions: [

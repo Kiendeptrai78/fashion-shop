@@ -1,3 +1,5 @@
+import 'package:fashion_business_app/common/widgets/tabs/shop_tab_body.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_status_badge.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
@@ -66,47 +68,38 @@ class _OrderScreenState extends State<OrderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7F8),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: const TAppbar(
         showBackArrow: true,
         title: ShopText(
           'My Orders',
-          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+          style: shopAppbarTitleStyle,
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            color: Colors.white,
-            height: 60,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _tabs.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 6),
-              itemBuilder: (_, index) {
-                final activity = AccountActivity.current;
-                Widget tab(int count) => ShopFilterTab(
-                  label: _tabs[index], count: count, selected: _filter == index,
-                  onTap: () => setState(() => _filter = index),
-                );
-                if (activity == null) return tab(0);
-                return Obx(() => tab(switch (index) {
+      body: ShopScrollUnderHeader(
+            header: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Builder(builder: (_) {
+              final activity = AccountActivity.current;
+              Widget bar() => ShopFilterTabs(tabs: List.generate(_tabs.length, (index) {
+                final count = activity == null ? 0 : switch (index) {
                   1 => activity.counts['pending'] ?? 0,
                   2 => activity.counts['processing'] ?? 0,
                   3 => activity.counts['shipped'] ?? 0,
                   4 => activity.counts['received'] ?? 0,
                   5 => activity.counts['cancelled'] ?? 0,
                   _ => activity.orderCount,
-                }));
-              },
-            ),
-          ),
-          const Divider(height: 1, color: Color(0xFFE5E7EB)),
-
-          Expanded(
-            child: FutureBuilder<List<OrderModel>>(
+                };
+                return ShopFilterTab(label: _tabs[index], count: count,
+                  selected: _filter == index,
+                  onTap: () => setState(() => _filter = index));
+              }));
+              return activity == null ? bar() : Obx(bar);
+            }),
+          )]),
+            body: FutureBuilder<List<OrderModel>>(
               future: _orders,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -134,7 +127,7 @@ class _OrderScreenState extends State<OrderScreen> {
                 final orders = (snapshot.data ?? []).where(_matches).toList()
                   ..sort((a, b) => b.orderDate.compareTo(a.orderDate));
 
-                return RefreshIndicator(
+                return ShopTabBody(index: _filter, child: RefreshIndicator(
                   onRefresh: _reload,
                   color: TColors.primaryColor,
                   child: ListView(
@@ -172,12 +165,10 @@ class _OrderScreenState extends State<OrderScreen> {
                       for (final order in orders) _orderCard(order),
                     ],
                   ),
-                );
+                ));
               },
             ),
           ),
-        ],
-      ),
     );
   }
 
@@ -201,7 +192,7 @@ class _OrderScreenState extends State<OrderScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
@@ -254,7 +245,7 @@ class _OrderScreenState extends State<OrderScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            decoration: BoxDecoration(
+                            decoration: ShopGlassDecoration(
                               color: const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
@@ -339,7 +330,7 @@ class _OrderScreenState extends State<OrderScreen> {
                 Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: const Color(0xFFF3F7F4),
+                  decoration: ShopGlassDecoration(color: const Color(0xFFF3F7F4),
                     borderRadius: BorderRadius.circular(10)),
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Icon(Icons.local_shipping_outlined, size: 17, color: TColors.textPrimary),

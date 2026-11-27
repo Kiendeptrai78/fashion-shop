@@ -1,0 +1,12 @@
+{
+  "name": "velora-video-api",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-26",
+  "workers_dev": true,
+  "vars": {
+    "FIREBASE_PROJECT_ID": "fashion-business-app",
+    "ADMIN_EMAIL": "phanviettinh150402@gmail.com",
+    "ADMIN_UID": "bflwKJfDOxN7pE67YAnFS414uEa2"
+  },
+  "observability": {"enabled": true}
+}

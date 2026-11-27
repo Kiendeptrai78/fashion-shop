@@ -81,6 +81,8 @@ dependencies:
   carousel_slider: ^5.0.0
   video_player: ^2.10.1
   visibility_detector: ^0.4.0+2
+  liquid_glass_widgets:
+    path: third_party/liquid_glass_widgets
   flutter_rating_bar: ^4.0.1
   flutter_slidable: ^3.1.2
 

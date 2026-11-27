@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:latlong2/latlong.dart';
 import 'widgets/address_map_picker.dart';
+import 'widgets/address_location_picker.dart';
 
 class AddNewAddressScreen extends StatefulWidget {
   const AddNewAddressScreen({super.key, this.editingAddress});
@@ -217,19 +218,20 @@ class _AddNewAddressScreenState extends State<AddNewAddressScreen> {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: TAppbar(
         showBackArrow: true,
         title: Text(
           _isEditing
               ? (isEn ? 'Edit address' : 'Chỉnh sửa địa chỉ')
               : (isEn ? 'Add new address' : 'Thêm địa chỉ mới'),
-          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+          style: shopAppbarTitleStyle,
         ),
       ),
       body: Form(
         key: controller.addressFormKey,
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: shopAppbarContentPadding(context, EdgeInsets.all(24)),
           children: [
             Text(
               _isEditing
@@ -284,23 +286,12 @@ class _AddNewAddressScreenState extends State<AddNewAddressScreen> {
             const SizedBox(height: 16),
 
             // 1. Dropdown Tỉnh / Thành phố (đầy đủ 63 tỉnh thành Việt Nam)
-            DropdownButtonFormField<String>(
+            AddressLocationPicker(
+              label: isEn ? 'Province / City' : 'Tỉnh / Thành phố',
               value: _selectedProvince,
-              isExpanded: true,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Iconsax.building),
-                labelText: isEn ? 'Province / City' : 'Tỉnh / Thành phố',
-              ),
-              items: _vietnamLocations.keys
-                  .map(
-                    (prov) => DropdownMenuItem<String>(
-                      value: prov,
-                      child: Text(prov),
-                    ),
-                  )
-                  .toList(),
+              icon: Iconsax.building,
+              items: _vietnamLocations.keys.toList(),
               onChanged: (val) {
-                if (val == null) return;
                 setState(() {
                   _selectedProvince = val;
                   _customDistrictFallback = null;
@@ -316,25 +307,12 @@ class _AddNewAddressScreenState extends State<AddNewAddressScreen> {
             const SizedBox(height: 16),
 
             // 2. Dropdown Quận / Huyện / Thị xã
-            DropdownButtonFormField<String>(
-              value: districts.contains(_selectedDistrict)
-                  ? _selectedDistrict
-                  : districts.first,
-              isExpanded: true,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Iconsax.location),
-                labelText: isEn ? 'District' : 'Quận / Huyện / Thị xã',
-              ),
-              items: districts
-                  .map(
-                    (dist) => DropdownMenuItem<String>(
-                      value: dist,
-                      child: Text(dist),
-                    ),
-                  )
-                  .toList(),
+            AddressLocationPicker(
+              label: isEn ? 'District' : 'Quận / Huyện / Thị xã',
+              value: districts.contains(_selectedDistrict) ? _selectedDistrict : districts.first,
+              icon: Iconsax.location,
+              items: districts,
               onChanged: (val) {
-                if (val == null) return;
                 setState(() {
                   _selectedDistrict = val;
                   controller.state.text = _selectedDistrict;

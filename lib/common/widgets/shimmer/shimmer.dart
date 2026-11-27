@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
@@ -23,7 +24,7 @@ class TShimmerEffect extends StatelessWidget {
       child: Container(
         width: width,
         height: height,
-        decoration: BoxDecoration(
+        decoration: ShopGlassDecoration(
             color: color ?? (dark ? TColors.darkGrey : TColors.white),
             borderRadius: BorderRadius.circular(radius)),
       ),

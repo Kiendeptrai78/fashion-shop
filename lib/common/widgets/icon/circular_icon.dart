@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
+import 'package:flutter/material.dart';
 
 class TCircularIcon extends StatelessWidget {
   const TCircularIcon({
@@ -24,21 +25,29 @@ class TCircularIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = THelperFunctions.isDarkMode(context);
-    return Container(
+    final effectiveSize = width ?? height ?? 42.0;
+    final effectiveIconColor =
+        color ?? (dark ? TColors.white : const Color(0xFF173E32));
+
+    if (onPressed != null) {
+      return GlassIconButton(
+        size: effectiveSize,
+        iconSize: size ?? TSizes.lg,
+        iconColor: effectiveIconColor,
+        tintColor: backgroundColor,
+        useOwnLayer: true,
+        onPressed: onPressed,
+        icon: Icon(icon, color: effectiveIconColor, size: size),
+      );
+    }
+
+    return ShopGlass(
       width: width,
       height: height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(100),
-        color: backgroundColor != null
-            ? backgroundColor!
-            : (dark
-                ? TColors.black.withOpacity(0.9)
-                : TColors.white.withOpacity(0.9)),
-      ),
-      child: IconButton(
-        onPressed: onPressed,
-        icon:  Icon(icon,color: color,size: size,),
-      ),
+      radius: 100,
+      color: backgroundColor,
+      padding: const EdgeInsets.all(8),
+      child: Icon(icon, color: effectiveIconColor, size: size),
     );
   }
 }

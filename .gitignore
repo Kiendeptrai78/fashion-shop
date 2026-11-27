@@ -54,6 +54,9 @@ server/push/cloudflare/node_modules/
 server/push/cloudflare/.wrangler/
 server/push/cloudflare/.dev.vars*
 server/push/cloudflare/.env*
+server/video-api/.wrangler/
+server/video-api/.dev.vars*
+server/video-api/.env*
 **/*service-account*.json
 
 # Apple authentication private keys stay outside source control

@@ -1,3 +1,6 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:fashion_business_app/common/widgets/tabs/shop_tab_body.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_status_badge.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
@@ -53,14 +56,10 @@ Future<bool?> openReturnRequestComposer(
     );
     return Future.value(false);
   }
-  return showModalBottomSheet<bool>(
+  return showShopBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
     builder: (_) => ReturnRequestComposerSheet(order: order, item: item),
   );
 }
@@ -394,9 +393,9 @@ class _ReturnRequestComposerSheetState
                     ],
                   ),
                 ),
-                IconButton(
+                ShopGlassIconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded),
+                  icon: Icons.close_rounded,
                 ),
               ],
             ),
@@ -405,7 +404,7 @@ class _ReturnRequestComposerSheetState
             // Product summary
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
@@ -471,7 +470,7 @@ class _ReturnRequestComposerSheetState
                       horizontal: 12,
                       vertical: 10,
                     ),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
@@ -553,7 +552,7 @@ class _ReturnRequestComposerSheetState
                         horizontal: 12,
                         vertical: 7,
                       ),
-                      decoration: BoxDecoration(
+                      decoration: ShopGlassDecoration(
                         color: sel ? TColors.primaryColor : Colors.white,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
@@ -600,7 +599,7 @@ class _ReturnRequestComposerSheetState
                       horizontal: 11,
                       vertical: 7,
                     ),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: sel ? TColors.primaryColor : Colors.white,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
@@ -895,9 +894,9 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
       return;
     }
 
-    await showModalBottomSheet<void>(
+    await showShopBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+
       showDragHandle: true,
       builder: (sheetCtx) => SafeArea(
         child: ListView(
@@ -972,23 +971,24 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
     final isEn = locale == 'en';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7F8),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: TAppbar(
         showBackArrow: true,
         title: Text(
           isEn ? 'Returns' : 'Đổi trả',
-          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+          style: shopAppbarTitleStyle,
         ),
         actions: [
-          IconButton(
+          ShopGlassIconButton(
             tooltip: 'Chat trực tiếp với VELORA',
             onPressed: () => Get.to(() => const VeloraSupportChatScreen()),
-            icon: const Icon(Iconsax.message_text_1, size: 21),
+            icon: Iconsax.message_text_1,
           ),
-          IconButton(
+          ShopGlassIconButton(
             tooltip: 'Tạo yêu cầu đổi trả mới',
             onPressed: _openCreateFromOrderPicker,
-            icon: const Icon(Iconsax.add, size: 22),
+            icon: Iconsax.add,
           ),
         ],
       ),
@@ -1052,34 +1052,25 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                   ('completed', isEn ? 'Completed' : 'Hoàn tất', completedCount),
                 ];
 
-                return Column(
-                  children: [
-                    Container(
-                      color: Colors.white,
-                      height: 60,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: tabs.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 6),
-                        itemBuilder: (_, idx) {
-                          final (key, label, count) = tabs[idx];
+                return ShopScrollUnderHeader(
+            header: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: ShopFilterTabs(tabs: tabs.map((tab) {
+                          final (key, label, count) = tab;
                           return ShopFilterTab(label: label, count: count,
                             selected: _filter == key,
                             onTap: () => setState(() => _filter = key));
-                        },
-                      ),
-                    ),
-                    const Divider(height: 1, color: Color(0xFFE5E7EB)),
-
-                    Expanded(
+                      }).toList()),
+                    )]),
+            body: ShopTabBody(index: tabs.indexWhere((tab) => tab.$1 == _filter),
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                         children: [
                           // Return policy and the action to create a request.
                           Container(
                             padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
+                            decoration: ShopGlassDecoration(
                               color: const Color(0xFFF6F8F6),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
@@ -1190,10 +1181,8 @@ class _MyReturnRequestsScreenState extends State<MyReturnRequestsScreen> {
                                     widget.highlightRequestId == req.id,
                               ),
                         ],
-                      ),
-                    ),
-                  ],
-                );
+                      )),
+          );
               },
             ),
     );
@@ -1247,7 +1236,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -1285,7 +1274,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                decoration: BoxDecoration(
+                decoration: ShopGlassDecoration(
                   color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFFF1F5F9)),
@@ -1332,7 +1321,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-              decoration: BoxDecoration(color: const Color(0xFFF3F7F4),
+              decoration: ShopGlassDecoration(color: const Color(0xFFF3F7F4),
                 borderRadius: BorderRadius.circular(12)),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start,
                 children: List.generate(4, (i) {
@@ -1341,7 +1330,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
                   final done = active && (!current || request.status == ReturnRequestStatus.completed);
                   return Expanded(child: Column(children: [
                     Container(width: 26, height: 26,
-                      decoration: BoxDecoration(shape: BoxShape.circle,
+                      decoration: ShopGlassDecoration(shape: BoxShape.circle,
                         color: active ? const Color(0xFF173E32) : Colors.white,
                         border: Border.all(color: active ? TColors.primaryColor : const Color(0xFFD4DFD7))),
                       alignment: Alignment.center,
@@ -1432,7 +1421,7 @@ class ReturnRequestTrackingCard extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: const Color(0xFFEAF2ED),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFFE2E8F0)),

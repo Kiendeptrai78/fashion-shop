@@ -30,9 +30,10 @@ class StoreScreen extends StatelessWidget {
     return  DefaultTabController(
         length: categories.length,
         child: Scaffold(
-          backgroundColor: dark ?  TColors.black : TColors.white,
+          extendBodyBehindAppBar: true,
+          backgroundColor: Colors.transparent,
           appBar: TAppbar(
-            title:  ShopText('Store',style: TextStyle(fontSize: 20,color: dark ? TColors.white :  TColors.dark),),
+            title: const ShopText('Store', style: shopAppbarTitleStyle),
             actions: [
               TCartCounterIcon( iconColor: dark ?  TColors.white : TColors.dark)
             ],
@@ -42,12 +43,15 @@ class StoreScreen extends StatelessWidget {
               return [
                 SliverAppBar(
                   automaticallyImplyLeading: false,
+                  backgroundColor: Colors.transparent,
+                  surfaceTintColor: Colors.transparent,
+                  scrolledUnderElevation: 0,
                   pinned: true,
                   floating: true,
-                  expandedHeight: 430,
+                  expandedHeight: 430 + shopAppbarContentPadding(context).top,
 
                   flexibleSpace: Padding(
-                    padding: const EdgeInsets.all(TSizes.defaultSpace),
+                    padding: shopAppbarContentPadding(context, const EdgeInsets.all(TSizes.defaultSpace)),
                     child: ListView(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -67,7 +71,7 @@ class StoreScreen extends StatelessWidget {
                          if(brandController.isLoading.value) return const TBrandShimmer();
 
                          if(brandController.featuredBrands.isEmpty){
-                           return Center(child: ShopText('No Data Found!',style: Theme.of(context).textTheme.bodyMedium!.apply(color: Colors.white),));
+                           return Center(child: ShopText('No Data Found!',style: Theme.of(context).textTheme.bodyMedium));
                          }else{
                            return  TGridLayout(
                                itemCount: brandController.featuredBrands.length,
@@ -88,7 +92,7 @@ class StoreScreen extends StatelessWidget {
                   ),
 
                   ///tab
-                  bottom:  TTabBar(tabs: categories.map((category) => Tab(child: ShopText(category.name))).toList()),
+                  bottom: TTabBar(tabs: categories.map((category) => category.name).toList()),
                 ),
               ];
             },

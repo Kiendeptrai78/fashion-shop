@@ -20,7 +20,6 @@ class PrivacyScreen extends StatelessWidget {
       confirmLabel: 'Clear preferences',
       cancelLabel: 'Cancel',
       destructive: true,
-      icon: Iconsax.eraser_1,
     );
     if (confirmed != true) return;
     try {
@@ -38,9 +37,10 @@ class PrivacyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+      extendBodyBehindAppBar: true,
     appBar: const TAppbar(showBackArrow: true, title: ShopText('Account Privacy',
-        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600))),
-    body: ListView(padding: const EdgeInsets.all(24), children: [
+        style: shopAppbarTitleStyle)),
+    body: ListView(padding: shopAppbarContentPadding(context, EdgeInsets.all(24)), children: [
       Icon(Iconsax.shield_tick, size: 56, color: Theme.of(context).colorScheme.primary),
       const SizedBox(height: 24),
       const ShopText('Your choices. Your control.', style: TextStyle(fontSize: 28,

@@ -3,7 +3,6 @@ import 'package:fashion_business_app/common/widgets/dialogs/velora_confirm_dialo
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
 import 'package:fashion_business_app/data/repositories/authentication/authentication_repository.dart';
@@ -252,7 +251,6 @@ class UserController extends GetxController {
       confirmLabel: 'Delete',
       cancelLabel: 'Cancel',
       destructive: true,
-      icon: Iconsax.user_remove,
     );
     if (confirmed == true) {
       deleteUserAccount();

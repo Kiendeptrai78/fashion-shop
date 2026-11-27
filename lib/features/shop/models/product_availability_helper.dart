@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
 import 'package:fashion_business_app/features/shop/models/brand_model.dart';
@@ -152,11 +153,8 @@ class ProductAvailabilityHelper {
 
   static void showDiscontinuedSheet(BuildContext context, String productTitle) {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    showModalBottomSheet<void>(
+    showShopBottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),

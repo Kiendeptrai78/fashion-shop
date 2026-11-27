@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/common/widgets/shimmer/shimmer.dart';
@@ -32,7 +33,7 @@ class TCircularImage extends StatelessWidget {
       width: width,
       height: height,
       padding: EdgeInsets.all(padding),
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: backgroundColor ?? (dark ? TColors.black : TColors.white),
         borderRadius: BorderRadius.circular(100),
       ),

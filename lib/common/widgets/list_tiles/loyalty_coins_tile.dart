@@ -1,3 +1,6 @@
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/features/personalization/services/loyalty_coins.dart';
 import 'package:fashion_business_app/features/shop/screens/order/order.dart';
 import 'package:flutter/material.dart';
@@ -216,30 +219,16 @@ class _CoinWalletCardState extends State<CoinWalletCard> {
     final amount =
         NumberFormat.decimalPattern(isEn ? 'en_US' : 'vi_VN').format(balance);
 
-    showModalBottomSheet<void>(
+    showShopBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+
       useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (sheetCtx) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
             Row(
               children: [
                 const GoldCoinIcon(size: 36),
@@ -268,9 +257,10 @@ class _CoinWalletCardState extends State<CoinWalletCard> {
                     ],
                   ),
                 ),
-                IconButton(
+                ShopGlassIconButton(
                   onPressed: () => Navigator.of(sheetCtx).pop(),
-                  icon: const Icon(Icons.close_rounded, size: 20),
+                  icon: Icons.close_rounded,
+                  iconSize: 20,
                 ),
               ],
             ),
@@ -373,7 +363,7 @@ class _CoinRuleItem extends StatelessWidget {
           width: 22,
           height: 22,
           alignment: Alignment.center,
-          decoration: BoxDecoration(
+          decoration: ShopGlassDecoration(
             color: const Color(0xFFF1F5F9),
             borderRadius: BorderRadius.circular(999),
           ),

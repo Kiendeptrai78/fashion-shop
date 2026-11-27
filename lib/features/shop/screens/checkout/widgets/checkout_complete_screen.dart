@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/features/shop/screens/order/order.dart';
 import 'package:fashion_business_app/features/shop/services/vnpay_sandbox_service.dart';
 import 'package:fashion_business_app/navigation_menu.dart';
@@ -31,7 +32,7 @@ class CheckoutCompleteScreen extends StatelessWidget {
     final hasCoupon = couponCode.trim().isNotEmpty && discountAmount > 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF8),
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -42,7 +43,7 @@ class CheckoutCompleteScreen extends StatelessWidget {
                 Container(
                   width: 84,
                   height: 84,
-                  decoration: BoxDecoration(
+                  decoration: ShopGlassDecoration(
                     color: const Color(0xFFECFDF5),
                     shape: BoxShape.circle,
                     border: Border.all(
@@ -85,7 +86,7 @@ class CheckoutCompleteScreen extends StatelessWidget {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
@@ -131,7 +132,7 @@ class CheckoutCompleteScreen extends StatelessWidget {
                             horizontal: 12,
                             vertical: 10,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: ShopGlassDecoration(
                             color: hasCoupon
                                 ? const Color(0xFFECFDF5)
                                 : const Color(0xFFF8FAFC),
@@ -239,7 +240,7 @@ class CheckoutCompleteScreen extends StatelessWidget {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(

@@ -1,95 +1,40 @@
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
+import 'package:fashion_business_app/common/widgets/login_signup/auth_scaffold.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:fashion_business_app/common/widgets/succes_screen/succes_screen.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/data/repositories/authentication/authentication_repository.dart';
 import 'package:fashion_business_app/features/authentication/controllers/signup/verify_email_controller.dart';
-import 'package:fashion_business_app/features/authentication/screens/login/login.dart';
-import 'package:fashion_business_app/utils/constants/image_strings.dart';
-import 'package:fashion_business_app/utils/constants/sizes.dart';
 import 'package:fashion_business_app/utils/constants/text_strings.dart';
-import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
 
 class VerifyEmailScreen extends StatelessWidget {
   const VerifyEmailScreen({super.key, this.email});
-
   final String? email;
+
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put( VerifyEmailController());
-
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-              onPressed: () => AuthenticationRepository.instance.logout(),
-              icon: const Icon(CupertinoIcons.clear))
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(TSizes.defaultSpace),
-          child: Column(
-            children: [
-              ///image
-              Image(
-                image: const AssetImage(TImages.onBoardingImage1),
-                width: THelperFunctions.screenWidth() * 0.6,
-              ),
-              const SizedBox(
-                height: TSizes.spaceBtwSections,
-              ),
-
-              ///title & subtitle
-              ShopText(
-                TTexts.confirmEmail,
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(
-                height: TSizes.spaceBtwItems,
-              ),
-              ShopText(
-                email ?? '',
-                style: Theme.of(context).textTheme.labelLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(
-                height: TSizes.spaceBtwItems,
-              ),
-              ShopText(
-                TTexts.confirmEmailSubTitle,
-                style: Theme.of(context).textTheme.labelMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(
-                height: TSizes.spaceBtwSections,
-              ),
-
-              ///button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => controller.checkEmailVerificationStatus(),
-                  child: const ShopText(TTexts.continues),
-                ),
-              ),
-              const SizedBox(
-                height: TSizes.spaceBtwItems,
-              ),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () => controller.sendEmailVerification(),
-                  child: const ShopText(TTexts.resendEmail),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final controller = Get.put(VerifyEmailController());
+    return AuthScaffold(
+      showBack: false,
+      actions: [ShopGlassIconButton(onPressed: () => AuthenticationRepository.instance.logout(),
+        icon: CupertinoIcons.clear)],
+      symbol: Iconsax.direct_right,
+      title: TTexts.confirmEmail,
+      subtitle: TTexts.confirmEmailSubTitle,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        SelectableText(email ?? '', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 28),
+        ElevatedButton(onPressed: () => controller.checkEmailVerificationStatus(),
+          child: const ShopText(TTexts.continues)),
+        const SizedBox(height: 12),
+        TextButton(onPressed: () => controller.sendEmailVerification(),
+          child: const ShopText(TTexts.resendEmail)),
+        const SizedBox(height: 16),
+        const ShopText(TTexts.emailNotReceivedMessage,
+          style: TextStyle(fontSize: 12, height: 1.6), textAlign: TextAlign.center),
+      ]),
     );
   }
 }

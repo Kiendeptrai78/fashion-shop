@@ -6,12 +6,13 @@ class TElevatedButtonTheme{
 
   static final lightElevatedButtonTheme = ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
-      elevation: 0,
+      elevation: 2,
+      shadowColor: const Color(0x33173E32),
       foregroundColor: Colors.white,
       backgroundColor: TColors.primaryColor,
       disabledBackgroundColor: TColors.primaryColor.withValues(alpha: 0.1),
       disabledForegroundColor: TColors.primaryColor.withValues(alpha: 0.55),
-      side: BorderSide.none,
+      side: const BorderSide(color: Color(0x44FFFFFF)),
       minimumSize: const Size(64, 52),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       textStyle: const TextStyle(
@@ -20,7 +21,7 @@ class TElevatedButtonTheme{
         color: Colors.white,
         fontWeight: FontWeight.w600,
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     ),
   );
   static final darkElevatedButtonTheme = ElevatedButtonThemeData(

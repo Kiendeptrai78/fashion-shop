@@ -41,7 +41,6 @@ class _AddressScreenState extends State<AddressScreen> {
       confirmLabel: 'Xóa địa chỉ',
       cancelLabel: 'Hủy',
       destructive: true,
-      icon: Iconsax.trash,
     );
     if (confirmed == true) {
       await _controller.deleteAddress(address);
@@ -53,8 +52,9 @@ class _AddressScreenState extends State<AddressScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+      extendBodyBehindAppBar: true,
     appBar: const TAppbar(showBackArrow: true, title: ShopText('My Address',
-        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600))),
+        style: shopAppbarTitleStyle)),
     body: FutureBuilder<List<AddressModel>>(future: _addresses, builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) {
         return const Center(child: CircularProgressIndicator(strokeWidth: 2));
@@ -65,7 +65,7 @@ class _AddressScreenState extends State<AddressScreen> {
       ]));
       final addresses = snapshot.data ?? [];
       return RefreshIndicator(onRefresh: _reload, child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(20), children: [
+        physics: const AlwaysScrollableScrollPhysics(), padding: shopAppbarContentPadding(context, EdgeInsets.all(20)), children: [
           const ShopText('A place for every delivery.', style: TextStyle(fontSize: 25,
               height: 1.2, fontWeight: FontWeight.w700, letterSpacing: -0.6)),
           const SizedBox(height: 8),

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/common/widgets/product/product_carts/product_price_text.dart';
@@ -22,7 +23,7 @@ class TProductMetaData extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
+          decoration: ShopGlassDecoration(
             color: dark ? const Color(0xFF20352C) : const Color(0xFFEAF2EE),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -83,7 +84,7 @@ class TProductMetaData extends StatelessWidget {
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
+          decoration: ShopGlassDecoration(
             color: product.stock > 0
                 ? (dark ? const Color(0xFF1D3329) : const Color(0xFFEDF6F0))
                 : (dark ? const Color(0xFF351D1D) : const Color(0xFFFFF0F0)),

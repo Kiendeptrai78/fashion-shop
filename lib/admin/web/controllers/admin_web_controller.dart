@@ -1185,6 +1185,7 @@ class AdminWebController extends GetxController {
         thumbnail: product.thumbnail.trim(),
         images: product.images,
         videos: product.videos,
+        videoSources: product.videoSources,
         description: product.description,
         productType: product.productType,
         isFeatured: product.isFeatured,
@@ -1244,6 +1245,7 @@ class AdminWebController extends GetxController {
       thumbnail: product.thumbnail,
       images: product.images,
       videos: product.videos,
+        videoSources: product.videoSources,
       description: product.description,
       productType: product.productType,
       isFeatured: isDiscontinued ? false : product.isFeatured,
@@ -1373,6 +1375,7 @@ class AdminWebController extends GetxController {
           thumbnail: product.thumbnail,
           images: product.images,
           videos: product.videos,
+        videoSources: product.videoSources,
           description: product.description,
           productType: product.productType,
           isFeatured: product.isFeatured,
@@ -2023,6 +2026,7 @@ class AdminWebController extends GetxController {
       thumbnail: product.thumbnail,
       images: product.images,
       videos: product.videos,
+        videoSources: product.videoSources,
       description: product.description,
       productType: product.productType,
       isFeatured: isFeatured,
@@ -2054,6 +2058,7 @@ class AdminWebController extends GetxController {
   Future<bool> assignVideosToProduct({
     required ProductModel product,
     required List<String> videoUrls,
+    List<Map<String, dynamic>>? videoSources,
     bool makeFeatured = true,
   }) async {
     final cleaned = videoUrls
@@ -2070,6 +2075,7 @@ class AdminWebController extends GetxController {
       thumbnail: product.thumbnail,
       images: product.images,
       videos: cleaned,
+      videoSources: videoSources ?? product.videoSources,
       description: product.description,
       productType: product.productType,
       isFeatured: makeFeatured ? true : product.isFeatured,

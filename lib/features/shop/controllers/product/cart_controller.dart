@@ -1,6 +1,5 @@
 import 'package:fashion_business_app/common/widgets/dialogs/velora_confirm_dialog.dart';
 import 'package:get/get.dart';
-import 'package:iconsax/iconsax.dart';
 import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/variation_controller.dart';
 import 'package:fashion_business_app/features/shop/models/cart_item_model.dart';
@@ -129,7 +128,6 @@ class CartController extends GetxController {
       confirmLabel: 'Delete',
       cancelLabel: 'Cancel',
       destructive: true,
-      icon: Iconsax.trash,
     );
     if (confirmed == true && index >= 0 && index < cartItems.length) {
       cartItems.removeAt(index);

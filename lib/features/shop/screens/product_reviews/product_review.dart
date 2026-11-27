@@ -1,6 +1,9 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/common/widgets/list_tiles/loyalty_coins_tile.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
+import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
 import 'package:fashion_business_app/data/repositories/reviews/review_repository.dart';
 import 'package:fashion_business_app/data/services/image_storage_service.dart';
 import 'package:fashion_business_app/features/shop/models/product_review_model.dart';
@@ -77,7 +80,7 @@ class _ProductReviewState extends State<ProductReview> {
         return;
       }
       setState(() => _openingReview = false);
-      final saved = await showModalBottomSheet<bool>(
+      final saved = await showShopBottomSheet<bool>(
         context: context, isScrollControlled: true, useSafeArea: true,
         builder: (_) => _WriteReview(productId: widget.productId!, purchaseOrderId: permission.orderDocumentId),
       );
@@ -111,11 +114,12 @@ class _ProductReviewState extends State<ProductReview> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: const TAppbar(
         showBackArrow: true,
         title: ShopText(
           'Customer reviews',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          style: shopAppbarTitleStyle,
         ),
       ),
       body: FutureBuilder<List<ProductReviewEntry>>(
@@ -148,7 +152,7 @@ class _ProductReviewState extends State<ProductReview> {
             onRefresh: _refresh,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(20),
+              padding: shopAppbarContentPadding(context, EdgeInsets.all(20)),
               children: [
                 if (widget.productTitle != null)
                   Text(
@@ -225,27 +229,25 @@ class _ProductReviewState extends State<ProductReview> {
                     ],
                   ),
                   const Divider(height: 34),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
+                  ShopFilterTabs(tabs: [
                       for (final star in [0, 5, 4, 3, 2, 1])
-                        ChoiceChip(
-                          selected: _star == star && !_onlyWithMedia,
-                          onSelected: (_) => setState(() {
+                        ShopFilterTab(
+                          label: star == 0 ? 'All' : '$star ★',
+                          count: star == 0 ? summary.count : summary.stars[star]!,
+                          selected: _star == star,
+                          onTap: () => setState(() {
                             _star = star;
                             if (star == 0) _onlyWithMedia = false;
                           }),
-                          label: ShopText(star == 0 ? 'All' : '$star ★'),
                         ),
-                      if (mediaReviewsCount > 0)
+                  ]),
+                  if (mediaReviewsCount > 0)
+                    Align(alignment: Alignment.centerLeft, child:
                         FilterChip(
                           selected: _onlyWithMedia,
                           onSelected: (v) => setState(() => _onlyWithMedia = v),
                           label: Text('Có Ảnh/Video ($mediaReviewsCount)'),
-                        ),
-                    ],
-                  ),
+                        )),
                   if (filtered.any((r) => r.hasMedia)) ...[
                     const SizedBox(height: 18),
                     const Text(
@@ -415,7 +417,7 @@ class _ProductReviewState extends State<ProductReview> {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
+                      decoration: ShopGlassDecoration(
                         color: isDark ? const Color(0xFF16231D) : Colors.white,
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
@@ -641,7 +643,7 @@ class _ProductReviewState extends State<ProductReview> {
                             const SizedBox(height: 14),
                             Container(
                               width: double.infinity,
-                              decoration: BoxDecoration(
+                              decoration: ShopGlassDecoration(
                                 color: isLowRating
                                     ? (isDark
                                         ? const Color(0xFF2A1C1E)
@@ -752,7 +754,7 @@ class _ProductReviewState extends State<ProductReview> {
                         horizontal: 12,
                         vertical: 8,
                       ),
-                      decoration: BoxDecoration(
+                      decoration: ShopGlassDecoration(
                         color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: const Color(0xFFE5E7EB)),
@@ -832,7 +834,7 @@ class ReviewRewardNotice extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: dark ? const Color(0xFF19251F) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
@@ -1066,17 +1068,6 @@ class _WriteReviewState extends State<_WriteReview> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-            ),
             Row(
               children: [
                 const Expanded(
@@ -1085,9 +1076,10 @@ class _WriteReviewState extends State<_WriteReview> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
-                IconButton(
+                ShopGlassIconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded, size: 20),
+                  icon: Icons.close_rounded,
+                  iconSize: 20,
                 ),
               ],
             ),
@@ -1096,7 +1088,7 @@ class _WriteReviewState extends State<_WriteReview> {
             const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
@@ -1462,9 +1454,11 @@ class _ReviewMediaViewerDialogState extends State<_ReviewMediaViewerDialog> {
                     ),
                   ),
                   const Spacer(),
-                  IconButton(
+                  ShopGlassIconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                    icon: Icons.close_rounded,
+                    iconColor: Colors.white,
+                    iconSize: 28,
                   ),
                 ],
               ),

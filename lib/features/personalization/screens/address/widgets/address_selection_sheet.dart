@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
@@ -42,7 +43,7 @@ class _AddressSelectionSheetState extends State<AddressSelectionSheet> {
           borderRadius: BorderRadius.circular(4))),
       Padding(padding: const EdgeInsets.fromLTRB(24, 18, 12, 12), child: Row(children: [
         const Expanded(child: ShopText('Select Address', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600))),
-        IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+        ShopGlassIconButton(onPressed: () => Navigator.pop(context), icon: Icons.close),
       ])),
       Expanded(child: FutureBuilder<List<AddressModel>>(future: _addresses, builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(strokeWidth: 2));

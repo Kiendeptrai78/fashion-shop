@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:fashion_business_app/features/personalization/screens/address/widgets/address_selection_sheet.dart';
 import 'package:flutter/cupertino.dart';
@@ -41,12 +42,13 @@ class AddressController extends GetxController{
   ///
   Future<bool> selectAddress(AddressModel newSelectedAddress) async{
     try{
-      Get.defaultDialog(
-        title: '',
-        onWillPop: () async {return false;},
+      Get.dialog(
+        const PopScope(canPop: false, child: ShopGlassDialog(
+          child: Padding(padding: EdgeInsets.all(28),
+            child: Column(mainAxisSize: MainAxisSize.min,
+              children: [CircularProgressIndicator(color: TColors.primaryColor)])),
+        )),
         barrierDismissible: false,
-        backgroundColor: Colors.transparent,
-        content: const CircularProgressIndicator(color: TColors.primaryColor,),
       );
 
       await addressRepository.selectAddress(newSelectedAddress.id);
@@ -185,10 +187,8 @@ class AddressController extends GetxController{
   }
 
   ///
-  Future<dynamic> selectNewAddressPopup(BuildContext context) => showModalBottomSheet(
+  Future<dynamic> selectNewAddressPopup(BuildContext context) => showShopBottomSheet(
     context: context, isScrollControlled: true, useSafeArea: true, showDragHandle: false,
-    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (_) => const AddressSelectionSheet(),
   );
 

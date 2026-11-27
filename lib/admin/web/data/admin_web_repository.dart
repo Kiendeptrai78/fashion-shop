@@ -80,6 +80,7 @@ class AdminWebRepository {
       thumbnail: product.thumbnail.trim(),
       images: product.images,
       videos: product.videos,
+      videoSources: product.videoSources,
       description: product.description?.trim() ?? '',
       productType: product.productType,
       isFeatured: product.isFeatured,

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/checkout_controller.dart';
 import 'package:fashion_business_app/features/shop/models/payment_method_model.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +17,7 @@ class VnPayBrandBadge extends StatelessWidget {
       width: width,
       height: height,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(11),
         border: Border.all(
@@ -103,7 +104,7 @@ class TPaymentTile extends StatelessWidget {
                     width: 58,
                     height: 40,
                     padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: dark
                           ? const Color(0xFF22352C)
                           : const Color(0xFFEBF2EE),

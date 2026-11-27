@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/features/shop/models/shipping_route_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -73,7 +74,7 @@ class TSingleAddress extends StatelessWidget {
                       Container(
                         width: 36,
                         height: 36,
-                        decoration: BoxDecoration(
+                        decoration: ShopGlassDecoration(
                           color: selected
                               ? const Color(0xFF173E32)
                               : (dark

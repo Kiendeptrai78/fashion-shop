@@ -5,10 +5,10 @@ class TChipTheme {
 
   static ChipThemeData lightChipTheme = ChipThemeData(
     disabledColor: Colors.grey.withValues(alpha: 0.35),
-    backgroundColor: const Color(0xFFF3F5F0),
+    backgroundColor: const Color(0x99FFFFFF),
     selectedColor: const Color(0xFF173E32),
-    side: const BorderSide(color: Color(0xFFDFE5DD)),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    side: const BorderSide(color: Color(0xCCFFFFFF)),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     labelStyle: const TextStyle(
       color: Color(0xFF173E32),
       fontWeight: FontWeight.w500,

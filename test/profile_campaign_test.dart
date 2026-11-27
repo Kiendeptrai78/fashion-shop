@@ -1,4 +1,5 @@
 import 'package:fashion_business_app/features/personalization/screens/profile/profile_screen.dart';
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/list_tiles/user_profile_title.dart';
 import 'package:fashion_business_app/features/authentication/models/user_model.dart';
 import 'package:fashion_business_app/features/personalization/controllers/user_controller.dart';
@@ -37,8 +38,11 @@ void main() {
         lastName: 'One', username: 'buyer', phoneNumber: '', profilePicture: '', role: 'Client');
     await tester.pumpWidget(const GetMaterialApp(home: ProfileScreen()));
     await tester.pumpAndSettle();
-    expect(find.text('Buyer One'), findsOneWidget);
-    expect(find.text('buyer@example.com'), findsOneWidget);
+    // Account data may be present in both the profile header and its detail rows.
+    expect(find.text('Buyer One'), findsWidgets);
+    expect(find.text('buyer@example.com'), findsWidgets);
+    expect(find.byType(TAppbar), findsOneWidget);
+    expect(find.byType(ShopGlassBackButton), findsOneWidget);
     expect(find.text('Male'), findsNothing);
     expect(find.text('April 15, 2002'), findsNothing);
     expect(tester.takeException(), isNull);
@@ -52,5 +56,27 @@ void main() {
     expect(restored.videoUrl, 'clip.mp4');
     expect(restored.categoryId, 'running');
     expect(restored.sortOrder, 2);
+  });
+  testWidgets('closing the phone editor keeps its field alive through the exit animation', (tester) async {
+    Get.put<UserController>(_User());
+    await tester.pumpWidget(const GetMaterialApp(home: ProfileScreen()));
+    await tester.pumpAndSettle();
+    await Scrollable.ensureVisible(tester.element(find.text('Not added yet')), alignment: 0.5);
+    await tester.tap(find.text('Not added yet'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '0912345678');
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await tester.pump(const Duration(milliseconds: 30));
+    tester.view.viewInsets = const FakeViewPadding(bottom: 10);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pump();
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    expect(find.byType(TextFormField), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Not added yet'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextFormField>(find.byType(TextFormField)).initialValue, isEmpty);
+    expect(tester.takeException(), isNull);
   });
 }

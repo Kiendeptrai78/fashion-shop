@@ -1,3 +1,5 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -19,7 +21,7 @@ class _DemoBankScreenState extends State<DemoBankScreen> {
   Future<void> _topUp(BuildContext context) async {
     var amount = 10000000;
     final language = Localizations.localeOf(context).languageCode;
-    final confirmed = await showModalBottomSheet<bool>(context: context, isScrollControlled: true,
+    final confirmed = await showShopBottomSheet<bool>(context: context, isScrollControlled: true,
       builder: (sheet) => SafeArea(child: StatefulBuilder(builder: (context, update) => Padding(
         padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -54,19 +56,17 @@ class _DemoBankScreenState extends State<DemoBankScreen> {
     final language = Localizations.localeOf(context).languageCode;
     final isEn = language == 'en';
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: TAppbar(showBackArrow: true, title: const ShopText('Payment account',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)), actions: [
-        IconButton(
+          style: shopAppbarTitleStyle), actions: [
+        ShopGlassIconButton(
           tooltip: 'Account information'.tr,
-          icon: const Icon(Icons.info_outline, size: 21),
+          icon: Icons.info_outline,
           onPressed: () => showDialog(
             context: context,
             builder: (dialog) {
               final dark = Theme.of(dialog).brightness == Brightness.dark;
-              return Dialog(
-                backgroundColor: dark ? const Color(0xFF17241E) : Colors.white,
-                surfaceTintColor: Colors.transparent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              return ShopGlassDialog(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
                   child: Column(
@@ -75,7 +75,7 @@ class _DemoBankScreenState extends State<DemoBankScreen> {
                       Container(
                         width: 52,
                         height: 52,
-                        decoration: BoxDecoration(
+                        decoration: ShopGlassDecoration(
                           color: dark ? const Color(0xFF1E372D) : const Color(0xFFEAF2EE),
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -122,7 +122,7 @@ class _DemoBankScreenState extends State<DemoBankScreen> {
           ),
         ),
       ]),
-      body: Obx(() => ListView(padding: const EdgeInsets.all(24), children: [
+      body: Obx(() => ListView(padding: shopAppbarContentPadding(context, EdgeInsets.all(24)), children: [
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(

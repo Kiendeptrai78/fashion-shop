@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/data/services/image_storage_service.dart';
@@ -145,7 +146,7 @@ class CategoryController extends GetxController{
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return ShopGlassAlertDialog(
           title: const Text('Select Category'),
           content: SingleChildScrollView(
             child: ListBody(

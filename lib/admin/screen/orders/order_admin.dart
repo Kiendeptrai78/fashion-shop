@@ -31,15 +31,12 @@ class OrderAdmin extends StatelessWidget {
     return DefaultTabController(
       length: orderController.orderStatusOptionsIsStatus.length,
       child: Scaffold(
-        appBar: AppBar(
+        appBar: TAppbar(
           title: const Text('Orders'),
-          leading: IconButton(
-            icon:   Icon(Icons.arrow_back, color: dark ? TColors.white : TColors.black),
-            onPressed: () {
-              // Quay lại màn hình trước đó
-              Navigator.of(context).pop();
-            },
-          ),
+          showBackArrow: true,
+          leadingOnPressed: () {
+            Navigator.of(context).pop();
+          },
           bottom: TabBar(
             isScrollable: true,
             onTap: (index) {

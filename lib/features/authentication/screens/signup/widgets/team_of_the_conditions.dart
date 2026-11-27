@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/features/authentication/controllers/signup/signup_controller.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
-import 'package:fashion_business_app/utils/constants/sizes.dart';
 import 'package:fashion_business_app/utils/constants/text_strings.dart';
 import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
 
@@ -19,33 +18,33 @@ class TTermOfTheConditions extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 24,
-          height: 24,
+          width: 40,
+          height: 48,
           child: Obx(() => Checkbox(
               value: controller.privacyPolicy.value,
               onChanged: (value) => controller.privacyPolicy.value =
                   !controller.privacyPolicy.value)),
         ),
         const SizedBox(
-          width: TSizes.spaceBtwItems,
+          width: 8,
         ),
         Expanded(
           child: Text.rich(TextSpan(children: [
             TextSpan(
-                text: '${TTexts.iAgreeTo} ',
+                text: '${TTexts.iAgreeTo.tr} ',
                 style: Theme.of(context).textTheme.bodySmall),
             TextSpan(
-                text: '${TTexts.privacyPolicy} ',
+                text: '${TTexts.privacyPolicy.tr} ',
                 style: Theme.of(context).textTheme.bodyMedium!.apply(
                     color: dark ? TColors.white : TColors.primaryColor,
                     decoration: TextDecoration.underline,
                     decorationColor:
                         dark ? TColors.white : TColors.primaryColor)),
             TextSpan(
-                text: '${TTexts.and} ',
+                text: '${TTexts.and.tr} ',
                 style: Theme.of(context).textTheme.bodySmall),
             TextSpan(
-                text: TTexts.termsOfUse,
+                text: TTexts.termsOfUse.tr,
                 style: Theme.of(context).textTheme.bodyMedium!.apply(
                     color: dark ? TColors.white : TColors.primaryColor,
                     decoration: TextDecoration.underline,

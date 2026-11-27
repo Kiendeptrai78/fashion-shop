@@ -1,35 +1,59 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
+import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 
 class TFullScreenLoader {
-  static bool _isShowing = false;
+  static DialogRoute<void>? _route;
 
   static void openLoadingDialog(String text, String animation) {
     final ctx = Get.overlayContext;
-    if (ctx == null || _isShowing) return;
-    _isShowing = true;
-    showDialog(
+    if (ctx == null || _route?.isActive == true) return;
+    final navigator = Navigator.of(ctx, rootNavigator: true);
+    final route = DialogRoute<void>(
       context: ctx,
       barrierDismissible: false,
-      builder: (context) => PopScope(canPop: false, child: Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(width: 30, height: 30, child: CircularProgressIndicator(strokeWidth: 2,
-              color: Theme.of(context).colorScheme.primary)),
-          const SizedBox(height: 24),
-          ShopText(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, height: 1.6)),
-        ])),
-      )),
-    ).whenComplete(() => _isShowing = false);
+      barrierColor: Colors.black.withValues(alpha: 0.28),
+      builder: (context) => PopScope(
+        canPop: false,
+        child: ShopGlassDialog(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const GlassProgressIndicator.circular(
+                  size: 30,
+                  strokeWidth: 3,
+                  useOwnLayer: true,
+                ),
+                const SizedBox(height: 20),
+                ShopText(
+                  text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    _route = route;
+    navigator.push(route).whenComplete(() {
+      if (identical(_route, route)) _route = null;
+    });
   }
 
   static void stopLoading() {
-    if (!_isShowing) return;
-    final ctx = Get.overlayContext;
-    _isShowing = false;
-    if (ctx != null && Navigator.of(ctx).canPop()) {
-      Navigator.of(ctx).pop();
-    }
+    final route = _route;
+    _route = null;
+    // A callback may have changed the top page; only remove our own dialog.
+    if (route?.isActive == true) route!.navigator?.removeRoute(route);
   }
 }

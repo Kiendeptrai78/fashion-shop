@@ -19,7 +19,9 @@ class LoginController extends GetxController{
   final password = TextEditingController();
   GlobalKey<FormState> loginFormKey = GlobalKey<FormState>();
   GlobalKey<FormState> loginFormKeyAdmin = GlobalKey<FormState>();
-  final userController = Get.put(UserController());
+  final userController = Get.isRegistered<UserController>()
+      ? Get.find<UserController>() : Get.put(UserController());
+  bool _signingIn = false;
 
   @override
   void onInit() {
@@ -83,6 +85,8 @@ class LoginController extends GetxController{
 
   ///email and password signIn
   Future<void> emailAndPasswordSignIn() async {
+    if (_signingIn) return;
+    _signingIn = true;
     try{
       //start loading
       TFullScreenLoader.openLoadingDialog('Logging you in ....', TImages.loading);
@@ -107,21 +111,24 @@ class LoginController extends GetxController{
       }
 
       //login user using Email & password auth
-      final userCredentials = await AuthenticationRepository.instance.loginWithEmailAndPassword(email.text.trim(), password.text.trim());
+      await AuthenticationRepository.instance.loginWithEmailAndPassword(email.text.trim(), password.text.trim());
 
-      //remove loader
-      TFullScreenLoader.stopLoading();
-
-      AuthenticationRepository.instance.screenRedirect();
+      await AuthenticationRepository.instance.screenRedirect(
+        beforeNavigate: TFullScreenLoader.stopLoading);
     }catch(e){
       TFullScreenLoader.stopLoading();
       TLoaders.errorSnackBar(title: 'Oh Snap!', message: e.toString());
+    } finally {
+      TFullScreenLoader.stopLoading();
+      _signingIn = false;
     }
   }
 
 
   ///google sign in
   Future<void> googleSignIn() async {
+    if (_signingIn) return;
+    _signingIn = true;
     try{
       //start loading
       TFullScreenLoader.openLoadingDialog('Logging with google...', TImages.loading);
@@ -143,15 +150,15 @@ class LoginController extends GetxController{
       //save user record
       await userController.saveUserRecord(userCredentials);
 
-      //remove loader
-      TFullScreenLoader.stopLoading();
-
-      //redirect
-      AuthenticationRepository.instance.screenRedirect();
+      await AuthenticationRepository.instance.screenRedirect(
+        beforeNavigate: TFullScreenLoader.stopLoading);
 
     }catch(e){
       TFullScreenLoader.stopLoading();
       TLoaders.errorSnackBar(title: 'Oh Snap',message: e.toString());
+    } finally {
+      TFullScreenLoader.stopLoading();
+      _signingIn = false;
     }
   }
 

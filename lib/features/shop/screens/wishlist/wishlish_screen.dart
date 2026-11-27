@@ -43,15 +43,15 @@ class _WishListState extends State<WishList> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: TAppbar(showBackArrow: true, title: const ShopText('Saved pairs', style: TextStyle(fontSize: 22,
-        fontWeight: FontWeight.w600, letterSpacing: -0.6)), actions: [
-      IconButton(tooltip: 'Explore sneakers'.tr, onPressed: exploreSneakers,
-          icon: const Icon(Iconsax.search_normal, size: 22)),
+      extendBodyBehindAppBar: true,
+    appBar: TAppbar(showBackArrow: true, title: const ShopText('Saved pairs', style: shopAppbarTitleStyle), actions: [
+      ShopGlassIconButton(tooltip: 'Explore sneakers'.tr, onPressed: exploreSneakers,
+          icon: Iconsax.search_normal),
     ]),
     body: FutureBuilder<List<ProductModel>>(future: _products, builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) {
-        return const SingleChildScrollView(padding: EdgeInsets.all(24),
-            child: TVerticalProductShimmer(itemCount: 4));
+        return SingleChildScrollView(padding: shopAppbarContentPadding(context, const EdgeInsets.all(24)),
+            child: const TVerticalProductShimmer(itemCount: 4));
       }
       if (snapshot.hasError) {
         return Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(
@@ -66,7 +66,7 @@ class _WishListState extends State<WishList> {
       if (products.isEmpty) return const ShoppingEmptyState(wishlist: true);
       return RefreshIndicator(onRefresh: _reload, child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        padding: shopAppbarContentPadding(context, EdgeInsets.fromLTRB(24, 12, 24, 24)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           ShopText('YOUR PERSONAL EDIT', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 2)),
           const SizedBox(height: 10),

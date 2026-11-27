@@ -1,6 +1,8 @@
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/features/shop/services/vnpay_sandbox_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -192,26 +194,22 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final bg = dark ? const Color(0xFF0E1622) : const Color(0xFFF3F6FA);
+    final bg = dark ? const Color(0xFF0D1913) : ShopGlass.pageBackground;
     final cardBg = dark ? const Color(0xFF162233) : Colors.white;
     final border = dark ? Colors.white12 : const Color(0xFFDCE5F0);
 
     return PopScope(
       canPop: !_processing,
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.light,
+        value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
           child: Scaffold(
+      extendBodyBehindAppBar: true,
           backgroundColor: bg,
-          appBar: AppBar(
-            systemOverlayStyle: SystemUiOverlayStyle.light,
-            backgroundColor: _vnpDarkBlue,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.close_rounded),
+          appBar: TAppbar(
+            leading: ShopGlassBackButton(
               tooltip: 'Hủy thanh toán',
               onPressed: _processing
                   ? null
@@ -224,7 +222,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
                     horizontal: 8,
                     vertical: 4,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: ShopGlassDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -263,14 +261,14 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                          color: _vnpDarkBlue,
                         ),
                       ),
                       Text(
                         'Môi trường kiểm thử Sandbox v2.1.0',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Color(0xFFBAE6FD),
+                          color: Color(0xFF5C6C64),
                         ),
                       ),
                     ],
@@ -285,8 +283,8 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
                   horizontal: 9,
                   vertical: 5,
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
+                decoration: ShopGlassDecoration(
+                  color: _vnpDarkBlue.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
@@ -303,7 +301,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: _vnpDarkBlue,
                       ),
                     ),
                   ],
@@ -314,7 +312,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
           body: Stack(
             children: [
               SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
+                padding: shopAppbarContentPadding(context, EdgeInsets.fromLTRB(16, 16, 16, 36)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -347,7 +345,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
                                   horizontal: 9,
                                   vertical: 4,
                                 ),
-                                decoration: BoxDecoration(
+                                decoration: ShopGlassDecoration(
                                   color: Colors.white.withValues(alpha: 0.16),
                                   borderRadius: BorderRadius.circular(999),
                                 ),
@@ -397,7 +395,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
                               horizontal: 11,
                               vertical: 8,
                             ),
-                            decoration: BoxDecoration(
+                            decoration: ShopGlassDecoration(
                               color: Colors.white.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(11),
                             ),
@@ -433,7 +431,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
 
                     // 4. Collapsible Technical VNPay v2.1.0 Payload Inspector
                     Container(
-                      decoration: BoxDecoration(
+                      decoration: ShopGlassDecoration(
                         color: cardBg,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: border),
@@ -589,7 +587,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
                       horizontal: 26,
                       vertical: 22,
                     ),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: cardBg,
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -620,7 +618,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
   Widget _buildSelectMethodStep(Color cardBg, Color border, bool dark) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: border),
@@ -694,7 +692,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: dark ? const Color(0xFF101D2C) : const Color(0xFFF8FBFF),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: _vnpBlue.withValues(alpha: 0.28)),
@@ -705,7 +703,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
                     width: 152,
                     height: 152,
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: _vnpBlue, width: 2),
@@ -802,7 +800,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
   Widget _buildCardInputStep(Color cardBg, Color border, bool dark) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: border),
@@ -837,7 +835,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
             // Sandbox Test Card Quick-Fill Banner
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: dark
                     ? const Color(0xFF11293F)
                     : const Color(0xFFEFF6FF),
@@ -974,7 +972,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
   Widget _buildOtpStep(Color cardBg, Color border, bool dark) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: border),
@@ -1105,7 +1103,7 @@ class _VnPaySandboxScreenState extends State<VnPaySandboxScreen> {
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
+                decoration: ShopGlassDecoration(
                   color: selected
                       ? _vnpBlue
                       : (dark
@@ -1210,7 +1208,7 @@ class _StepIndicatorBar extends StatelessWidget {
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: i <= currentStep
                     ? const Color(0xFF005BAA)
                     : (dark ? const Color(0xFF1A2535) : Colors.white),

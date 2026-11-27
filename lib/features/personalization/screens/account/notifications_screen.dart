@@ -1,3 +1,7 @@
+import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
+import 'package:fashion_business_app/common/widgets/tabs/shop_tab_body.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
@@ -19,7 +23,8 @@ import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+  const NotificationsScreen({super.key, this.loadOrders});
+  final Future<List<OrderModel>> Function()? loadOrders;
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
@@ -40,11 +45,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
-    _orders = OrderRepository().fetchUserOrders();
+    _orders = widget.loadOrders?.call() ?? OrderRepository().fetchUserOrders();
   }
 
   Future<void> _reload() async {
-    final request = OrderRepository().fetchUserOrders();
+    final request = widget.loadOrders?.call() ?? OrderRepository().fetchUserOrders();
     setState(() {
       _orders = request;
     });
@@ -182,6 +187,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         await CustomerBenefits.instance.initialize();
       }
       if (mounted) Get.to(() => CouponsScreen(initialCouponCode: targetId));
+    } else if (mounted) {
+      final language = Localizations.localeOf(context).languageCode;
+      showDialog<void>(context: context, builder: (dialog) => ShopGlassAlertDialog(
+        title: Text((notice[language == 'en' ? 'titleEn' : 'titleVi'] ?? '').toString()),
+        content: Text((notice[language == 'en' ? 'bodyEn' : 'bodyVi'] ?? '').toString()),
+        actions: [TextButton(onPressed: () => Navigator.pop(dialog),
+          child: Text(language == 'en' ? 'Close' : 'Đóng'))],
+      ));
     }
   }
 
@@ -190,27 +203,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final lang = Localizations.localeOf(context).languageCode;
-    final isEn = lang == 'en';
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: TAppbar(
         showBackArrow: true,
         title: const ShopText(
           'Notification',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+          style: shopAppbarTitleStyle,
         ),
         actions: [
           Obx(() {
             final activity = AccountActivity.current;
             final hasUnread = (activity?.unread ?? 0) > 0;
             if (!hasUnread) return const SizedBox.shrink();
-            return TextButton(
-              onPressed: () async {
+            return ShopGlassPillButton(
+              onTap: () async {
                 await activity?.markAllRead();
               },
               child: const ShopText(
                 'Mark all as read',
-                style: TextStyle(fontSize: 12.5),
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
               ),
             );
           }),
@@ -227,7 +240,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             color: const Color(0xFF173E32),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
+              padding: shopAppbarContentPadding(context, const EdgeInsets.fromLTRB(18, 8, 18, 28)),
               children: [
                 const ShopText(
                   'Stay in the loop.',
@@ -244,64 +257,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Filter chips
-                SizedBox(
-                  height: 38,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _tabs.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, index) {
-                      final (id, label) = _tabs[index];
-                      final selected = _selectedTab == id;
-                      return Material(
-                        color: selected
-                            ? (dark
-                                ? const Color(0xFFDDEABB)
-                                : const Color(0xFF173E32))
-                            : (dark
-                                ? const Color(0xFF1D2D26)
-                                : const Color(0xFFF3F5F0)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                          side: BorderSide(
-                            color: selected
-                                ? Colors.transparent
-                                : (dark
-                                    ? Colors.white.withValues(alpha: 0.08)
-                                    : const Color(0xFFE2E7E0)),
-                          ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: InkWell(
-                          onTap: () => setState(() => _selectedTab = id),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
-                            ),
-                            child: Center(
-                              child: ShopText(
-                                label,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: selected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  color: selected
-                                      ? (dark
-                                          ? const Color(0xFF102B23)
-                                          : Colors.white)
-                                      : theme.colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                ShopFilterTabs(tabs: [
+                  for (final (id, label) in _tabs) ShopFilterTab(
+                    label: label, count: 0, selected: _selectedTab == id,
+                    onTap: () => setState(() => _selectedTab = id),
                   ),
-                ),
+                ]),
                 const SizedBox(height: 16),
 
                 // Pure Firebase Notifications Stream (ZERO local fallback notifications)
@@ -318,51 +279,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           )
                           .toList();
 
-                  return Column(
+                  return ShopTabBody(
+                    index: _tabs.indexWhere((tab) => tab.$1 == _selectedTab),
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (activity != null && !activity.pushEnabled.value) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: activity.enablePush,
-                              icon: const Icon(
-                                Icons.notifications_active_outlined,
-                                size: 18,
-                              ),
-                              label: Text(
-                                isEn
-                                    ? 'Turn on notifications'
-                                    : 'Bật thông báo',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (activity.pushError.value.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Text(
-                              activity.pushError.value,
-                              softWrap: true,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFFC62828),
-                              ),
-                            ),
-                          ),
-                      ],
                       if (filteredNotices.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 72),
@@ -436,7 +357,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         }),
                       ],
                     ],
-                  );
+                  ));
                 }),
               ],
             ),
@@ -471,7 +392,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             : const Color(0xFF173E32).withValues(alpha: 0.2));
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: bgColor,
         shape: RoundedRectangleBorder(
@@ -491,7 +412,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     clipBehavior: Clip.none,
                     children: [
                       Container(
-                        decoration: BoxDecoration(
+                        decoration: ShopGlassDecoration(
                           color: dark
                               ? const Color(0xFF22342B)
                               : const Color(0xFFF3F4EF),
@@ -500,8 +421,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         child: TRoundedImage(
                           imageUrl: imageUrl,
                           isNetworkImage: true,
-                          width: 56,
-                          height: 56,
+                          width: 44,
+                          height: 44,
                           borderRadius: 14,
                           padding: const EdgeInsets.all(4),
                         ),
@@ -524,15 +445,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   )
                 else
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: iconBg,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(icon, size: 22, color: iconColor),
                   ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -577,7 +498,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       const SizedBox(height: 6),
                       Text(
                         title,
-                        softWrap: true,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight:
@@ -589,9 +511,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           body,
-                          softWrap: true,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            height: 1.45,
+                            height: 1.35,
                           ),
                         ),
                       ],

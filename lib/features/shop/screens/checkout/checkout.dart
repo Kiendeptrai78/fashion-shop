@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/common/widgets/list_tiles/loyalty_coins_tile.dart';
 import 'package:fashion_business_app/features/personalization/services/loyalty_coins.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,7 +30,8 @@ import 'widgets/billing_payment_section.dart';
 import 'widgets/checkout_complete_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
+  const CheckoutScreen({super.key, this.watchCoinBalance});
+  final Stream<int> Function()? watchCoinBalance;
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -62,7 +64,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
-    _coinSubscription = LoyaltyCoins().watchBalance().listen((balance) {
+    _coinSubscription = (widget.watchCoinBalance?.call() ?? LoyaltyCoins().watchBalance()).listen((balance) {
       if (mounted) { setState(() { _coinBalance = balance; _coinsLoading = false; _coinError = null; }); }
     }, onError: (_) {
       if (mounted) {
@@ -312,7 +314,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final prodAvailCount = _benefits.sortedProductCouponsFor(subtotal).length;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
@@ -441,7 +443,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             horizontal: 6,
                             vertical: 2,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: ShopGlassDecoration(
                             color: const Color(0xFFF0FDF4),
                             borderRadius: BorderRadius.circular(4),
                           ),
@@ -545,7 +547,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             horizontal: 5.5,
                             vertical: 1.5,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: ShopGlassDecoration(
                             color: const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(color: const Color(0xFFFECACA)),
@@ -628,19 +630,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return PopScope(
       canPop: !_submitting && !_benefits.busy.value,
       child: Scaffold(
+      extendBodyBehindAppBar: true,
         appBar: const TAppbar(
           showBackArrow: true,
           title: ShopText(
             'Checkout',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.6,
-            ),
+            style: shopAppbarTitleStyle,
           ),
         ),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+          padding: shopAppbarContentPadding(context, EdgeInsets.fromLTRB(24, 12, 24, 32)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -666,7 +665,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 final eta = ShippingRouteHelper.estimateForAddress(selectedAddr);
                 return Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
+                  decoration: ShopGlassDecoration(
                     color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xFFE2E8F0)),
@@ -708,7 +707,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
@@ -944,16 +943,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
           return SafeArea(
             top: false,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  top: BorderSide(
-                    color: theme.dividerColor.withValues(alpha: 0.16),
-                  ),
-                ),
-              ),
+            child: ShopGlass(
+              radius: 26,
+              margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -965,7 +958,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         horizontal: 10,
                         vertical: 6,
                       ),
-                      decoration: BoxDecoration(
+                      decoration: ShopGlassDecoration(
                         color: const Color(0xFFF2F6F4),
                         borderRadius: BorderRadius.circular(8),
                       ),

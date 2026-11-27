@@ -37,6 +37,7 @@ class AuthenticationRepository extends GetxController {
   ///variables
   final deviceStorage = GetStorage('app_preferences');
   final _auth = FirebaseAuth.instance;
+  Future<void>? _redirectFuture;
 
   ///get auth user data
   User get authUser => _auth.currentUser!;
@@ -77,7 +78,10 @@ class AuthenticationRepository extends GetxController {
   }
 
   ///function to determine the relevant
-  void screenRedirect() async {
+  Future<void> screenRedirect({VoidCallback? beforeNavigate}) =>
+      _redirectFuture ??= _prepareAndRedirect(beforeNavigate).whenComplete(() => _redirectFuture = null);
+
+  Future<void> _prepareAndRedirect(VoidCallback? beforeNavigate) async {
     if (kIsWeb) {
       screenRedirectAdmin();
       return;
@@ -109,15 +113,18 @@ class AuthenticationRepository extends GetxController {
         if (Get.isRegistered<AccountActivity>()) Get.delete<AccountActivity>(force: true);
         Get.put(AccountActivity(user.uid), permanent: true);
 
+        beforeNavigate?.call();
         if (ShopperPreferences.load().completed) {
           Get.offAll(() => const NavigationMenu());
         } else {
           Get.offAll(() => const ShopperOnboarding());
         }
       } else {
+        beforeNavigate?.call();
         Get.offAll(() => VerifyEmailScreen(email: _auth.currentUser?.email));
       }
     } else {
+      beforeNavigate?.call();
       //local storage
       deviceStorage.writeIfNull('IsFirstTime', true);
       deviceStorage.read('IsFirstTime') != true

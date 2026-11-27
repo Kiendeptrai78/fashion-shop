@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/common/widgets/product/payment_method/payment_method.dart';
 import 'package:fashion_business_app/common/widgets/text/section_heading.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/checkout_controller.dart';
@@ -51,7 +52,7 @@ class TBillingPaymentSection extends StatelessWidget {
                         width: 60,
                         height: 42,
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
+                        decoration: ShopGlassDecoration(
                           color: dark
                               ? const Color(0xFF22352C)
                               : const Color(0xFFEBF2EE),

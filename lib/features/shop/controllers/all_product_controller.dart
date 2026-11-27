@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
 import 'package:fashion_business_app/features/shop/models/catalog_query.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -133,7 +134,7 @@ class AllProductController extends GetxController {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return ShopGlassAlertDialog(
           title: const Text('Select Brand'),
           content: SingleChildScrollView(
             child: ListBody(
@@ -161,7 +162,7 @@ class AllProductController extends GetxController {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return ShopGlassAlertDialog(
           title: const Text('Select Category'),
           content: SingleChildScrollView(
             child: ListBody(

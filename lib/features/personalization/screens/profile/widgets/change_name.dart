@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/features/personalization/screens/profile/controller/update_name_controller.dart';
 import 'package:fashion_business_app/utils/constants/text_strings.dart';
@@ -18,26 +19,23 @@ class ChangeName extends StatelessWidget {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
 
     return Scaffold(
-      backgroundColor:
-          dark ? const Color(0xFF0E1713) : const Color(0xFFF4F6F2),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: TAppbar(
         showBackArrow: true,
         title: ShopText(
           'Change Name',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          ),
+          style: shopAppbarTitleStyle,
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: shopAppbarContentPadding(context, EdgeInsets.all(20)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: dark
                     ? const Color(0xFF1A2D25)
                     : const Color(0xFFEAF3EE),
@@ -74,7 +72,7 @@ class ChangeName extends StatelessWidget {
             const SizedBox(height: 18),
             Container(
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: dark ? const Color(0xFF19251F) : Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(

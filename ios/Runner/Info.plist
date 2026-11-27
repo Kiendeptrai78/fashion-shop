@@ -61,6 +61,8 @@
 	<string>VELORA cần quyền Micro để quay video có âm thanh khi gửi đánh giá, đổi trả hoặc nhắn tin hỗ trợ.</string>
 	<key>GIDClientID</key>
 	<string>823625169651-aabh11qmkgpa6fffjud9md0fmjnsbmah.apps.googleusercontent.com</string>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

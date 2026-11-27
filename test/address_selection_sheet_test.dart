@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/features/shop/screens/checkout/checkout.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/checkout_controller.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
@@ -10,6 +11,7 @@ import 'package:get/get.dart';
 import 'package:fashion_business_app/features/personalization/controllers/address_controller.dart';
 import 'package:fashion_business_app/features/personalization/models/address_model.dart';
 import 'package:fashion_business_app/features/personalization/screens/address/widgets/address_selection_sheet.dart';
+import 'package:fashion_business_app/features/personalization/screens/address/address_screen.dart';
 
 class _Addresses extends GetxController implements AddressController {
   _Addresses([this.records = const []]);
@@ -23,6 +25,8 @@ class _Addresses extends GetxController implements AddressController {
   }
   @override
   final selectedAddress = AddressModel.empty().obs;
+  @override
+  final refreshData = false.obs;
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -38,6 +42,22 @@ class _Cart extends GetxController implements CartController {
 
 void main() {
   tearDown(() => Get.reset());
+  testWidgets('address heading clears the toolbar on a notched iPhone', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.padding = const FakeViewPadding(top: 62);
+    tester.view.viewPadding = const FakeViewPadding(top: 62);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
+    Get.put<AddressController>(_Addresses());
+    await tester.pumpWidget(const GetMaterialApp(home: AddressScreen()));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.text('A place for every delivery.')).dy,
+      greaterThan(tester.getBottomLeft(find.byType(TAppbar)).dy));
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('adding from checkout refreshes the open address sheet immediately', (tester) async {
     final controller = Get.put<AddressController>(_Addresses());
     final records = <AddressModel>[];
@@ -71,7 +91,7 @@ void main() {
     Map<String, dynamic>? saved;
     final benefits = Get.put(CustomerBenefits(read: () => saved, write: (data) async { saved = data; }));
     await benefits.initialize();
-    await tester.pumpWidget(const GetMaterialApp(home: CheckoutScreen()));
+    await tester.pumpWidget(GetMaterialApp(home: CheckoutScreen(watchCoinBalance: () => Stream.value(0))));
     await tester.pumpAndSettle();
     expect(addresses.loads, 1);
     expect(find.text('Saved recipient'), findsOneWidget);
@@ -97,10 +117,10 @@ void main() {
         now: () => DateTime(2026, 11, 20, 12)));
     await benefits.initialize();
     benefits.saveCouponSelection(benefits.coupons.firstWhere((c) => c.id == 'LE-2026-11-20'));
-    await tester.pumpWidget(const GetMaterialApp(locale: Locale('en'), home: CheckoutScreen()));
+    await tester.pumpWidget(GetMaterialApp(locale: const Locale('en'), home: CheckoutScreen(watchCoinBalance: () => Stream.value(0))));
     await tester.pumpAndSettle();
     final shippingSlot = find.text('Free Shipping');
-    await tester.ensureVisible(shippingSlot);
+    await Scrollable.ensureVisible(tester.element(shippingSlot), alignment: 0.5);
     await tester.tap(shippingSlot);
     await tester.pumpAndSettle();
     for (final code in ['WELCOME10', 'SHIPNEW']) {
@@ -109,24 +129,24 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(CouponsScreen), findsOneWidget);
     }
-    await tester.tap(find.byType(IconButton).first);
+    await tester.tap(find.byType(ShopGlassBackButton).first);
     await tester.pumpAndSettle();
     expect(find.byType(CouponsScreen), findsNothing);
     expect(find.text('WELCOME10'), findsOneWidget);
     expect(find.text('SHIPNEW'), findsOneWidget);
     expect(find.text('LE-2026-11-20'), findsNothing);
-    await tester.ensureVisible(find.text('SHIPNEW'));
+    await Scrollable.ensureVisible(tester.element(find.text('SHIPNEW')), alignment: 0.5);
     await tester.tap(find.text('SHIPNEW'));
     await tester.pumpAndSettle();
     for (var i = 0; i < 2; i++) {
       final remove = find.widgetWithText(OutlinedButton, 'Remove').first;
-      await tester.ensureVisible(remove);
+      await Scrollable.ensureVisible(tester.element(remove), alignment: 0.5);
       await tester.tap(remove);
       await tester.pumpAndSettle();
       expect(find.byType(CouponsScreen), findsOneWidget);
     }
     expect(find.widgetWithText(OutlinedButton, 'Remove'), findsNothing);
-    await tester.tap(find.byType(IconButton).first);
+    await tester.tap(find.byType(ShopGlassBackButton).first);
     await tester.pumpAndSettle();
     expect(benefits.selectedProductCoupon.value, isNull);
     expect(benefits.selectedShippingCoupon.value, isNull);

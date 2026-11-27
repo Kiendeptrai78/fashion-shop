@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/utils/constants/enums.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -106,20 +107,26 @@ class AdminCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDefaultSurface = color == AdminColors.surface;
     return Container(
       padding: padding,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: AdminColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AdminColors.forestDark.withValues(alpha: 0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: isDefaultSurface
+          ? ShopGlassDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(borderRadius),
+            )
+          : BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(borderRadius),
+              border: Border.all(color: AdminColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: AdminColors.forestDark.withValues(alpha: 0.03),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
       child: child,
     );
   }
@@ -149,13 +156,12 @@ class AdminStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-        decoration: BoxDecoration(
+        decoration: ShopGlassDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,27 +337,44 @@ class AdminPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: loading ? null : onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AdminColors.forest,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-      ),
-      icon: loading
-          ? const SizedBox(
-              width: 15,
-              height: 15,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
+    return GlassButton.custom(
+      useOwnLayer: true,
+      height: 40,
+      stretch: 0.14,
+      enabled: !loading && onPressed != null,
+      shape: const LiquidRoundedSuperellipse(borderRadius: 12),
+      tintColor: AdminColors.forest,
+      onTap: () {
+        if (!loading) onPressed?.call();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (loading)
+              const SizedBox(
+                width: 15,
+                height: 15,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            else
+              Icon(icon ?? Icons.add_rounded, size: 17, color: Colors.white),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
-            )
-          : Icon(icon ?? Icons.add_rounded, size: 17),
-      label: Text(label),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -374,28 +397,21 @@ class AdminSearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      child: TextField(
-        controller: controller,
-        onChanged: onChanged,
-        style: const TextStyle(fontSize: 13, color: AdminColors.ink),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(fontSize: 13, color: AdminColors.inkMuted),
-          prefixIcon: const Icon(Iconsax.search_normal_1, size: 17, color: AdminColors.inkMuted),
-          filled: true,
-          fillColor: AdminColors.surfaceMuted,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: AdminColors.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: AdminColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(11),
-            borderSide: const BorderSide(color: AdminColors.forest, width: 1.4),
+      child: ShopGlass(
+        radius: 13,
+        child: TextField(
+          controller: controller,
+          onChanged: onChanged,
+          style: const TextStyle(fontSize: 13, color: AdminColors.ink),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(fontSize: 13, color: AdminColors.inkMuted),
+            prefixIcon: const Icon(Iconsax.search_normal_1, size: 17, color: AdminColors.inkMuted),
+            filled: false,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
           ),
         ),
       ),
@@ -1237,45 +1253,26 @@ Future<bool> showAdminConfirmDialog(
   String confirmLabel = 'Xác nhận xóa',
   bool destructive = true,
 }) async {
-  final result = await showDialog<bool>(
+  final result = await GlassDialog.show<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: AdminColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AdminColors.ink),
+    barrierDismissible: true,
+    title: title,
+    message: message,
+    maxWidth: 380,
+    actions: [
+      GlassDialogAction(
+        label: 'Hủy',
+        onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
       ),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Text(
-          message,
-          style: const TextStyle(fontSize: 13.5, color: AdminColors.inkSecondary, height: 1.5),
-        ),
+      GlassDialogAction(
+        label: confirmLabel,
+        isPrimary: !destructive,
+        isDestructive: destructive,
+        tintColor: destructive ? null : AdminColors.forest,
+        foregroundColor: destructive ? null : Colors.white,
+        onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
       ),
-      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      actions: [
-        OutlinedButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AdminColors.inkSecondary,
-            side: const BorderSide(color: AdminColors.borderStrong),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-          child: const Text('Hủy'),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: destructive ? AdminColors.rose : AdminColors.forest,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-          child: Text(confirmLabel),
-        ),
-      ],
-    ),
+    ],
   );
   return result == true;
 }

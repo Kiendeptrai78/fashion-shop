@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/videos/video_seek_bar.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fashion_business_app/admin/web/controllers/admin_web_controller.dart';
 import 'package:fashion_business_app/admin/web/data/admin_web_models.dart';
@@ -171,7 +172,7 @@ class _AdminProductVideoPreviewDialogState
       }
     }
 
-    // 3. Real-human product review videos
+    // 3. Explicitly assigned product videos and source metadata
     final prodVideos = VeloraReviewVideoCatalog.videosForProduct(p, fallbackCount: 2);
     for (var i = 0; i < prodVideos.length; i++) {
       final u = prodVideos[i].trim();
@@ -180,7 +181,7 @@ class _AdminProductVideoPreviewDialogState
       final meta = VeloraReviewVideoCatalog.metadataForUrl(u, p);
       _mediaSlots.add(
         _MediaSlot(
-          label: '🎬 Review #${i + 1} · ${meta.creatorHandle}',
+          label: '🎬 Video #${i + 1} · ${meta.creatorHandle}',
           url: u,
           isVideo: true,
         ),
@@ -241,7 +242,8 @@ class _AdminProductVideoPreviewDialogState
     if (!slot.isVideo) return;
 
     try {
-      final ctrl = VideoPlayerController.networkUrl(Uri.parse(slot.url));
+      final ctrl = VideoPlayerController.networkUrl(Uri.parse(slot.url),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false));
       _videoCtrl = ctrl;
       await ctrl.initialize();
       await ctrl.setLooping(true);
@@ -766,15 +768,7 @@ class _AdminProductVideoPreviewDialogState
                   ),
                 ),
                 Expanded(
-                  child: VideoProgressIndicator(
-                    ctrl,
-                    allowScrubbing: true,
-                    colors: const VideoProgressColors(
-                      playedColor: AdminColors.sage,
-                      bufferedColor: Colors.white38,
-                      backgroundColor: Colors.white12,
-                    ),
-                  ),
+                  child: VideoSeekBar(controller: ctrl),
                 ),
                 IconButton(
                   visualDensity: VisualDensity.compact,

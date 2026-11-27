@@ -23,11 +23,13 @@ class AllBrandScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final brandController = BrandController.instance;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: const TAppbar(
         title: ShopText('Brands'),
         showBackArrow: true,
       ),
       body: SingleChildScrollView(
+        padding: shopAppbarContentPadding(context),
         child: Padding(
           padding: const EdgeInsets.all(TSizes.defaultSpace),
           child: Column(

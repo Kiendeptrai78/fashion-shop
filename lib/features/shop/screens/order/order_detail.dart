@@ -1,3 +1,5 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_status_badge.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
@@ -82,7 +84,6 @@ class _OrderDetailState extends State<OrderDetail> {
       confirmLabel: 'Confirm',
       cancelLabel: 'Back',
       destructive: isCancel,
-      icon: isCancel ? Iconsax.close_circle : Iconsax.tick_circle,
     );
     if (confirmed != true || !mounted) return;
     setState(() {
@@ -124,9 +125,9 @@ class _OrderDetailState extends State<OrderDetail> {
       _openReviewItem(pending.first);
       return;
     }
-    showModalBottomSheet(
+    showShopBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+
       showDragHandle: true,
       builder: (sheet) => SafeArea(
         child: Padding(
@@ -195,33 +196,34 @@ class _OrderDetailState extends State<OrderDetail> {
     final canReceive = order.status == OrderStatus.shipped;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7F8),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: TAppbar(
         showBackArrow: true,
         title: const ShopText(
           'Order details',
-          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+          style: shopAppbarTitleStyle,
         ),
         actions: [
-          IconButton(
+          ShopGlassIconButton(
             tooltip: 'Chat trực tiếp với VELORA',
             onPressed: () => Get.to(
               () => VeloraSupportChatScreen(initialOrder: order),
             ),
-            icon: const Icon(Iconsax.message_text_1, size: 21),
+            icon: Iconsax.message_text_1,
           ),
         ],
       ),
       body: SingleChildScrollView(
         physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: shopAppbarContentPadding(context, EdgeInsets.fromLTRB(16, 12, 16, 24)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 1. Clean White Status & Monochrome Stepper Card
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
@@ -272,7 +274,7 @@ class _OrderDetailState extends State<OrderDetail> {
                           horizontal: 12,
                           vertical: 9,
                         ),
-                        decoration: BoxDecoration(
+                        decoration: ShopGlassDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: const Color(0xFFE2E8F0)),
@@ -333,7 +335,7 @@ class _OrderDetailState extends State<OrderDetail> {
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
@@ -382,7 +384,7 @@ class _OrderDetailState extends State<OrderDetail> {
                                       CrossAxisAlignment.start,
                                   children: [
                                     Container(
-                                      decoration: BoxDecoration(
+                                      decoration: ShopGlassDecoration(
                                         color: const Color(0xFFF8FAFC),
                                         borderRadius:
                                             BorderRadius.circular(8),
@@ -571,7 +573,7 @@ class _OrderDetailState extends State<OrderDetail> {
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
@@ -703,7 +705,7 @@ class _OrderDetailState extends State<OrderDetail> {
                   top: false,
                   child: Container(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                    decoration: const BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: Colors.white,
                       border: Border(
                         top: BorderSide(color: Color(0xFFE5E7EB)),
@@ -839,7 +841,7 @@ class _OrderDetailState extends State<OrderDetail> {
                   Container(
                     width: 22,
                     height: 22,
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: active ? activeColor : Colors.white,
                       shape: BoxShape.circle,
                       border: Border.all(

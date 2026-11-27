@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/common/widgets/loaders/animation_loader.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/order_controller.dart';
 import 'package:fashion_business_app/features/shop/models/order_model.dart';
@@ -72,7 +73,7 @@ class TOrderListItem extends StatelessWidget {
           itemBuilder: (_, index) {
             final order = orders[index];
             return Container(
-              decoration: BoxDecoration(
+              decoration: ShopGlassDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE5E7EB)),

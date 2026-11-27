@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
@@ -106,25 +107,22 @@ class _ProductDetailState extends State<ProductDetail> {
         dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE5EAE2);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: TAppbar(
         showBackArrow: true,
         title: const Text(
           'VELORA',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2.5,
-          ),
+          style: shopAppbarTitleStyle,
         ),
         actions: [
-          IconButton(
+          ShopGlassIconButton(
             tooltip: 'Chat trực tiếp với VELORA về đôi giày này',
             onPressed: () => Get.to(
               () => VeloraSupportChatScreen(initialProduct: product),
             ),
-            icon: const Icon(Iconsax.message_text_1, size: 22),
+            icon: Iconsax.message_text_1,
           ),
-          TFavouriteIcon(productId: product.id),
+          TFavouriteIcon(productId: product.id, inAppbar: true),
           const TCartCounterIcon(),
         ],
       ),
@@ -142,6 +140,7 @@ class _ProductDetailState extends State<ProductDetail> {
         },
       ),
       body: SingleChildScrollView(
+        padding: shopAppbarContentPadding(context),
         controller: _scroll,
         child: Column(
           children: [
@@ -371,8 +370,8 @@ class _ProductInlineVideosStrip extends StatelessWidget {
             Expanded(
               child: Text(
                 isVi
-                    ? 'Video review trên chân (${videos.length} clip)'
-                    : 'On-feet review videos (${videos.length})',
+                    ? 'Video & cảm hứng (${videos.length} clip)'
+                    : 'Videos & inspiration (${videos.length})',
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
@@ -789,7 +788,7 @@ class _ProductReviewsPreviewSectionState
                   Container(
                     width: 40,
                     height: 40,
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: widget.dark
                           ? const Color(0xFF283A2E)
                           : const Color(0xFFE7F0EA),
@@ -1088,7 +1087,7 @@ class _ProductReviewsPreviewSectionState
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
+            decoration: ShopGlassDecoration(
               color: widget.dark
                   ? const Color(0xFF1D3128)
                   : const Color(0xFFF3F8F5),

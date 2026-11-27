@@ -1,85 +1,107 @@
-import 'package:fashion_business_app/utils/localization/shop_translations.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
+import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
+import 'package:fashion_business_app/utils/localization/shop_translations.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
-import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
 
 class TLoaders {
-  static hideSnackBar() => ScaffoldMessenger.of(Get.context!).hideCurrentSnackBar();
+  static hideSnackBar() =>
+      ScaffoldMessenger.of(Get.context!).hideCurrentSnackBar();
 
   static customToast({required message}) {
-    ScaffoldMessenger.of(Get.context!).showSnackBar(
-     SnackBar(
-      elevation: 0,
-      duration: const Duration(seconds: 3),
-      backgroundColor: Colors.transparent,
-      content: Container(
-        padding: const EdgeInsets.all(12.0),
-        margin: const EdgeInsets.symmetric(horizontal: 30),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
-          color: THelperFunctions.isDarkMode(Get.context!)
-              ? TColors.darkerGrey.withOpacity(0.9)
-              : TColors.grey.withOpacity(0.9),
-        ),
-        child: Center(
-          child: ShopText(
-            message,
-            style: Theme.of(Get.context!).textTheme.labelLarge,
+    final ctx = Get.context;
+    if (ctx == null) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        elevation: 0,
+        duration: const Duration(seconds: 3),
+        backgroundColor: Colors.transparent,
+        content: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: ShopGlass(
+            radius: 28,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Center(
+              child: ShopText(
+                message,
+                style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   static successSnackBar({required title, message = '', duration = 3}) {
-    Get.snackbar(shopTranslate(title, language: Get.locale?.languageCode ?? 'vi'),
-        shopTranslate(message, language: Get.locale?.languageCode ?? 'vi'),
-        isDismissible: true,
-        shouldIconPulse: true,
-        backgroundColor: const Color(0xFF173E32),
-        colorText: TColors.white,
-        snackPosition: SnackPosition.TOP,
-        borderRadius: 16,
-        duration: Duration(seconds: duration),
-        margin: const EdgeInsets.all(14),
-        icon: const Icon(
-          Icons.check_circle_rounded,
-          color: Color(0xFFDDEABB),
-        ));
+    final lang = Get.locale?.languageCode ?? 'vi';
+    Get.snackbar(
+      shopTranslate(title, language: lang),
+      shopTranslate(message, language: lang),
+      isDismissible: true,
+      shouldIconPulse: false,
+      backgroundColor: const Color(0xE6173E32),
+      barBlur: 18,
+      colorText: TColors.white,
+      snackPosition: SnackPosition.TOP,
+      borderRadius: 18,
+      borderColor: Colors.white.withValues(alpha: 0.22),
+      borderWidth: 1,
+      duration: Duration(seconds: duration),
+      margin: const EdgeInsets.all(14),
+      icon: const Icon(
+        Icons.check_circle_rounded,
+        color: Color(0xFFDDEABB),
+      ),
+    );
   }
 
   static warningSnackBar({required title, message = ''}) {
-    Get.snackbar(shopTranslate(title, language: Get.locale?.languageCode ?? 'vi'),
-        shopTranslate(message, language: Get.locale?.languageCode ?? 'vi'),
-        isDismissible: true,
-        shouldIconPulse: true,
-        colorText: TColors.white,
-        backgroundColor: Colors.orange,
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(20),
-        icon: const Icon(
-          Icons.warning_amber,
-          color: TColors.white,
-        ));
+    final lang = Get.locale?.languageCode ?? 'vi';
+    Get.snackbar(
+      shopTranslate(title, language: lang),
+      shopTranslate(message, language: lang),
+      isDismissible: true,
+      shouldIconPulse: false,
+      colorText: TColors.white,
+      backgroundColor: const Color(0xE6B45309),
+      barBlur: 18,
+      borderColor: Colors.white.withValues(alpha: 0.22),
+      borderWidth: 1,
+      borderRadius: 18,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 3),
+      margin: const EdgeInsets.all(20),
+      icon: const Icon(
+        Icons.warning_amber_rounded,
+        color: TColors.white,
+      ),
+    );
   }
 
   static errorSnackBar({required title, message = ''}) {
-    Get.snackbar(shopTranslate(title, language: Get.locale?.languageCode ?? 'vi'),
-        shopTranslate(message, language: Get.locale?.languageCode ?? 'vi'),
-        isDismissible: true,
-        shouldIconPulse: true,
-        colorText: TColors.white,
-        backgroundColor: Colors.red.shade600,
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.all(20),
-        icon: const Icon(
-          Icons.warning_amber,
-          color: TColors.white,
-        ));
+    final lang = Get.locale?.languageCode ?? 'vi';
+    Get.snackbar(
+      shopTranslate(title, language: lang),
+      shopTranslate(message, language: lang),
+      isDismissible: true,
+      shouldIconPulse: false,
+      colorText: TColors.white,
+      backgroundColor: const Color(0xE6B91C1C),
+      barBlur: 18,
+      borderColor: Colors.white.withValues(alpha: 0.22),
+      borderWidth: 1,
+      borderRadius: 18,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 3),
+      margin: const EdgeInsets.all(20),
+      icon: const Icon(
+        Icons.error_outline_rounded,
+        color: TColors.white,
+      ),
+    );
   }
-
 }

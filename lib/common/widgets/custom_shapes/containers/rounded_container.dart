@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
 
@@ -32,7 +33,7 @@ class TRoundedContainer extends StatelessWidget {
       height: height,
       padding: padding,
       margin: margin,
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(radius),
           border: showBorder ? Border.all(color: borderColor) : null),

@@ -1,33 +1,28 @@
+import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
 import 'package:flutter/material.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
-import 'package:fashion_business_app/utils/device/device_utility.dart';
-import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
 
 class TTabBar extends StatelessWidget implements PreferredSizeWidget {
   const TTabBar({
-    super.key, required this.tabs,
+    super.key,
+    required this.tabs,
   });
 
-  final List<Widget> tabs;
+  final List<String> tabs;
+
   @override
   Widget build(BuildContext context) {
-    final dark = THelperFunctions.isDarkMode(context);
-    return Material(
-      color: dark ? TColors.black : TColors.white,
-      child: SingleChildScrollView(
-        child: TabBar(
-              isScrollable: true,
-              padding: EdgeInsets.only(right: 60),
-              indicatorColor: TColors.primaryColor,
-              unselectedLabelColor: TColors.darkGrey,
-              // indicatorPadding: EdgeInsets.only(left: 40),
-              labelColor: dark ? TColors.white : TColors.primaryColor,
-              tabs: tabs),
-        )
-
+    final controller = DefaultTabController.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      child: AnimatedBuilder(animation: controller, builder: (_, __) => ShopFilterTabs(
+        tabs: List.generate(tabs.length, (index) => ShopFilterTab(
+          label: tabs[index], count: 0, selected: controller.index == index,
+          onTap: () => controller.animateTo(index),
+        )),
+      )),
     );
   }
 
   @override
-  Size get preferredSize => Size.fromHeight(TDeviceUtils.getAppBarHeight());
+  Size get preferredSize => const Size.fromHeight(54);
 }

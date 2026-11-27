@@ -1,6 +1,10 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:fashion_business_app/common/widgets/tabs/shop_tab_body.dart';
 import 'dart:async';
 
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
+import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
 import 'package:fashion_business_app/common/widgets/layouts/grid_layout.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_count_badge.dart';
 import 'package:fashion_business_app/common/widgets/product/cart/cart_menu_icon.dart';
@@ -128,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _showFilters() async {
     var category = _catalog.filter.categoryId;
     final facets = _catalog.facets.value;
-    final result = await showModalBottomSheet<CatalogFilter>(
+    final result = await showShopBottomSheet<CatalogFilter>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -143,10 +147,10 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Row(children: [
                   Expanded(child: ShopText('Find your pair', style: Theme.of(context).textTheme.headlineSmall)),
-                  IconButton(
+                  ShopGlassIconButton(
                     tooltip: 'Close filters'.tr,
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                    icon: Icons.close,
                   ),
                 ]),
                 const SizedBox(height: 20),
@@ -211,52 +215,48 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onTap,
   }) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      color: dark ? const Color(0xFF1D2D26) : const Color(0xFFF3F6F1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE0E8E2),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32)),
-              const SizedBox(width: 7),
-              ShopText(
-                label,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: dark ? Colors.white : const Color(0xFF173E32),
+    return GlassButton.custom(
+      useOwnLayer: true,
+      surfaceStyle: GlassSurfaceStyle.solid,
+      color: dark ? const Color(0xFF253D32) : const Color(0xFFEAF2ED),
+      height: 38,
+      stretch: 0.18,
+      shape: const LiquidRoundedSuperellipse(borderRadius: 13),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32)),
+            const SizedBox(width: 7),
+            ShopText(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: dark ? Colors.white : const Color(0xFF173E32),
+              ),
+            ),
+            if (badge > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  badge > 99 ? '99+' : '$badge',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: dark ? const Color(0xFF102B23) : const Color(0xFFDDEABB),
+                  ),
                 ),
               ),
-              if (badge > 0) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    badge > 99 ? '99+' : '$badge',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: dark ? const Color(0xFF102B23) : const Color(0xFFDDEABB),
-                    ),
-                  ),
-                ),
-              ],
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -269,17 +269,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final activity = AccountActivity.current;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: TAppbar(
         showBackArrow: widget.showBackArrow,
         title: widget.showBackArrow
-            ? ShopText(
-                widget.title,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                ),
-              )
+            ? ShopText(widget.title, style: shopAppbarTitleStyle)
             : Row(
                 children: [
                   Container(
@@ -341,35 +335,63 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           if (!widget.showBackArrow)
             activity != null
-                ? Obx(() => IconButton(
-                      tooltip: 'Notifications'.tr,
-                      onPressed: () => Get.to(() => const NotificationsScreen()),
-                      icon: ShopCountBadge(
-                        count: activity.unread,
-                        child: const Icon(Iconsax.notification, size: 22),
+                ? Obx(() => Center(
+                      child: GlassIconButton(
+                        size: 40,
+                        iconSize: 20,
+                        useOwnLayer: true,
+                        style: GlassButtonStyle.filled,
+                        settings: shopToolbarGlassSettings(context),
+                        glowColor: Colors.transparent,
+                        semanticLabel: 'Notifications'.tr,
+                        onPressed: () =>
+                            Get.to(() => const NotificationsScreen()),
+                        icon: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: Center(
+                            child: ShopCountBadge(
+                              count: activity.unread,
+                              child: const Icon(Iconsax.notification, size: 20),
+                            ),
+                          ),
+                        ),
                       ),
                     ))
-                : IconButton(
-                    tooltip: 'Notifications'.tr,
-                    onPressed: () => Get.to(() => const NotificationsScreen()),
-                    icon: const Icon(Iconsax.notification, size: 22),
+                : Center(
+                    child: GlassIconButton(
+                      size: 40,
+                      iconSize: 20,
+                      useOwnLayer: true,
+                      style: GlassButtonStyle.filled,
+                      settings: shopToolbarGlassSettings(context),
+                      glowColor: Colors.transparent,
+                      semanticLabel: 'Notifications'.tr,
+                      onPressed: () =>
+                          Get.to(() => const NotificationsScreen()),
+                      icon: const Icon(Iconsax.notification, size: 20),
+                    ),
                   ),
           const TCartCounterIcon(),
         ],
       ),
       floatingActionButton: widget.showBackArrow
           ? null
-          : FloatingActionButton.small(
-              heroTag: 'velora-ai-fab',
-              tooltip: 'AI Stylist'.tr,
-              backgroundColor: const Color(0xFF173E32),
-              foregroundColor: const Color(0xFFDDEABB),
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 100),
+              child: GlassButton(
+                width: 48,
+                height: 48,
+                useOwnLayer: true,
+                label: 'AI Stylist'.tr,
+                shape: const LiquidRoundedSuperellipse(borderRadius: 16),
+                tintColor: const Color(0xFF173E32),
+                surfaceStyle: GlassSurfaceStyle.solid,
+                color: const Color(0xFF173E32),
+                iconColor: const Color(0xFFDDEABB),
+                onTap: () => Get.to(() => const VeloraAiChatScreen()),
+                icon: const Icon(Icons.auto_awesome_rounded, size: 20, color: Color(0xFFDDEABB)),
               ),
-              onPressed: () => Get.to(() => const VeloraAiChatScreen()),
-              child: const Icon(Icons.auto_awesome_rounded, size: 20),
             ),
       body: RefreshIndicator(
         onRefresh: _refreshHome,
@@ -378,66 +400,52 @@ class _HomeScreenState extends State<HomeScreen> {
           controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 10, 18, 88),
+            padding: shopAppbarContentPadding(context, EdgeInsets.fromLTRB(18, 10, 18, 152)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _search,
                   builder: (context, value, _) {
-                    return TextField(
-                      controller: _search,
-                      onChanged: (text) {
-                        _debounce?.cancel();
-                        _debounce = Timer(const Duration(milliseconds: 350), () {
-                          _catalog.setFilter(CatalogFilter(
-                            search: text,
-                            brandId: _catalog.filter.brandId,
-                            categoryId: _catalog.filter.categoryId,
-                          ));
-                        });
-                      },
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => FocusScope.of(context).unfocus(),
-                      decoration: InputDecoration(
-                        hintText: 'Search model or brand'.tr,
-                        prefixIcon: const Icon(Iconsax.search_normal_1, size: 20),
-                        suffixIcon: value.text.isNotEmpty
-                            ? IconButton(
-                                tooltip: 'Clear search'.tr,
-                                onPressed: _clearSearch,
-                                icon: const Icon(Icons.close_rounded, size: 19),
-                              )
-                            : IconButton(
-                                tooltip: 'Filters'.tr,
-                                onPressed: _showFilters,
-                                icon: Icon(
-                                  Icons.tune_rounded,
-                                  size: 20,
-                                  color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                    return ShopGlass(
+                      radius: 18,
+                      child: TextField(
+                        controller: _search,
+                        onChanged: (text) {
+                          _debounce?.cancel();
+                          _debounce = Timer(const Duration(milliseconds: 350), () {
+                            _catalog.setFilter(CatalogFilter(
+                              search: text,
+                              brandId: _catalog.filter.brandId,
+                              categoryId: _catalog.filter.categoryId,
+                            ));
+                          });
+                        },
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                        decoration: InputDecoration(
+                          hintText: 'Search model or brand'.tr,
+                          prefixIcon: const Icon(Iconsax.search_normal_1, size: 20),
+                          suffixIcon: value.text.isNotEmpty
+                              ? IconButton(
+                                  tooltip: 'Clear search'.tr,
+                                  onPressed: _clearSearch,
+                                  icon: const Icon(Icons.close_rounded, size: 19),
+                                )
+                              : IconButton(
+                                  tooltip: 'Filters'.tr,
+                                  onPressed: _showFilters,
+                                  icon: Icon(
+                                    Icons.tune_rounded,
+                                    size: 20,
+                                    color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                                  ),
                                 ),
-                              ),
-                        filled: true,
-                        fillColor: dark ? const Color(0xFF1D2D26) : const Color(0xFFF3F5F0),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE3E8E1),
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE3E8E1),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
-                            width: 1.4,
-                          ),
+                          filled: false,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
                         ),
                       ),
                     );
@@ -472,29 +480,31 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: ListView(
                             scrollDirection: Axis.horizontal,
                             children: [
-                              Material(
+                              GlassButton.custom(
+                                useOwnLayer: true,
+                                surfaceStyle: GlassSurfaceStyle.solid,
                                 color: const Color(0xFF173E32),
-                                borderRadius: BorderRadius.circular(12),
-                                clipBehavior: Clip.antiAlias,
-                                child: InkWell(
-                                  onTap: () => Get.to(() => const VeloraAiChatScreen()),
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.auto_awesome_rounded, size: 15, color: Color(0xFFDDEABB)),
-                                        SizedBox(width: 6),
-                                        ShopText(
-                                          'AI Stylist',
-                                          style: TextStyle(
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFFDDEABB),
-                                          ),
+                                height: 38,
+                                stretch: 0.18,
+                                shape: const LiquidRoundedSuperellipse(borderRadius: 13),
+                                tintColor: const Color(0xFF173E32),
+                                onTap: () => Get.to(() => const VeloraAiChatScreen()),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.auto_awesome_rounded, size: 15, color: Color(0xFFDDEABB)),
+                                      SizedBox(width: 6),
+                                      ShopText(
+                                        'AI Stylist',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFFDDEABB),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -566,63 +576,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                       if (!isRootHome) SizedBox(key: _catalogAnchor),
                       if (facets.categories.isNotEmpty)
-                        SizedBox(
-                          height: 40,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              for (final category in [null, ...facets.categories]) ...[
-                                Builder(builder: (context) {
-                                  final selected = filter.categoryId == category?.id;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: Material(
-                                      color: selected
-                                          ? (dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32))
-                                          : (dark ? const Color(0xFF1D2D26) : const Color(0xFFF3F5F0)),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(999),
-                                        side: BorderSide(
-                                          color: selected
-                                              ? Colors.transparent
-                                              : (dark
-                                                  ? Colors.white.withValues(alpha: 0.08)
-                                                  : const Color(0xFFE2E7E0)),
-                                        ),
-                                      ),
-                                      clipBehavior: Clip.antiAlias,
-                                      child: InkWell(
-                                        onTap: () {
-                                          _debounce?.cancel();
-                                          _catalog.setFilter(CatalogFilter(
-                                            search: _search.text,
-                                            brandId: filter.brandId,
-                                            categoryId: category?.id,
-                                          ));
-                                        },
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                                          child: Center(
-                                            child: ShopText(
-                                              category?.name ?? 'All',
-                                              style: theme.textTheme.bodySmall?.copyWith(
-                                                fontSize: 12.5,
-                                                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                                color: selected
-                                                    ? (dark ? const Color(0xFF102B23) : Colors.white)
-                                                    : theme.colorScheme.onSurface,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }),
-                              ],
-                            ],
-                          ),
-                        ),
+                        ShopFilterTabs(tabs: [
+                          for (final category in [null, ...facets.categories])
+                            ShopFilterTab(label: category?.name ?? 'All', count: 0,
+                              selected: filter.categoryId == category?.id,
+                              onTap: () {
+                                _debounce?.cancel();
+                                _catalog.setFilter(CatalogFilter(
+                                  search: _search.text, brandId: filter.brandId,
+                                  categoryId: category?.id,
+                                ));
+                              }),
+                        ]),
                       const SizedBox(height: 14),
                       Row(children: [
                         Expanded(
@@ -656,6 +621,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       const SizedBox(height: 18),
+                      ShopTabBody(
+                        index: facets.categories.indexWhere((category) => category.id == filter.categoryId) + 1,
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       if (loading)
                         const TVerticalProductShimmer(itemCount: 10)
                       else if (error != null)
@@ -702,6 +670,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ] else
                         _productGrid(products),
+                        ]),
+                      ),
                       const SizedBox(height: 28),
                       Row(children: [
                         OutlinedButton.icon(

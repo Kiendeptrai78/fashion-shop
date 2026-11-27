@@ -9,11 +9,9 @@ import 'package:fashion_business_app/common/widgets/text/section_heading.dart';
 import 'package:fashion_business_app/features/shop/controllers/category_controller.dart';
 import 'package:fashion_business_app/features/shop/models/category_model.dart';
 import 'package:fashion_business_app/features/shop/screens/all_product/all_product.dart';
-import 'package:fashion_business_app/utils/constants/colors.dart';
 import 'package:fashion_business_app/utils/constants/image_strings.dart';
 import 'package:fashion_business_app/utils/constants/sizes.dart';
 import 'package:fashion_business_app/utils/helpers/cloud_helper_function.dart';
-import 'package:fashion_business_app/utils/helpers/helper_funtions.dart';
 
 class SubCategoriesScreen extends StatelessWidget {
   const SubCategoriesScreen({super.key, required this.category});
@@ -23,15 +21,15 @@ class SubCategoriesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = CategoryController.instance;
-    final dark = THelperFunctions.isDarkMode(context);
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: TAppbar(
         title: ShopText(category.name,
-            style: TextStyle(
-                fontSize: 20, color: dark ? TColors.white : TColors.dark)),
+            style: shopAppbarTitleStyle),
         showBackArrow: true,
       ),
       body: SingleChildScrollView(
+        padding: shopAppbarContentPadding(context),
         child: Padding(
           padding: const EdgeInsets.all(TSizes.defaultSpace),
           child: Column(

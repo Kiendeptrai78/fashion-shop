@@ -35,16 +35,14 @@ class OrderDetailAdmin extends StatelessWidget {
     deliveryDateController.text = DateFormat('yyyy-MM-dd').format(order.deliveryDate);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: TAppbar(
         title: const Text('Orders detail'),
-        leading: IconButton(
-          icon:  Icon(Icons.arrow_back,color: dark ? TColors.white : TColors.dark,),
-          onPressed: () async {
-            // Gọi phương thức fetch lại dữ liệu khi ấn nút back
-            await orderController.fetchAllUserOrders();
-            Get.back(result: true);
-          },
-        ),
+        showBackArrow: true,
+        leadingOnPressed: () async {
+          // Gọi phương thức fetch lại dữ liệu khi ấn nút back
+          await orderController.fetchAllUserOrders();
+          Get.back(result: true);
+        },
       ),
       body: SingleChildScrollView(
         child: Padding(

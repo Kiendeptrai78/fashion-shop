@@ -1,3 +1,6 @@
+import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
+import 'package:fashion_business_app/common/widgets/tabs/shop_tab_body.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
@@ -285,7 +288,8 @@ class _CouponsScreenState extends State<CouponsScreen> {
     final isPickerMode = widget.subtotal != null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7F8),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
       appBar: TAppbar(
         showBackArrow: true,
         leadingOnPressed: () => Navigator.of(context).pop<ShopCoupon?>(null),
@@ -293,17 +297,12 @@ class _CouponsScreenState extends State<CouponsScreen> {
           isPickerMode
               ? (isEn ? 'Select Voucher' : 'Chọn mã ưu đãi')
               : (isEn ? 'My Vouchers' : 'Mã ưu đãi'),
-          style: const TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.w700,
-            color: _ink,
-          ),
+          style: shopAppbarTitleStyle,
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Clean white header: manual code input + colorless underline tabs
+      body: ShopScrollUnderHeader(
+            header: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Voucher input and the shared liquid filter strip
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -413,7 +412,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                 ),
                 const SizedBox(height: 6),
 
-                // Colorless underline tabs
+                // Voucher status filters
                 Obx(() {
                   final all = _benefits.coupons;
                   final counts = [
@@ -432,51 +431,18 @@ class _CouponsScreenState extends State<CouponsScreen> {
                   final labels = isEn
                       ? ['Available', 'Used', 'Expired']
                       : ['Dùng được', 'Đã dùng', 'Hết hạn'];
-                  return SizedBox(
-                    height: 40,
-                    child: Row(
-                      children: [
-                        for (var index = 0; index < 3; index++)
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => setState(() => _tab = index),
-                              child: Container(
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color: _tab == index
-                                          ? _ink
-                                          : Colors.transparent,
-                                      width: 2,
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  '${labels[index]} (${counts[index]})',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: _tab == index
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: _tab == index ? _ink : _muted,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                  return ShopFilterTabs(tabs: [
+                    for (var index = 0; index < labels.length; index++) ShopFilterTab(
+                      label: labels[index], count: counts[index], selected: _tab == index,
+                      onTap: () => setState(() => _tab = index),
                     ),
-                  );
+                  ]);
                 }),
               ],
             ),
           ),
-          const Divider(height: 1, color: _border),
-
-          // Voucher list (2 distinct sections in Available tab, NO bottom "Đồng ý" bar)
-          Expanded(
-            child: Obx(() {
+          ]),
+            body: ShopTabBody(index: _tab, child: Obx(() {
               _benefits.revision.value;
               _benefits.selectedProductCoupon.value;
               _benefits.selectedShippingCoupon.value;
@@ -723,7 +689,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                                     },
                                     child: Container(
                                       padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
+                                      decoration: ShopGlassDecoration(
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(color: _border),
@@ -789,10 +755,8 @@ class _CouponsScreenState extends State<CouponsScreen> {
                   ],
                 ),
               );
-            }),
+            })),
           ),
-        ],
-      ),
     );
   }
 
@@ -859,7 +823,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                       horizontal: 6,
                       vertical: 12,
                     ),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: canUse ? _brandSoft : const Color(0xFFF8FAFC),
                       borderRadius: const BorderRadius.horizontal(
                         left: Radius.circular(11),
@@ -1154,7 +1118,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
     if (isBestRecommended && canUse) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
-        decoration: BoxDecoration(
+        decoration: ShopGlassDecoration(
           color: const Color(0xFFFEF2F2),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(color: const Color(0xFFFECACA)),
@@ -1192,7 +1156,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(4),
       ),

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -20,17 +21,18 @@ class CartScreen extends StatelessWidget {
     final lang = Localizations.localeOf(context).languageCode;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: TAppbar(
         title: const ShopText(
           'Shopping bag',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.6),
+          style: shopAppbarTitleStyle,
         ),
         showBackArrow: Navigator.of(context).canPop(),
       ),
       body: Obx(() {
         if (controller.cartItems.isEmpty) return const ShoppingEmptyState(wishlist: false);
         return ListView(
-          padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+          padding: shopAppbarContentPadding(context, EdgeInsets.fromLTRB(18, 8, 18, 24)),
           children: [
             Row(children: [
               Expanded(
@@ -50,7 +52,7 @@ class CartScreen extends StatelessWidget {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 14),
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: unavailable
                           ? (dark
                               ? const Color(0xFF161D1A)
@@ -75,7 +77,7 @@ class CartScreen extends StatelessWidget {
                             onTap: () => ProductAvailabilityHelper
                                 .openProductDetailFromCartItem(context, item),
                             child: Container(
-                              decoration: BoxDecoration(
+                              decoration: ShopGlassDecoration(
                                 color: dark
                                     ? const Color(0xFF22342B)
                                     : const Color(0xFFF3F4EF),
@@ -145,7 +147,7 @@ class CartScreen extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 9, vertical: 4),
-                                    decoration: BoxDecoration(
+                                    decoration: ShopGlassDecoration(
                                       color: dark
                                           ? const Color(0xFF24372E)
                                           : const Color(0xFFF2F5F0),
@@ -176,7 +178,7 @@ class CartScreen extends StatelessWidget {
                                 Row(children: [
                                   Container(
                                     height: 36,
-                                    decoration: BoxDecoration(
+                                    decoration: ShopGlassDecoration(
                                       color: dark
                                           ? const Color(0xFF22342B)
                                           : const Color(0xFFF6F7F3),
@@ -259,27 +261,13 @@ class CartScreen extends StatelessWidget {
       }),
       bottomNavigationBar: Obx(() => controller.cartItems.isEmpty
           ? const SizedBox.shrink()
-          : Container(
-              decoration: BoxDecoration(
-                color: dark ? const Color(0xFF14211B) : Colors.white,
-                border: Border(
-                  top: BorderSide(
-                    color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE5EAE3),
-                  ),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: dark ? 0.25 : 0.06),
-                    blurRadius: 18,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                  child: Column(
+          : SafeArea(
+              top: false,
+              child: ShopGlass(
+                radius: 26,
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
@@ -326,7 +314,6 @@ class CartScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
               ),
             )),
     );

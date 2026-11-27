@@ -6,8 +6,9 @@ class TOutlinedButtonTheme{
   static final lightOutlinedButtonTheme = OutlinedButtonThemeData(
     style: OutlinedButton.styleFrom(
       elevation: 0,
-      foregroundColor: Colors.black,
-      side: const BorderSide(color: Colors.black26),
+      foregroundColor: const Color(0xFF173E32),
+      backgroundColor: const Color(0x99FFFFFF),
+      side: const BorderSide(color: Color(0xDDFFFFFF)),
       minimumSize: const Size(64, 50),
       textStyle: const TextStyle(
         fontFamily: 'BeVietnamPro',
@@ -17,7 +18,7 @@ class TOutlinedButtonTheme{
         fontWeight: FontWeight.w600,
       ),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     ),
   );
 

@@ -1,4 +1,5 @@
 import 'package:fashion_business_app/admin/web/theme/admin_theme.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/data/repositories/authentication/authentication_repository.dart';
 import 'package:fashion_business_app/features/authentication/screens/login/login.dart';
 import 'package:fashion_business_app/utils/constants/admin_config.dart';
@@ -165,9 +166,10 @@ class _AdminLoginWebScreenState extends State<AdminLoginWebScreen> {
           seedColor: AdminColors.forest,
           brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: AdminColors.canvas,
+        scaffoldBackgroundColor: Colors.transparent,
       ),
       child: Scaffold(
+        backgroundColor: Colors.transparent,
         body: isDesktop
             ? Row(
                 children: [
@@ -214,9 +216,9 @@ class _AdminLoginWebScreenState extends State<AdminLoginWebScreen> {
   Widget _buildLoginCard() {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 440),
-      child: AdminCard(
+      child: ShopGlass(
+        radius: 24,
         padding: const EdgeInsets.all(34),
-        borderRadius: 20,
         child: Form(
           key: _formKey,
           child: Column(
@@ -555,13 +557,10 @@ class _FeatureChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ShopGlass(
+      dark: true,
+      radius: 13,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

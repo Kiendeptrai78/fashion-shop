@@ -1,3 +1,6 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/common/widgets/list_tiles/loyalty_coins_tile.dart';
 import 'package:fashion_business_app/common/widgets/dialogs/velora_confirm_dialog.dart';
 import 'package:fashion_business_app/common/widgets/images/circular_image.dart';
@@ -64,11 +67,35 @@ class SettingScreen extends StatelessWidget {
         Get.isRegistered<CartController>() ? CartController.instance : null;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor:
-            dark ? const Color(0xFF0E1713) : const Color(0xFFF4F6F2),
+      extendBodyBehindAppBar: true,
+        backgroundColor: Colors.transparent,
+        appBar: TAppbar(
+          title: const ShopText('Profile', style: shopAppbarTitleStyle),
+          actions: [
+            if (activity != null)
+              Obx(() => ShopGlassIconButton.widget(
+                tooltip: 'Notifications'.tr,
+                onPressed: () => Get.to(() => const NotificationsScreen()),
+                iconWidget: ShopCountBadge(count: activity.unread,
+                  child: const Icon(Iconsax.notification)),
+              ))
+            else
+              ShopGlassIconButton(
+                tooltip: 'Notifications'.tr,
+                onPressed: () => Get.to(() => const NotificationsScreen()),
+                icon: Iconsax.notification,
+              ),
+            ShopGlassIconButton(
+              tooltip: isEn ? 'Edit profile' : 'Chỉnh sửa hồ sơ',
+              onPressed: () => Get.to(() => const ProfileScreen()),
+              icon: Iconsax.setting_2,
+            ),
+          ],
+        ),
         body: SingleChildScrollView(
+        padding: shopAppbarContentPadding(context),
           physics: const BouncingScrollPhysics(),
           child: Column(
             children: [
@@ -82,7 +109,8 @@ class SettingScreen extends StatelessWidget {
               ),
 
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
+                padding: EdgeInsets.fromLTRB(16, 16, 16,
+                  36 + MediaQuery.paddingOf(context).bottom),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -379,7 +407,7 @@ class SettingScreen extends StatelessWidget {
                                   horizontal: 9,
                                   vertical: 4,
                                 ),
-                                decoration: BoxDecoration(
+                                decoration: ShopGlassDecoration(
                                   color: dark
                                       ? const Color(0xFF22362D)
                                       : const Color(0xFFEEF3EE),
@@ -478,7 +506,6 @@ class SettingScreen extends StatelessWidget {
                             confirmLabel: 'Logout',
                             cancelLabel: 'Cancel',
                             destructive: true,
-                            icon: Iconsax.logout,
                           );
                           if (confirmed == true) {
                             AuthenticationRepository.instance.logout();
@@ -515,7 +542,7 @@ class SettingScreen extends StatelessWidget {
   }
 
   void _showLanguageSheet(BuildContext context) {
-    showModalBottomSheet(
+    showShopBottomSheet(
       context: context,
       showDragHandle: true,
       builder: (sheet) => SafeArea(
@@ -582,8 +609,9 @@ class _MemberHeroHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
@@ -592,15 +620,16 @@ class _MemberHeroHeader extends StatelessWidget {
             Color(0xFF1F5041),
           ],
         ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: SafeArea(
+        top: false,
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(18, 10, 18, 22),
           child: Column(
             children: [
-              // Top bar: Brand membership tag + Notification & Edit Profile buttons
+              // Membership content below the shared toolbar.
               Row(
                 children: [
                   Container(
@@ -634,41 +663,6 @@ class _MemberHeroHeader extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  const Spacer(),
-                  if (activity != null)
-                    Obx(() => IconButton(
-                          tooltip: 'Notifications'.tr,
-                          onPressed: () =>
-                              Get.to(() => const NotificationsScreen()),
-                          icon: ShopCountBadge(
-                            count: activity!.unread,
-                            child: const Icon(
-                              Iconsax.notification,
-                              color: Colors.white,
-                              size: 21,
-                            ),
-                          ),
-                        ))
-                  else
-                    IconButton(
-                      tooltip: 'Notifications'.tr,
-                      onPressed: () =>
-                          Get.to(() => const NotificationsScreen()),
-                      icon: const Icon(
-                        Iconsax.notification,
-                        color: Colors.white,
-                        size: 21,
-                      ),
-                    ),
-                  IconButton(
-                    tooltip: isEn ? 'Edit profile' : 'Chỉnh sửa hồ sơ',
-                    onPressed: () => Get.to(() => const ProfileScreen()),
-                    icon: const Icon(
-                      Iconsax.setting_2,
-                      color: Colors.white,
-                      size: 21,
                     ),
                   ),
                 ],
@@ -716,7 +710,7 @@ class _MemberHeroHeader extends StatelessWidget {
                         Container(
                           width: 62,
                           height: 62,
-                          decoration: BoxDecoration(
+                          decoration: ShopGlassDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white.withValues(alpha: 0.14),
                           ),
@@ -780,7 +774,7 @@ class _MemberHeroHeader extends StatelessWidget {
                                     horizontal: 9,
                                     vertical: 3.5,
                                   ),
-                                  decoration: BoxDecoration(
+                                  decoration: ShopGlassDecoration(
                                     color: isVip
                                         ? const Color(0xFFF59E0B)
                                             .withValues(alpha: 0.22)
@@ -811,7 +805,7 @@ class _MemberHeroHeader extends StatelessWidget {
                       Container(
                         width: 34,
                         height: 34,
-                        decoration: BoxDecoration(
+                        decoration: ShopGlassDecoration(
                           color: Colors.white.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(11),
                         ),
@@ -831,7 +825,7 @@ class _MemberHeroHeader extends StatelessWidget {
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                decoration: BoxDecoration(
+                decoration: ShopGlassDecoration(
                   color: Colors.white.withValues(alpha: 0.09),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
@@ -976,7 +970,7 @@ class _OrderPipelineCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: borderColor),
@@ -1096,7 +1090,7 @@ class _OrderPipelineCard extends StatelessWidget {
                       horizontal: 12,
                       vertical: 8,
                     ),
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: dark
                           ? const Color(0xFF1F332A)
                           : const Color(0xFFF1F7F4),
@@ -1171,7 +1165,7 @@ class _PipelineStepTile extends StatelessWidget {
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: BoxDecoration(
+                  decoration: ShopGlassDecoration(
                     color: accentColor != null
                         ? accentColor!.withValues(alpha: dark ? 0.2 : 0.1)
                         : (dark
@@ -1314,7 +1308,7 @@ class _MenuGroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: ShopGlassDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: borderColor),
@@ -1418,7 +1412,7 @@ class _TrailingBadgeChevron extends StatelessWidget {
         if (count > 0) ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-            decoration: BoxDecoration(
+            decoration: ShopGlassDecoration(
               color: isNeutral
                   ? (dark ? const Color(0xFF24382F) : const Color(0xFFEAF1EC))
                   : const Color(0xFFD94A38),

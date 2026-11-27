@@ -15,8 +15,10 @@ class ReAuthLoginForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = UserController.instance;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: const TAppbar(showBackArrow: true,title: ShopText('Re-Authenticate User'),),
       body: SingleChildScrollView(
+        padding: shopAppbarContentPadding(context),
         child: Padding(
           padding: const EdgeInsets.all(TSizes.defaultSpace),
           child: Form(

@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/cart_controller.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/product_controller.dart';
 import 'package:fashion_business_app/features/shop/controllers/product/variation_controller.dart';
@@ -23,25 +24,12 @@ class TBottomAddToCart extends StatelessWidget {
     final dark = theme.brightness == Brightness.dark;
     final lang = Localizations.localeOf(context).languageCode;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: dark ? const Color(0xFF14211B) : Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE5EAE3),
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.25 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+    return SafeArea(
+      top: false,
+      child: ShopGlass(
+        radius: 26,
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Obx(() {
           final variable = product.productType == ProductType.variable.toString();
           final selected = variations.selectedVariation.value;
@@ -81,7 +69,7 @@ class TBottomAddToCart extends StatelessWidget {
                 children: [
                   Container(
                     height: 36,
-                    decoration: BoxDecoration(
+                    decoration: ShopGlassDecoration(
                       color: dark ? const Color(0xFF1E3028) : const Color(0xFFF5F7F2),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(

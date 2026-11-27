@@ -1,3 +1,6 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/common/widgets/images/circular_image.dart';
 import 'package:fashion_business_app/common/widgets/loaders/loader.dart';
 import 'package:fashion_business_app/common/widgets/shimmer/shimmer.dart';
@@ -17,11 +20,11 @@ class ProfileScreen extends StatelessWidget {
 
   Future<void> _editPhoneNumber(BuildContext context, UserController controller) async {
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final phoneCtrl = TextEditingController(text: controller.user.value.phoneNumber);
+    var phoneNumber = controller.user.value.phoneNumber;
     final formKey = GlobalKey<FormState>();
     var saving = false;
 
-    await showModalBottomSheet<void>(
+    await showShopBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -52,7 +55,8 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-                  controller: phoneCtrl,
+                  initialValue: phoneNumber,
+                  onChanged: (value) => phoneNumber = value,
                   keyboardType: TextInputType.phone,
                   autofocus: true,
                   validator: TValidator.validatePhoneNumber,
@@ -79,7 +83,7 @@ class ProfileScreen extends StatelessWidget {
                             if (!formKey.currentState!.validate()) return;
                             setModalState(() => saving = true);
                             try {
-                              final next = phoneCtrl.text.trim();
+                              final next = phoneNumber.trim();
                               await UserRepository.instance
                                   .updateSingleField({'PhoneNumber': next});
                               controller.user.value.phoneNumber = next;
@@ -122,7 +126,6 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
     );
-    phoneCtrl.dispose();
   }
 
   @override
@@ -136,10 +139,14 @@ class ProfileScreen extends StatelessWidget {
         dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE4EAE4);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor:
-            dark ? const Color(0xFF0E1713) : const Color(0xFFF4F6F2),
+      extendBodyBehindAppBar: true,
+        backgroundColor: Colors.transparent,
+        appBar: TAppbar(
+          showBackArrow: true,
+          title: Text(isEn ? 'Edit Profile' : 'Hồ sơ cá nhân', style: shopAppbarTitleStyle),
+        ),
         body: Obx(() {
           final user = controller.user.value;
           final displayName = user.fullName.trim().isEmpty
@@ -147,14 +154,16 @@ class ProfileScreen extends StatelessWidget {
               : user.fullName.trim();
 
           return SingleChildScrollView(
+        padding: shopAppbarContentPadding(context),
             physics: const BouncingScrollPhysics(),
             child: Column(
               children: [
                 // 1. Luxury Dark-Emerald Profile Hero Banner
                 Container(
                   width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
@@ -163,59 +172,15 @@ class ProfileScreen extends StatelessWidget {
                         Color(0xFF215243),
                       ],
                     ),
-                    borderRadius:
-                        BorderRadius.vertical(bottom: Radius.circular(32)),
+                    borderRadius: BorderRadius.circular(24),
                   ),
                   child: SafeArea(
+                    top: false,
                     bottom: false,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(8, 6, 16, 26),
                       child: Column(
                         children: [
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                icon: const Icon(
-                                  Icons.arrow_back_ios_new_rounded,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  isEn ? 'Edit Profile' : 'Hồ sơ cá nhân',
-                                  style: const TextStyle(
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFDDEABB)
-                                      .withValues(alpha: 0.16),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: const Text(
-                                  'VELORA ID',
-                                  style: TextStyle(
-                                    color: Color(0xFFDDEABB),
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.9,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
                           // Avatar + floating camera button
                           GestureDetector(
                             onTap: controller.uploadUserProfilePicture,
@@ -499,7 +464,7 @@ class ProfileScreen extends StatelessWidget {
     required List<Widget> children,
   }) =>
       Container(
-        decoration: BoxDecoration(
+        decoration: ShopGlassDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: borderColor),
@@ -607,7 +572,7 @@ class _ProfileDetailRow extends StatelessWidget {
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
+                decoration: ShopGlassDecoration(
                   color: dark
                       ? const Color(0xFF22362D)
                       : const Color(0xFFEEF4F0),

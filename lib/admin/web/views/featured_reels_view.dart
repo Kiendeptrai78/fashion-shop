@@ -1,10 +1,11 @@
+import 'package:fashion_business_app/features/shop/screens/reels/velora_review_video_catalog.dart';
+import 'package:fashion_business_app/admin/web/widgets/stock_video_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fashion_business_app/admin/web/controllers/admin_web_controller.dart';
 import 'package:fashion_business_app/admin/web/data/admin_web_models.dart';
 import 'package:fashion_business_app/admin/web/theme/admin_theme.dart';
 import 'package:fashion_business_app/admin/web/widgets/admin_product_video_preview_dialog.dart';
 import 'package:fashion_business_app/features/shop/models/product_model.dart';
-import 'package:fashion_business_app/features/shop/screens/reels/velora_review_video_catalog.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -28,9 +29,6 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
 
   AdminWebController get c => widget.controller;
 
-  List<({String label, String url})> get _studioPresetVideos =>
-      VeloraReviewVideoCatalog.adminPresetVideos;
-
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -39,7 +37,7 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
           allProducts.where((p) => p.isFeatured == true).toList();
       final totalVideosCount = allProducts.fold<int>(
         0,
-        (sum, p) => sum + (p.videos?.length ?? 0),
+        (sum, p) => sum + VeloraReviewVideoCatalog.videosForProduct(p).length,
       );
       final allComments = c.videoComments.toList();
       final pendingComments =
@@ -258,7 +256,7 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
                   const Divider(height: 1, color: AdminColors.border),
               itemBuilder: (context, index) {
                 final p = filtered[index];
-                final videos = p.videos ?? const <String>[];
+                final videos = VeloraReviewVideoCatalog.videosForProduct(p);
                 final isFeat = p.isFeatured == true;
                 final commentCount = c.videoComments
                     .where((cm) => cm.productId == p.id)
@@ -1105,8 +1103,9 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
     ProductModel? selectedProduct =
         initialProduct ?? c.products.firstOrNull;
     final videoUrls = <String>[
-      ...(selectedProduct?.videos ?? const <String>[]),
+      if (selectedProduct != null) ...VeloraReviewVideoCatalog.videosForProduct(selectedProduct),
     ];
+    final videoSources = <Map<String, dynamic>>[...(selectedProduct?.videoSources ?? [])];
     bool makeFeatured = selectedProduct?.isFeatured ?? true;
     String productSearch = '';
     bool uploading = false;
@@ -1209,7 +1208,7 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
                                       ),
                                     ),
                                     subtitle: Text(
-                                      '${c.localizeCategory(item.categoryName)} • Hiện có ${item.videos?.length ?? 0} video',
+                                      '${c.localizeCategory(item.categoryName)} • Hiện có ${VeloraReviewVideoCatalog.videosForProduct(item).length} video',
                                       style: const TextStyle(fontSize: 11),
                                     ),
                                     trailing: isSel
@@ -1219,11 +1218,12 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
                                     onTap: () {
                                       setModalState(() {
                                         selectedProduct = item;
+                                        videoSources..clear()..addAll(item.videoSources ?? []);
                                         videoUrls
                                           ..clear()
                                           ..addAll(
-                                              item.videos ?? const <String>[]);
-                                        makeFeatured = item.isFeatured ?? true;
+                                              VeloraReviewVideoCatalog.videosForProduct(item));
+                                        makeFeatured = item.isFeatured;
                                       });
                                     },
                                   );
@@ -1304,34 +1304,19 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
                               ],
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Hoặc chọn nhanh từ kho Video Studio 9:16 VELORA:',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: AdminColors.inkSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              children: [
-                                for (final preset in _studioPresetVideos)
-                                  ActionChip(
-                                    avatar: const Icon(Iconsax.video_play,
-                                        size: 14, color: AdminColors.forest),
-                                    label: Text(
-                                      preset.label,
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                    onPressed: () {
-                                      if (!videoUrls.contains(preset.url)) {
-                                        setModalState(
-                                            () => videoUrls.add(preset.url));
-                                      }
-                                    },
-                                  ),
-                              ],
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                final source = await pickStockVideo(ctx);
+                                if (source == null || !ctx.mounted) return;
+                                setModalState(() {
+                                  final url = source['url'] as String;
+                                  if (!videoUrls.contains(url)) videoUrls.add(url);
+                                  videoSources.removeWhere((entry) => entry['url'] == url);
+                                  videoSources.add(source);
+                                });
+                              },
+                              icon: const Icon(Icons.video_library_outlined),
+                              label: const Text('Tìm video từ Pixabay Free'),
                             ),
                             const SizedBox(height: 10),
                             Row(
@@ -1374,7 +1359,7 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: const Text(
-                                  'Chưa có video nào được gắn. Hãy tải file .mp4 hoặc chọn từ kho Studio ở trên.',
+                                  'Chưa có video nào được gắn. Hãy tải file .mp4 hoặc tìm video từ Pixabay ở trên.',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: AdminColors.inkSecondary,
@@ -1442,6 +1427,7 @@ class _AdminFeaturedReelsViewState extends State<AdminFeaturedReelsView> {
                                   final ok = await c.assignVideosToProduct(
                                     product: selectedProduct!,
                                     videoUrls: videoUrls,
+                                    videoSources: videoSources.where((entry) => videoUrls.contains(entry['url'])).toList(),
                                     makeFeatured: makeFeatured,
                                   );
                                   if (ok && dialogCtx.mounted) {

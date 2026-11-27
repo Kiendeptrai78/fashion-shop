@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_count_badge.dart';
 import 'package:fashion_business_app/common/widgets/product/badges/shop_status_badge.dart';
 import 'package:fashion_business_app/common/widgets/tabs/shop_filter_tab.dart';
@@ -56,7 +58,8 @@ Widget app(Widget home, {String language = 'vi', double textScale = 1}) =>
       supportedLocales: const [Locale('vi'), Locale('en')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(
-        textScaler: TextScaler.linear(textScale)), child: child!), home: home));
+        textScaler: TextScaler.linear(textScale)),
+        child: ShopGlassBackground(child: child!)), home: home));
 
 Future<void> preview(WidgetTester tester, String name) async {
   if (!const bool.fromEnvironment('ORDER_UI_PREVIEWS')) return;
@@ -79,6 +82,8 @@ void main() {
       loader.addFont(rootBundle.load('assets/fonts/BeVietnamPro-$weight.ttf'));
     }
     await loader.load();
+    await (FontLoader('packages/cupertino_icons/CupertinoIcons')
+      ..addFont(rootBundle.load('packages/cupertino_icons/assets/CupertinoIcons.ttf'))).load();
     await (FontLoader('MaterialIcons')
       ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
     await (FontLoader('packages/iconsax/iconsax')
@@ -92,8 +97,14 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     Get.put<AccountActivity>(_Activity());
+    tester.view.padding = const FakeViewPadding(top: 62);
+    tester.view.viewPadding = const FakeViewPadding(top: 62);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
     await tester.pumpWidget(app(OrderScreen(loadOrders: () async => orders)));
     await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.byType(ShopFilterTabs)).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(find.byType(TAppbar)).dy));
     expect(find.byType(ShopStatusBadge), findsNWidgets(3));
     for (final order in orders) {
       final title = find.text(order.items.first.title);
@@ -105,7 +116,11 @@ void main() {
       expect(badge.backgroundColor, const Color(0xFFD92D3E));
     }
     await preview(tester, 'velora-orders');
-    await tester.tap(find.byType(ShopFilterTab).at(1));
+    final pending = find.byWidgetPredicate(
+      (widget) => widget is ShopFilterTab && widget.label == 'Pending');
+    await Scrollable.ensureVisible(tester.element(pending.first), alignment: 0.5);
+    await tester.pumpAndSettle();
+    await tester.tap(pending.hitTestable().first);
     await tester.pumpAndSettle();
     expect(find.text('VELORA AeroPulse R1'), findsOneWidget);
     expect(find.text('VELORA CourtLine Classic'), findsNothing);
@@ -119,13 +134,20 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final records = [request(ReturnRequestStatus.inspecting),
       request(ReturnRequestStatus.pending, index: 1), request(ReturnRequestStatus.completed, index: 2)];
+    tester.view.padding = const FakeViewPadding(top: 62);
+    tester.view.viewPadding = const FakeViewPadding(top: 62);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
     await tester.pumpWidget(app(MyReturnRequestsScreen(requests: Stream.value(records))));
     await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.byType(ShopFilterTabs)).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(find.byType(TAppbar)).dy));
     expect(find.byType(ShopFilterTab), findsWidgets);
     expect(find.byType(ShopStatusBadge), findsWidgets);
     expect(find.text('Đang kiểm tra'), findsOneWidget);
     await preview(tester, 'velora-returns');
-    await tester.tap(find.byType(ShopFilterTab).at(1));
+    await tester.tap(find.byWidgetPredicate(
+      (widget) => widget is ShopFilterTab && widget.label == 'Chờ duyệt').hitTestable().first);
     await tester.pumpAndSettle();
     expect(find.text('RET-VL24052'), findsOneWidget);
     expect(find.text('RET-VL24051'), findsNothing);

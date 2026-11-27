@@ -19,6 +19,7 @@ class ProductModel {
   String? description;
   List<String>? images;
   List<String>? videos;
+  List<Map<String, dynamic>>? videoSources;
   String productType;
   BrandModel? brand;
   String categoryId;
@@ -38,6 +39,7 @@ class ProductModel {
         this.date,
         this.images,
         this.videos,
+        this.videoSources,
         this.salePrice = 0.0,
         required this.isFeatured,
         this.isDiscontinued = false,
@@ -60,6 +62,7 @@ class ProductModel {
       'Price': price,
       'Images': images ?? [],
       'Videos': videos ?? [],
+      if (videoSources != null) 'VideoSources': videoSources,
       'Thumbnail': thumbnail,
       'SalePrice': salePrice,
       'IsFeatured': isFeatured,
@@ -102,6 +105,8 @@ class ProductModel {
           ? ProductSizeGuide.fromJson(Map<String, dynamic>.from(data['SizeGuide'])) : null,
       images: List<String>.from(data['Images'] ?? []),
       videos: List<String>.from(data['Videos'] ?? []),
+      videoSources: data['VideoSources'] is List ? (data['VideoSources'] as List)
+          .whereType<Map>().map((entry) => Map<String, dynamic>.from(entry)).toList() : null,
       productAttributes: (data['ProductAttributes'] as List? ?? [])
           .map((e) => ProductAttributeModel.fromJson(Map<String, dynamic>.from(e))).toList(),
       productVariations: (data['ProductVariations'] as List? ?? [])

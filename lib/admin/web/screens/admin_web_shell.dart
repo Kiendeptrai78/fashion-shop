@@ -1,6 +1,7 @@
 import 'package:fashion_business_app/admin/web/controllers/admin_web_controller.dart';
 import 'package:fashion_business_app/admin/web/data/admin_web_models.dart';
 import 'package:fashion_business_app/admin/web/theme/admin_theme.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/admin/web/views/banners_view.dart';
 import 'package:fashion_business_app/admin/web/views/brands_view.dart';
 import 'package:fashion_business_app/admin/web/views/categories_view.dart';
@@ -79,12 +80,20 @@ class _AdminWebShellState extends State<AdminWebShell> {
             borderRadius: BorderRadius.circular(10),
           ),
         ),
-        scaffoldBackgroundColor: AdminColors.canvas,
+        scaffoldBackgroundColor: Colors.transparent,
         dividerColor: AdminColors.border,
+        dialogTheme: DialogTheme(
+          backgroundColor: const Color(0xF5F9FCF9),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.92)),
+          ),
+        ),
       ),
       child: Scaffold(
         key: _scaffoldKey,
-        backgroundColor: AdminColors.canvas,
+        backgroundColor: Colors.transparent,
         drawer: isDesktop
             ? null
             : Drawer(
@@ -98,9 +107,15 @@ class _AdminWebShellState extends State<AdminWebShell> {
         body: Row(
           children: [
             if (isDesktop)
-              SizedBox(
-                width: 266,
-                child: _AdminSidebar(controller: _controller),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
+                child: SizedBox(
+                  width: 262,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: _AdminSidebar(controller: _controller),
+                  ),
+                ),
               ),
             Expanded(
               child: Column(
@@ -247,143 +262,88 @@ class _AdminTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 680;
-    return Container(
-      height: 68,
-      padding: EdgeInsets.symmetric(horizontal: compact ? 16 : 28),
-      decoration: const BoxDecoration(
-        color: AdminColors.surface,
-        border: Border(bottom: BorderSide(color: AdminColors.border)),
-      ),
-      child: Row(
-        children: [
-          if (showMenuButton) ...[
-            IconButton(
-              onPressed: onMenuTap,
-              icon: const Icon(Icons.menu_rounded, color: AdminColors.ink),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(compact ? 12 : 18, 12, compact ? 12 : 18, 4),
+      child: ShopGlass(
+        height: 60,
+        radius: 18,
+        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 20),
+        child: Row(
+          children: [
+            if (showMenuButton) ...[
+              GlassIconButton(
+                size: 36,
+                iconSize: 19,
+                useOwnLayer: true,
+                style: GlassButtonStyle.transparent,
+                onPressed: onMenuTap,
+                icon: const Icon(Icons.menu_rounded, color: AdminColors.ink),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Obx(() => Text(
+                    _titleFor(controller.activeSection.value),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AdminColors.ink,
+                    ),
+                  )),
             ),
-            const SizedBox(width: 8),
-          ],
-          Expanded(
-            child: Obx(() => Text(
-                  _titleFor(controller.activeSection.value),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AdminColors.ink,
+            // Language switcher (VI / EN) via Liquid Glass Segmented Control
+            Obx(() => SizedBox(
+                  width: 96,
+                  child: GlassSegmentedControl(
+                    useOwnLayer: true,
+                    height: 33,
+                    segments: const [
+                      GlassSegment(label: 'VI'),
+                      GlassSegment(label: 'EN'),
+                    ],
+                    selectedIndex: controller.isVi.value ? 0 : 1,
+                    onSegmentSelected: (idx) => controller.setLanguage(idx == 0),
                   ),
                 )),
-          ),
-          // Language switcher pill (VI / EN)
-          Obx(() => Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: AdminColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AdminColors.border),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _CurrencyPill(
-                      label: 'VI',
-                      selected: controller.isVi.value,
-                      onTap: () => controller.setLanguage(true),
-                    ),
-                    _CurrencyPill(
-                      label: 'EN',
-                      selected: !controller.isVi.value,
-                      onTap: () => controller.setLanguage(false),
-                    ),
-                  ],
-                ),
-              )),
-          const SizedBox(width: 8),
-          // Currency switcher pill (VND / USD)
-          Obx(() => Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: AdminColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AdminColors.border),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _CurrencyPill(
-                      label: 'VND',
-                      selected: controller.showVnd.value,
-                      onTap: () => controller.showVnd.value = true,
-                    ),
-                    _CurrencyPill(
-                      label: 'USD',
-                      selected: !controller.showVnd.value,
-                      onTap: () => controller.showVnd.value = false,
-                    ),
-                  ],
-                ),
-              )),
-          const SizedBox(width: 10),
-          Obx(() => IconButton(
-                tooltip: 'Làm mới dữ liệu',
-                onPressed: controller.isRefreshing.value
-                    ? null
-                    : () => controller.loadAll(silent: true),
-                style: IconButton.styleFrom(
-                  backgroundColor: AdminColors.surfaceMuted,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: AdminColors.border),
+            const SizedBox(width: 8),
+            // Currency switcher (VND / USD) via Liquid Glass Segmented Control
+            Obx(() => SizedBox(
+                  width: 112,
+                  child: GlassSegmentedControl(
+                    useOwnLayer: true,
+                    height: 33,
+                    segments: const [
+                      GlassSegment(label: 'VND'),
+                      GlassSegment(label: 'USD'),
+                    ],
+                    selectedIndex: controller.showVnd.value ? 0 : 1,
+                    onSegmentSelected: (idx) =>
+                        controller.showVnd.value = idx == 0,
                   ),
-                ),
-                icon: controller.isRefreshing.value
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AdminColors.forest,
-                        ),
-                      )
-                    : const Icon(Iconsax.refresh, size: 18, color: AdminColors.ink),
-              )),
-        ],
-      ),
-    );
-  }
-}
-
-class _CurrencyPill extends StatelessWidget {
-  const _CurrencyPill({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(7),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? AdminColors.forest : Colors.transparent,
-          borderRadius: BorderRadius.circular(7),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : AdminColors.inkSecondary,
-          ),
+                )),
+            const SizedBox(width: 8),
+            Obx(() => GlassIconButton(
+                  size: 36,
+                  iconSize: 17,
+                  useOwnLayer: true,
+                  semanticLabel: 'Làm mới dữ liệu',
+                  onPressed: controller.isRefreshing.value
+                      ? null
+                      : () => controller.loadAll(silent: true),
+                  icon: controller.isRefreshing.value
+                      ? const SizedBox(
+                          width: 15,
+                          height: 15,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AdminColors.forest,
+                          ),
+                        )
+                      : const Icon(Iconsax.refresh, size: 17, color: AdminColors.ink),
+                )),
+          ],
         ),
       ),
     );
@@ -559,14 +519,11 @@ class _AdminSidebar extends StatelessWidget {
               }),
             ),
             // Admin account footer
-            Container(
+            ShopGlass(
+              dark: true,
+              radius: 16,
               margin: const EdgeInsets.all(12),
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -700,58 +657,74 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Material(
-        color: selected ? AdminColors.forestLight : Colors.transparent,
-        borderRadius: BorderRadius.circular(11),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(11),
-          hoverColor: Colors.white.withValues(alpha: 0.08),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: selected ? AdminColors.sage : Colors.white70,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: selected ? Colors.white : Colors.white.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ),
-                if (badge != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: mutedBadge
-                          ? Colors.white.withValues(alpha: selected ? 0.2 : 0.1)
-                          : AdminColors.sage,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      badge!,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: mutedBadge ? Colors.white : AdminColors.forestDark,
-                      ),
-                    ),
-                  ),
-              ],
+    final rowContent = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: selected ? AdminColors.sage : Colors.white70,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected ? Colors.white : Colors.white.withValues(alpha: 0.82),
+              ),
             ),
           ),
-        ),
+          if (badge != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: mutedBadge
+                    ? Colors.white.withValues(alpha: selected ? 0.2 : 0.1)
+                    : AdminColors.sage,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                badge!,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: mutedBadge ? Colors.white : AdminColors.forestDark,
+                ),
+              ),
+            ),
+        ],
       ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: selected
+          ? ShopGlass(
+              dark: true,
+              radius: 13,
+              color: const Color(0x52316354),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onTap,
+                  borderRadius: BorderRadius.circular(13),
+                  child: rowContent,
+                ),
+              ),
+            )
+          : Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(13),
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(13),
+                hoverColor: Colors.white.withValues(alpha: 0.08),
+                child: rowContent,
+              ),
+            ),
     );
   }
 }

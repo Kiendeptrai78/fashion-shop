@@ -1,12 +1,14 @@
 import 'package:fashion_business_app/admin/login/login_admin_screen.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
+import 'package:fashion_business_app/common/widgets/glass/shop_page_transition.dart';
 import 'package:fashion_business_app/features/authentication/screens/splash/splash_screen.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:fashion_business_app/routes/app_route.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:fashion_business_app/utils/localization/shop_translations.dart';
-import 'package:fashion_business_app/routes/app_route.dart';
 import 'package:fashion_business_app/utils/theme/theme.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 
 import 'bindings/genaral_bindings.dart';
@@ -25,7 +27,8 @@ class App extends StatelessWidget {
       translations: ShopTranslations(),
       themeMode: ThemeMode.light,
       theme: TAppTheme.lightTheme,
-      darkTheme: TAppTheme.lightTheme,
+      darkTheme: TAppTheme.darkTheme,
+      customTransition: ShopPageTransition(),
       builder: (context, child) => GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () {
@@ -36,7 +39,7 @@ class App extends StatelessWidget {
             currentFocus?.unfocus();
           }
         },
-        child: child ?? const SizedBox.shrink(),
+        child: ShopGlassBackground(child: child ?? const SizedBox.shrink()),
       ),
       initialBinding: GeneralBinding(),
       getPages: AppRoutes.pages,

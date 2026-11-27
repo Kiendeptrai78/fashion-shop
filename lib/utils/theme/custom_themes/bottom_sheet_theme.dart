@@ -5,10 +5,12 @@ class TBottomSheetTheme{
 
   static BottomSheetThemeData lightBottomSheetTheme = BottomSheetThemeData(
     showDragHandle: true,
-    backgroundColor: Colors.white,
-    modalBackgroundColor: Colors.white,
+    backgroundColor: const Color(0xEDFAFAFB),
+    modalBackgroundColor: const Color(0xEDFAFAFB),
+    surfaceTintColor: Colors.transparent,
     constraints: const BoxConstraints(minWidth: double.infinity),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28),
+      side: BorderSide(color: Colors.white.withValues(alpha: 0.9)))
   );
 
   static BottomSheetThemeData darkBottomSheetTheme = BottomSheetThemeData(

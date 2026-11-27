@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:flutter/material.dart';
 import 'package:fashion_business_app/common/widgets/images/rounded_image.dart';
 import 'package:fashion_business_app/features/shop/models/category_model.dart';
@@ -56,12 +57,10 @@ class HomeEditorialHero extends StatelessWidget {
                 Positioned(
                   top: 16,
                   left: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF173E32).withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
+                  child: ShopGlass(
+                    radius: 999,
+                    color: const Color(0xB8173E32),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -166,58 +165,58 @@ class HomeCollections extends StatelessWidget {
             final dark = Theme.of(context).brightness == Brightness.dark;
             return SizedBox(
               width: 152,
-              child: Material(
-                color: dark ? const Color(0xFF1D2D26) : const Color(0xFFF3F5F0),
-                shape: RoundedRectangleBorder(
+              child: Container(
+                decoration: ShopGlassDecoration(
+                  color: dark ? const Color(0xFF1D2D26) : Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  side: BorderSide(
-                    color: dark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE4E8DF),
-                  ),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => onSelect(category),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: TRoundedImage(
-                            imageUrl: category.image,
-                            isNetworkImage: true,
-                            width: double.infinity,
-                            borderRadius: 10,
-                            padding: const EdgeInsets.all(6),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => onSelect(category),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TRoundedImage(
+                              imageUrl: category.image,
+                              isNetworkImage: true,
+                              width: double.infinity,
+                              borderRadius: 10,
+                              padding: const EdgeInsets.all(6),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ShopText(
-                                category.name,
-                                softWrap: true,
-                                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ShopText(
+                                  category.name,
+                                  softWrap: true,
+                                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: dark ? const Color(0xFF284136) : const Color(0xFFE3ECE6),
-                                borderRadius: BorderRadius.circular(8),
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: ShopGlassDecoration(
+                                  color: dark ? const Color(0xFF284136) : const Color(0xFFE3ECE6),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.north_east_rounded,
+                                  size: 14,
+                                  color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
+                                ),
                               ),
-                              child: Icon(
-                                Icons.north_east_rounded,
-                                size: 14,
-                                color: dark ? const Color(0xFFDDEABB) : const Color(0xFF173E32),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

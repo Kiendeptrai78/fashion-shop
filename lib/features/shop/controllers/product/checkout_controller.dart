@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_overlays.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fashion_business_app/common/widgets/product/payment_method/payment_method.dart';
@@ -20,7 +21,7 @@ class CheckoutController extends GetxController {
       selectedPaymentMethod.value.name == vnpayMethodName;
 
   Future<dynamic> selectPaymentMethod(BuildContext context) =>
-      showModalBottomSheet(
+      showShopBottomSheet(
         context: context,
         showDragHandle: true,
         builder: (_) => SafeArea(

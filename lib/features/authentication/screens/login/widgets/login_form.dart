@@ -23,16 +23,20 @@ class TLoginForm extends StatelessWidget {
         key: controller.loginFormKey,
         child: Padding(
           padding:
-              const EdgeInsets.symmetric(vertical: TSizes.spaceBtwSections),
+              EdgeInsets.zero,
           child: Column(
             children: [
               ///email
               TextFormField(
                 controller: controller.email,
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.username, AutofillHints.email],
+                textInputAction: TextInputAction.next,
+                autocorrect: false,
                 validator: (value) => TValidator.validateEmail(value) ,
                 decoration: InputDecoration(
-                    prefixIcon: Icon(Iconsax.direct_right),
-                    labelText: TTexts.email.tr),
+                    prefixIcon: const Icon(Iconsax.direct_right),
+                    labelText: TTexts.email.tr, hintText: 'you@example.com'),
               ),
               const SizedBox(
                 height: TSizes.spaceBtwInoutFields,
@@ -41,6 +45,10 @@ class TLoginForm extends StatelessWidget {
               ///password
               Obx(() => TextFormField(
                 controller: controller.password,
+                autofillHints: const [AutofillHints.password],
+                textInputAction: TextInputAction.done,
+                autocorrect: false,
+                enableSuggestions: false,
                 validator: (value) => TValidator.validatePassword(value),
                 obscureText: controller.hidePassword.value,
                 expands: false,
@@ -83,14 +91,6 @@ class TLoginForm extends StatelessWidget {
                 height: TSizes.spaceBtwItems,
               ),
 
-              ///create account
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                    onPressed: () => Get.to(() => const SignupScreen()),
-                    child: const ShopText(TTexts.createAccount)),
-              ),
-              const SizedBox(height: TSizes.spaceBtwSections),
               const TFormDivider(dividerText: TTexts.orSignInWith),
               const SizedBox(height: TSizes.spaceBtwItems),
               SizedBox(
@@ -122,6 +122,13 @@ class TLoginForm extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              Wrap(alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center, children: [
+                  const ShopText('New to VELORA?'),
+                  TextButton(onPressed: () => Get.to(() => const SignupScreen()),
+                    child: const ShopText(TTexts.createAccount)),
+                ]),
             ],
           ),
         ));

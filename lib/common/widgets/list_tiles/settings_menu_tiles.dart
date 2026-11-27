@@ -1,3 +1,4 @@
+import 'package:fashion_business_app/common/widgets/glass/shop_glass.dart';
 import 'package:fashion_business_app/utils/localization/shop_locale.dart';
 import 'package:flutter/material.dart';
 
@@ -25,7 +26,7 @@ class TSettingMenuTiles extends StatelessWidget {
       leading: Container(
         width: 40,
         height: 40,
-        decoration: BoxDecoration(
+        decoration: ShopGlassDecoration(
           color: dark ? const Color(0xFF22362D) : const Color(0xFFEBF2EE),
           borderRadius: BorderRadius.circular(12),
         ),

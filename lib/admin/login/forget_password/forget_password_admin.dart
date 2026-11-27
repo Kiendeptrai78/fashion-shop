@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:fashion_business_app/common/widgets/appbar/appbar.dart';
 import 'package:fashion_business_app/admin/login/login_admin_screen.dart';
 import 'package:fashion_business_app/features/authentication/controllers/forget_password/forget_passwrod_controller.dart';
 import 'package:fashion_business_app/features/authentication/screens/login/login.dart';
@@ -18,12 +19,11 @@ class ForgetPasswordAdmin extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(ForgetPasswordController());
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Iconsax.arrow_left,color: THelperFunctions.isDarkMode(context) ? TColors.white : TColors.dark,),
-          onPressed: () => Get.offAll(() => const LoginAdminScreen()),
-        ),
-      ),      body: Padding(
+      appBar: TAppbar(
+        showBackArrow: true,
+        leadingOnPressed: () => Get.offAll(() => const LoginAdminScreen()),
+      ),
+      body: Padding(
         padding: const EdgeInsets.all(TSizes.defaultSpace),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
